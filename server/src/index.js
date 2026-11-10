@@ -869,7 +869,6 @@ export class Classroom extends DurableObject {
   // Signed-in students for the live list: code, page, connected or not, and time away this class.
   // Codes only; the teacher's computer swaps in names from its own file.
   studentList() {
-    if (!this.live) return [];
     const now = Date.now();
     const on = new Map(); // code -> page
     for (const ws of this.ctx.getWebSockets("student")) {
@@ -881,10 +880,13 @@ export class Classroom extends DurableObject {
     for (const info of this.pollers.values()) {
       if (info.code && now - info.t <= POLL_PRESENT_MS && !on.has(info.code)) on.set(info.code, info.page || 0);
     }
-    const codes = new Set([...on.keys(), ...Object.keys(this.watch)]);
+    // everyone on the class list, signed in or not
+    const cls = new Map();
+    for (const pd of this.roster.periods) for (const st of pd.students) cls.set(st.code, pd.name);
+    const codes = new Set([...cls.keys(), ...on.keys(), ...Object.keys(this.watch)]);
     return [...codes].map((code) => {
       const w = this.watch[code] || { away: false, count: 0, ms: 0, since: 0 };
-      return { code, connected: on.has(code), page: on.has(code) ? on.get(code) : null,
+      return { code, cls: cls.get(code) || "", connected: on.has(code), page: on.has(code) ? on.get(code) : null,
         away: w.away, count: w.count, ms: w.ms + (w.away ? now - w.since : 0), awaySince: w.away ? w.since : 0 };
     });
   }

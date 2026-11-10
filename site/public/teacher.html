@@ -45,6 +45,12 @@
   .t-who .t-who-name { font-weight: 700; font-size: 18px; }
   .t-who .t-who-now { font-size: 18px; }
   .t-who .t-who-sum { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-muted); }
+  .t-who-count { font-size: 18px; font-weight: 700; color: var(--aero-forest); }
+  .t-roll { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 14px; }
+  .t-roll li { display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--aero-forest); padding: 4px 0; }
+  .t-roll li::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--aero-line); }
+  .t-roll li.on::before { background: var(--aero-jade); border-color: var(--aero-jade); }
+  .t-roll li:not(.on) { color: var(--aero-muted); }
   .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
   .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .t-login { max-width: 520px; margin: 10vh auto 0; }
@@ -144,6 +150,10 @@
   </header>
   <div class="t-home">
     <div class="aero-panel" id="liveCard" hidden></div>
+    <div class="aero-panel" id="homeWho" hidden>
+      <div class="t-row"><h2 style="margin:0;flex:1">Students</h2><span id="homeWhoNote" class="t-who-count"></span></div>
+      <ul class="t-roll" id="homeWhoList"></ul>
+    </div>
     <div class="aero-panel">
       <div class="t-row" style="margin-bottom:12px">
         <h2 style="margin:0;flex:1">Your lessons</h2>
@@ -361,7 +371,7 @@ function onTState(s) {
   if (!s || !("presence" in s)) return;
   tstate = s;
   tstateAt = Date.now();
-  if (!$("homeView").hidden) renderLiveCard();
+  if (!$("homeView").hidden) { renderLiveCard(); renderHomeWho(); }
   if (!$("liveView").hidden) renderLive();
 }
 
@@ -369,6 +379,7 @@ function onTState(s) {
 async function showHome() {
   show("homeView");
   renderLiveCard();
+  renderHomeWho();
   const list = $("lessonList");
   list.replaceChildren(el("p", { class: "aero-muted", text: "Loading…" }));
   let lessons = [];
@@ -385,6 +396,19 @@ async function showHome() {
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
     el("button", { class: "t-small aero-btn-primary", text: "Start with class", onclick: () => startLesson(l.id) }),
   )));
+}
+
+// Before class: everyone on the class list, and whether they're signed in with the page open.
+// Only on a computer with the name file, so the iPad never shows it.
+function renderHomeWho() {
+  const has = tstate && Object.keys(names).length;
+  $("homeWho").hidden = !has;
+  if (!has) return;
+  const rows = (tstate.students || []).filter((x) => x.cls).map((x) => ({ ...x, name: shortName(names[x.code]) || x.code }));
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+  const n = rows.filter((x) => x.connected).length;
+  $("homeWhoNote").textContent = n + " of " + rows.length + " signed in";
+  $("homeWhoList").replaceChildren(...rows.map((x) => el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name })));
 }
 
 function renderLiveCard() {
@@ -751,10 +775,11 @@ function renderWho() {
   const rows = (tstate.students || []).map((x) => ({ ...x, ms: x.ms + (x.away ? since : 0), name: shortName(names[x.code]) || x.code }));
   rows.sort((a, b) => (b.away - a.away) || (a.connected - b.connected) || (b.ms - a.ms) || a.name.localeCompare(b.name));
   const nAway = rows.filter((x) => x.away).length;
-  $("lvWhoNote").textContent = rows.length ? rows.length + " signed in" + (nAway ? " · " + nAway + " away now" : "") : "No one signed in yet.";
+  const nOn = rows.filter((x) => x.connected).length;
+  $("lvWhoNote").textContent = nOn + " of " + rows.length + " signed in" + (nAway ? " · " + nAway + " away now" : "");
   $("lvWhoList").replaceChildren(...rows.map((x) => el("li", { class: x.away ? "away" : x.connected ? "" : "gone" },
     el("div", { class: "t-who-name", text: x.name }),
-    el("div", { class: "t-who-now", text: x.away ? "Away now" : x.connected ? "Here · page " + (x.page + 1) : "Not connected" }),
+    el("div", { class: "t-who-now", text: x.away ? "Away now" : x.connected ? "Here · page " + (x.page + 1) : "Not signed in" }),
     x.count ? el("div", { class: "t-who-sum", text: "Left " + x.count + (x.count === 1 ? " time" : " times") + " · " + mmss(x.ms) + " away" }) : null)));
 }
 setInterval(() => { if (!$("liveView").hidden && tstate && (tstate.students || []).some((x) => x.away)) renderWho(); }, 1000);
