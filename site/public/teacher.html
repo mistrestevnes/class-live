@@ -51,14 +51,14 @@
     body > *:not(#printArea) { display: none !important; }
     #printArea { display: block; }
     body { background: #fff !important; }
-    .slip { page-break-after: always; break-after: page; height: 95vh; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; text-align: center; color: #000; font-family: Helvetica, Arial, sans-serif; }
+    .slip { page-break-after: always; break-after: page; padding-top: 1in; text-align: center;
+            color: #000; font-family: Helvetica, Arial, sans-serif; }
     .slip:last-child { page-break-after: auto; break-after: auto; }
-    .slip .who { font-size: 48pt; font-weight: 700; margin-bottom: 0.6in; }
-    .slip .lab { font-size: 22pt; }
-    .slip .code { font-size: 72pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.15in 0 0.6in; }
-    .slip .how { font-size: 20pt; }
-    .slip .cls { font-size: 14pt; margin-top: 0.5in; color: #444; }
+    .slip .who { font-size: 20pt; font-weight: 700; margin-bottom: 0.25in; }
+    .slip .lab { font-size: 13pt; }
+    .slip .code { font-size: 26pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.05in 0 0.25in; }
+    .slip .how { font-size: 13pt; }
+    .slip .cls { font-size: 11pt; margin-top: 0.2in; color: #444; }
   }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
 </style>
