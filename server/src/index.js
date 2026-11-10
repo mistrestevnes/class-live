@@ -176,6 +176,12 @@ export class Classroom extends DurableObject {
       }
       if (p === "/api/roster" && m === "GET") return json(this.roster);
       if (p === "/api/roster" && m === "POST") return this.saveRoster(await request.json());
+      if (p === "/api/signout-all" && m === "POST") {
+        this.stokens = {};
+        await this.ctx.storage.put("stokens", {});
+        this.broadcast();
+        return json({ ok: true });
+      }
       if (p === "/api/skyq" && m === "PUT") return this.saveQuestions(await request.json());
       if (p === "/api/skyctl" && m === "POST") {
         const err = await this.skyControl(await request.json());

@@ -41,6 +41,25 @@
   .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .t-login { max-width: 520px; margin: 10vh auto 0; }
   .t-login form { display: grid; gap: 12px; }
+  .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin: 16px 0; }
+  .st-grid textarea { width: 100%; min-height: 300px; font-size: 18px; }
+  .st-grid input[type=text] { width: 100%; font-size: 20px; }
+  .st-card { display: grid; gap: 10px; }
+  .st-msg { font-weight: 600; min-height: 1.4em; margin: 10px 0 0; }
+  #printArea { display: none; }
+  @media print {
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block; }
+    body { background: #fff !important; }
+    .slip { page-break-after: always; break-after: page; height: 95vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center; color: #000; font-family: Helvetica, Arial, sans-serif; }
+    .slip:last-child { page-break-after: auto; break-after: auto; }
+    .slip .who { font-size: 48pt; font-weight: 700; margin-bottom: 0.6in; }
+    .slip .lab { font-size: 22pt; }
+    .slip .code { font-size: 72pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.15in 0 0.6in; }
+    .slip .how { font-size: 20pt; }
+    .slip .cls { font-size: 14pt; margin-top: 0.5in; color: #444; }
+  }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
 </style>
 <link rel="stylesheet" href="aerolab.css">
@@ -80,12 +99,38 @@
   </div>
 </section>
 
+<!-- students: login codes, name file, printing -->
+<section id="studentsView" class="t-wrap" hidden>
+  <header class="cl-top aero-bar">
+    <button id="stBack">◀ Lessons</button>
+    <h1 class="cl-title">Students</h1>
+    <span class="cl-grow"></span>
+    <button class="t-small" id="stSignOut">Sign out all students</button>
+    <button class="aero-btn-primary" id="stSave">Save</button>
+  </header>
+  <div class="t-home">
+    <div class="aero-panel">
+      <p>One login code per line, like 504cloud. Only codes are saved on the server. Names never leave this computer.</p>
+      <div class="t-row">
+        <button id="stOpenNames">Open name file</button>
+        <button id="stForget" hidden>Remove names from this computer</button>
+        <span id="stNamesNote" class="aero-muted"></span>
+      </div>
+      <p class="st-msg" id="stMsg" role="status"></p>
+    </div>
+    <div class="st-grid" id="stClasses"></div>
+    <div class="t-row"><button id="stAdd">+ Add a class</button></div>
+  </div>
+</section>
+<div id="printArea"></div>
+
 <!-- lessons list -->
 <section id="homeView" class="t-wrap" hidden>
   <header class="cl-top aero-bar">
     <h1 class="cl-title">Class Live · Lessons</h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="studentUrl"></span>
+    <button class="t-small" id="studentsBtn">Students</button>
     <button class="t-small" id="accountBtn">Username &amp; passcode</button>
     <button class="t-small" id="signOutBtn">Sign out</button>
   </header>
@@ -172,7 +217,7 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
   throw e;
 });
 
-const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView"];
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView"];
 function show(v) { for (const id of VIEWS) $(id).hidden = id !== v; }
 
 $("studentUrl").textContent = "Students go to: " + location.host;
@@ -186,6 +231,7 @@ async function route() {
   if (m) return openEditor(m[1]);
   if (h === "#/live") return showLive();
   if (h === "#/account") return showAccount();
+  if (h === "#/students") return showStudents();
   return showHome();
 }
 window.addEventListener("hashchange", route);
@@ -243,6 +289,7 @@ async function showLogin(mode) {
 
 // ---------------------------------------------------------------- account
 $("accountBtn").onclick = () => (location.hash = "#/account");
+$("studentsBtn").onclick = () => (location.hash = "#/students");
 $("acctCancel").onclick = () => (location.hash = "#/");
 $("signOutBtn").onclick = () => {
   token = null;
@@ -677,6 +724,98 @@ function renderLive() {
 }
 
 route();
+// ---------------------------------------------------------------- students
+// The server holds login codes only. Names come from a file on this computer
+// and are kept in this browser alone; they are never sent anywhere.
+const CODE_RE = /^\d{3}[a-z]{4,5}$/;
+let names = {};
+try { names = JSON.parse(localStorage.getItem("cl_names") || "{}") || {}; } catch { names = {}; }
+let stDraft = [];
+
+function shortName(full) {
+  const parts = String(full || "").trim().split(/\s+/);
+  if (!parts[0]) return "";
+  return parts.length > 1 ? parts[0] + " " + parts[parts.length - 1][0].toUpperCase() + "." : parts[0];
+}
+function readNameFile(text) {
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const cells = line.split(",").map((c) => c.replace(/^\s*"|"\s*$/g, "").trim());
+    const i = cells.findIndex((c) => CODE_RE.test(c.toLowerCase()));
+    if (i < 0) continue;
+    const who = cells.slice(i + 1).filter(Boolean).join(" ");
+    if (who) out[cells[i].toLowerCase()] = who;
+  }
+  return out;
+}
+function stMsg(t) { $("stMsg").textContent = t || ""; }
+function drawNamesNote() {
+  const n = Object.keys(names).length;
+  $("stNamesNote").textContent = n ? n + " names loaded on this computer." : "No names loaded. Printed pages will show codes only.";
+  $("stForget").hidden = !n;
+}
+async function showStudents() {
+  show("studentsView");
+  stMsg(""); drawNamesNote();
+  try {
+    const r = await tapi("/api/roster");
+    stDraft = r.periods.map((p) => ({ id: p.id, name: p.name, text: p.students.map((s) => s.code || "").filter(Boolean).join("\n"), count: p.students.length }));
+  } catch (e) { stMsg(e.message); stDraft = []; }
+  if (!stDraft.length) stDraft.push({ name: "", text: "", count: 0 });
+  drawClasses();
+}
+function drawClasses() {
+  $("stClasses").replaceChildren(...stDraft.map((p, i) => el("div", { class: "aero-panel st-card" },
+    el("input", { type: "text", value: p.name, placeholder: "Class name, like 5th Block", "aria-label": "Class name", oninput: (e) => (p.name = e.target.value) }),
+    el("textarea", { value: p.text, placeholder: "Login codes, one per line", "aria-label": "Login codes", oninput: (e) => (p.text = e.target.value) }),
+    el("div", { class: "aero-muted", text: p.count + (p.count === 1 ? " student saved" : " students saved") }),
+    el("div", { class: "t-row" },
+      el("button", { class: "aero-btn-primary", text: "Print logins", onclick: () => printLogins(p) }),
+      el("button", { text: "Remove this class", onclick: () => { stDraft.splice(i, 1); drawClasses(); stMsg("Click Save to remove it for good."); } })))));
+}
+function printLogins(p) {
+  const codes = p.text.split("\n").map((c) => c.toLowerCase().replace(/\s+/g, "")).filter(Boolean);
+  if (!codes.length) return stMsg("This class has no codes to print.");
+  $("printArea").replaceChildren(...codes.map((c) => el("section", { class: "slip" },
+    el("div", { class: "who", text: shortName(names[c]) || " " }),
+    el("div", { class: "lab", text: "Your login code" }),
+    el("div", { class: "code", text: c }),
+    el("div", { class: "how", text: "Go to " + location.host + " and type your code." }),
+    el("div", { class: "cls", text: p.name }))));
+  print();
+}
+$("stBack").onclick = () => (location.hash = "#/");
+$("stAdd").onclick = () => { stDraft.push({ name: "", text: "", count: 0 }); drawClasses(); };
+$("stSave").onclick = async () => {
+  stMsg("Saving…");
+  try {
+    await tapi("/api/roster", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ periods: stDraft.map((p) => ({ id: p.id, name: p.name, codes: p.text.split("\n") })) }) });
+    await showStudents();
+    stMsg("Saved.");
+  } catch (e) { stMsg(e.message); }
+};
+$("stSignOut").onclick = async () => {
+  if (!confirm("Sign out every student? They will need to type their code again.")) return;
+  try { await tapi("/api/signout-all", { method: "POST" }); stMsg("All students are signed out."); } catch (e) { stMsg(e.message); }
+};
+$("stOpenNames").onclick = () => {
+  const inp = el("input", { type: "file", accept: ".csv,text/csv" });
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    const got = readNameFile(await f.text());
+    const n = Object.keys(got).length;
+    if (!n) return stMsg("No codes with names were found. The file needs the code, then the first name, then the last name or initial.");
+    names = got;
+    try { localStorage.setItem("cl_names", JSON.stringify(names)); } catch {}
+    drawNamesNote(); stMsg(n + " names loaded on this computer.");
+  };
+  inp.click();
+};
+$("stForget").onclick = () => {
+  names = {}; try { localStorage.removeItem("cl_names"); } catch {}
+  drawNamesNote(); stMsg("Names removed from this computer.");
+};
 </script>
 </body>
 </html>
