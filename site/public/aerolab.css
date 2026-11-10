@@ -1,0 +1,196 @@
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Varela+Round&display=swap");
+
+/* =====================================================================
+   AeroLab theme v1 (Emerald on Deep Forest)
+   A shared look for online science simulations.
+   ===================================================================== */
+
+:root {
+  /* palette */
+  --aero-forest: #12291F;      /* page background, all body text */
+  --aero-emerald: #1E5E46;     /* primary actions, icons, links */
+  --aero-emerald-dark: #12432F;
+  --aero-jade: #5FA084;        /* fills, slider tracks, data series */
+  --aero-mint: #D2E8DD;        /* soft surfaces, highlights, selected rows */
+  --aero-gold: #E0B43C;        /* accent, vectors, warnings */
+  --aero-mist: #EEF5F1;        /* sim stage on light, panel tint */
+  --aero-muted: #3A5247;       /* secondary text on white */
+  --aero-line: #BFDCCD;        /* borders, table rules */
+  --aero-stage: #0B1C15;       /* behind videos / dark canvases */
+
+  /* type */
+  --aero-font-display: "Varela Round", "Lexend", sans-serif;
+  --aero-font-body: "Lexend", system-ui, sans-serif;
+  --aero-font-data: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* shape */
+  --aero-radius: 24px;
+  --aero-radius-sm: 12px;
+  --aero-shadow: 0 12px 32px rgba(0, 0, 0, .35), inset 0 1px 0 #FFFFFF;
+  --aero-focus: 0 0 0 3px #FFFFFF, 0 0 0 6px #12291F;
+
+  color-scheme: light;
+}
+
+/* ---------- page ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 17px; }
+body {
+  margin: 0;
+  color: var(--aero-forest);
+  font-family: var(--aero-font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: .03em;
+  word-spacing: .1em;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, .22) 0px, rgba(0, 0, 0, .22) 2px, transparent 2px, transparent 4px),
+    var(--aero-forest);
+  background-attachment: fixed;
+}
+
+h1, h2 { font-family: var(--aero-font-display); font-weight: 400; letter-spacing: .02em; text-transform: none; margin: 0 0 .4em; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 .3em; }
+p { margin: 0 0 .8em; }
+a { color: var(--aero-emerald); }
+a:hover { color: var(--aero-forest); }
+em, i { font-style: normal; font-weight: 600; } /* no italics, for readability */
+
+.aero-muted { color: var(--aero-muted); }
+.aero-data, code, pre, table, output, input[type=number] {
+  font-family: var(--aero-font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+/* ---------- surfaces ---------- */
+.aero-panel, dialog {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: var(--aero-radius);
+  box-shadow: var(--aero-shadow);
+  padding: 20px 24px;
+  color: var(--aero-forest);
+}
+.aero-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 20px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+}
+.aero-stage {
+  background: var(--aero-stage);
+  border-radius: var(--aero-radius);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 32px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+
+/* ---------- buttons: light mint gel (default) ---------- */
+button, .aero-btn {
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid #A8CDB9;
+  color: var(--aero-forest);
+  background: linear-gradient(180deg, #F8FBF9 0%, #E3F0E9 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 3px 8px rgba(18, 41, 31, .12);
+  cursor: pointer;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+button:hover:not(:disabled), .aero-btn:hover:not(:disabled) {
+  border-color: #7FB59A;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EAF5EF 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 5px 12px rgba(18, 41, 31, .18);
+}
+button:active:not(:disabled), .aero-btn:active:not(:disabled) {
+  border-color: #8FBFA6;
+  background: #E0EEE6;
+  box-shadow: inset 0 1px 2px rgba(18, 41, 31, .14), 0 2px 5px rgba(18, 41, 31, .1);
+}
+
+/* ---------- buttons: emerald gel (primary) ---------- */
+.aero-btn-primary, button.primary, button[aria-pressed="true"] {
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid var(--aero-emerald-dark);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+  background: linear-gradient(180deg, #2E7357 0%, #1E5E46 50%, #19533E 51%, #1E5E46 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 10px rgba(18, 67, 47, .3);
+}
+.aero-btn-primary:hover:not(:disabled), button.primary:hover:not(:disabled), button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--aero-emerald-dark);
+  background: linear-gradient(180deg, #3A8264 0%, #26694F 50%, #1F5D46 51%, #26694F 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 14px rgba(18, 67, 47, .38);
+}
+.aero-btn-primary:active:not(:disabled), button.primary:active:not(:disabled), button[aria-pressed="true"]:active:not(:disabled) {
+  background: linear-gradient(180deg, #1C5842 0%, #1E5E46 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .25), 0 2px 5px rgba(18, 67, 47, .25);
+}
+
+/* ---------- disabled ---------- */
+button:disabled, .aero-btn:disabled, .aero-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: #5E7068;
+  text-shadow: none;
+  background: #D3DED8;
+  border-color: #B3C4BB;
+  box-shadow: none;
+}
+
+/* ---------- keyboard focus ---------- */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--aero-focus) !important;
+  border-radius: 999px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-radius: var(--aero-radius-sm); }
+
+/* ---------- form controls ---------- */
+select, input[type=text], input[type=number], textarea {
+  font: inherit;
+  color: var(--aero-forest);
+  background: #FFFFFF;
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius-sm);
+  min-height: 40px;
+  padding: 6px 10px;
+}
+input[type=range], input[type=checkbox], input[type=radio], progress { accent-color: var(--aero-emerald); }
+input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+label { cursor: pointer; }
+
+/* ---------- chips & readouts ---------- */
+.aero-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid var(--aero-line);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aero-chip-warn { background: #F8EDCB; border-color: var(--aero-gold); }
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { text-align: right; font-weight: 600; color: var(--aero-muted); padding: 6px 10px; border-bottom: 1px solid var(--aero-line); background: #FFFFFF; }
+td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--aero-line); }
+tbody tr:hover td, tr.current td { background: var(--aero-mint); }
+
+/* ---------- details / explainers ---------- */
+details { border-top: 1px solid var(--aero-line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--aero-emerald); }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,19 @@
+/* Astronomer's Notebook: the look shared by the sky lesson's student, laptop and iPad pages. */
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap");
+:root{
+  --paper:#F3EAD3; --sheet:#FFFBEF; --ink:#2A2118; --soft:#574832; --rule:#6B5835; --faint:#C9B98F;
+  --accent:#8C3B22; --accent-dark:#6F2D19; --on-accent:#FFF8E8; --tint:#E7DABB; --bad:#8C2A17;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --r-box:14px; --r-ctl:8px;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+button{min-height:44px;padding:0 14px;font:400 18px var(--sans);background:transparent;color:var(--ink);border:1px solid var(--ink);border-radius:var(--r-ctl);cursor:pointer}
+button:hover:not(:disabled){background:var(--tint)}
+button.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+button.pri:hover:not(:disabled){background:var(--accent-dark)}
+button:disabled{opacity:.4;cursor:default}
+input,select,textarea{font:18px var(--sans);padding:8px 10px;background:var(--sheet);color:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);width:100%}
+:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.num{font-variant-numeric:tabular-nums}

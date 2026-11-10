@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Lesson Teacher</title>
+<link rel="stylesheet" href="notebook.css">
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font:18px var(--sans);color:var(--ink)}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+.panel{position:fixed;z-index:5;background:var(--paper);border-radius:var(--r-box);padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+#nav{right:12px;bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px;width:270px}
+#nav.small #asks,#nav.small #who{display:none}
+#info{grid-column:1/3;text-align:center;font:600 20px var(--serif)}
+#who{grid-column:1/3;text-align:center;color:var(--soft)}
+#asks{grid-column:1/3;display:grid;gap:6px}
+button{font-size:19px}
+#fw,.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+#fw:hover:not(:disabled),.go:hover:not(:disabled){background:var(--accent-dark)}
+#asks button{text-align:left;padding:6px 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#login{left:50%;top:30%;transform:translateX(-50%);width:320px;display:grid;gap:10px;padding:18px}
+#login strong{font:600 24px var(--serif)}
+#err{color:var(--bad);min-height:24px}
+#runbox{left:170px;top:12px;right:12px;display:flex;gap:18px;align-items:center;padding:12px 18px}
+#rtime{font:600 40px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent);flex:none}
+#rtime.low{color:var(--bad);text-decoration:underline}
+#rprompt{flex:1;font:400 20px/1.3 var(--serif);min-width:0}
+#rprompt p{margin:0}
+#rcount{color:var(--soft);margin-top:4px}
+#board{z-index:6;left:0;right:0;top:0;bottom:0;border-radius:0;box-shadow:none;display:flex;flex-direction:column;gap:12px;padding:16px 20px}
+#bhead{display:flex;gap:18px;align-items:flex-start;border-bottom:2px solid var(--ink);padding:0 0 8px 150px;min-height:40px}
+#bprompt{flex:1;font:600 22px/1.25 var(--serif)}
+#bprompt p{margin:0}
+#bitems{flex:1;min-height:0;overflow:auto;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-content:start}
+.card{background:var(--sheet);border:1px solid var(--faint);border-radius:var(--r-box);padding:12px 14px;font:400 24px/1.3 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere}
+.card.one{font-size:34px}
+.row{display:grid;grid-template-columns:40px 1fr 110px;gap:12px;align-items:center;font:400 22px var(--serif)}
+.row b{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--tint);font-family:var(--sans)}
+.track{background:var(--tint);border-radius:8px;overflow:hidden}
+.fill{height:30px;background:var(--accent)}
+.lab{margin-bottom:4px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+#nav{right:24px;bottom:24px}
+/* the laser pointer: drawn only here on the iPad (and so on the mirrored TV) */
+#laser{position:fixed;inset:0;width:100%;height:100%;z-index:7;pointer-events:none;touch-action:none}
+#laser.on{pointer-events:auto;cursor:crosshair}
+/* the iPad only shows; page and question controls live on the laptop */
+#nav,#rstop,#bclose{display:none!important}
+#ptr{position:fixed;z-index:7;left:16px;top:16px;font-size:16px;padding:6px 14px;border-radius:999px;background:rgba(243,234,211,.9);border:1px solid var(--ink);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#ptr[hidden]{display:none}
+#ptr.on{background:#d1281f;border-color:#d1281f;color:#fff;font-weight:600}
+#runbox{top:24px;right:24px}
+</style>
+</head>
+<body>
+<iframe id="f" title="Lesson page"></iframe>
+<canvas id="laser" aria-hidden="true"></canvas>
+<button id="ptr" aria-pressed="false" hidden>Pointer off</button>
+<div id="runbox" class="panel" hidden>
+  <div id="rtime"></div>
+  <div style="flex:1;min-width:0"><div id="rprompt"></div><div id="rcount"></div></div>
+  <button id="rstop">End</button>
+</div>
+<div id="board" class="panel" hidden>
+  <div id="bhead"><div id="bprompt"></div><button id="bclose">Close</button></div>
+  <div id="bitems"></div>
+</div>
+<div id="nav" class="panel" hidden>
+  <div id="info"></div>
+  <div id="asks"></div>
+  <button id="bk">Back</button><button id="fw">Forward</button>
+  <div id="who"></div>
+</div>
+<form id="login" class="panel" hidden>
+  <strong>Teacher sign in</strong>
+  <input id="user" placeholder="Username" autocomplete="username" autocapitalize="off">
+  <input id="pass" type="password" placeholder="Passcode" autocomplete="current-password">
+  <button>Sign in</button>
+  <div id="err"></div>
+</form>
+<script src="common.js"></script>
+<script>
+const LAST = 18, $ = (id) => document.getElementById(id);
+let token = store("cl_token"), n = 1, shown = 0, link = null, sky = null, endAt = null;
+const headers = () => ({ "x-token": token || "", "content-type": "application/json" });
+const fmt = (ms) => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function show() {
+  if (n !== shown) { shown = n; $("f").src = "sky" + n + ".html"; }
+  $("info").textContent = "Page " + n + " of " + LAST;
+  $("bk").disabled = n <= 1; $("fw").disabled = n >= LAST;
+}
+function needLogin() { token = null; store("cl_token", null); $("nav").hidden = true; $("ptr").hidden = true; $("runbox").hidden = true; $("login").hidden = false; }
+async function ctl(body) {
+  try { render(await post("/api/skyctl", body)); }
+  catch (e) { if (e.status === 401) needLogin(); else $("who").textContent = e.message; }
+}
+const post = (u, b) => api(u, { method: "POST", headers: headers(), body: JSON.stringify(b) });
+async function go(d) {
+  const to = Math.max(1, Math.min(LAST, n + d));
+  if (to === n) return;
+  n = to; show();
+  try { await post("/api/sky", { n }); }
+  catch (e) { if (e.status === 401) needLogin(); else $("who").textContent = "Not sent. Check your connection."; }
+}
+window.addEventListener("message", (e) => { if (e.data && e.data.type === "points") ctl({ t: "zodiac", points: e.data.n }); });
+$("bk").onclick = () => go(-1);
+$("fw").onclick = () => go(1);
+$("bclose").onclick = () => ctl({ t: "clearShown" });
+$("rstop").onclick = () => ctl({ t: sky.run && !sky.run.closed ? "end" : "dismiss" });
+let zod = null;
+function tellSim() { try { if (zod) $("f").contentWindow.postMessage({ type: "zodiac", on: zod.on, free: zod.free, points: zod.points, teacher: true }, location.origin); } catch {} }
+$("f").addEventListener("load", tellSim);
+function render(state) {
+  const s = state.sky || state;
+  sky = s;
+  zod = s.zodiac; tellSim();
+  if (s.n && s.n !== n) { n = s.n; show(); }
+  const cls = s.periods.find((p) => p.id === s.periodId);
+  $("who").textContent = (cls ? cls.name + ": " + s.signedIn + " of " + s.total + " signed in" : "No roster yet");
+  // questions on this page
+  const list = s.qs[n] || [];
+  const running = s.run && !s.run.closed;
+  $("asks").replaceChildren(...list.map((q, i) => el("button", { class: "go", disabled: running, title: q.prompt,
+    text: "Ask " + (i + 1) + ": " + q.prompt, onclick: () => ctl({ t: "start", qid: q.id }) })));
+  // the running question
+  $("runbox").hidden = !s.run;
+  if (s.run) {
+    $("rprompt").replaceChildren(formatText(s.runPrompt || (s.present && s.present.prompt) || ""));
+    $("rcount").textContent = s.answered + " of " + s.total + " answered";
+    $("rstop").textContent = s.run.closed ? "Hide" : "End";
+    endAt = s.run.remainingMs === null ? null : performance.now() + s.run.remainingMs;
+    if (endAt === null) $("rtime").textContent = "";
+  }
+  // chosen responses, no names
+  const p = s.present, has = p.items.length || p.chart;
+  $("board").hidden = !has;
+  // keep the running question visible above the answers
+  $("board").style.top = has && !$("runbox").hidden ? ($("runbox").offsetHeight + 36) + "px" : "0px";
+  $("nav").classList.toggle("small", !!has);
+  if (has) {
+    $("bprompt").replaceChildren(formatText(p.prompt));
+    if (p.chart) {
+      $("bitems").style.gridTemplateColumns = "1fr";
+      $("bitems").replaceChildren(...rows(p.chart));
+    } else {
+      $("bitems").style.gridTemplateColumns = "";
+      $("bitems").replaceChildren(...p.items.map((t) => el("div", { class: "card" + (p.items.length === 1 ? " one" : ""), text: t })));
+    }
+  }
+}
+// One row of the bar chart.
+function rows(c) {
+  return c.options.map((o, i) => {
+    const k = c.counts[i] || 0, pct = c.total ? Math.round(100 * k / c.total) : 0;
+    return el("div", { class: "row" }, el("b", { text: LETTERS[i] }),
+      el("div", {}, el("div", { class: "lab" }, inline(o)), el("div", { class: "track" }, el("div", { class: "fill", style: "width:" + pct + "%" }))),
+      el("div", { class: "num", text: k + " · " + pct + "%" }));
+  });
+}
+setInterval(() => {
+  if (!sky || !sky.run || endAt === null) return;
+  const left = sky.run.closed ? 0 : Math.max(0, endAt - performance.now());
+  $("rtime").textContent = fmt(left);
+  $("rtime").classList.toggle("low", left <= 10000);
+}, 200);
+function begin() {
+  $("login").hidden = true; $("nav").hidden = false; $("ptr").hidden = false;
+  show();
+  if (link) return;
+  link = new Link({
+    wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=teacher&token=" + encodeURIComponent(token),
+    poll: async () => { try { return await api("/api/t", { headers: headers() }); } catch (e) { if (e.status === 401) needLogin(); throw e; } },
+    post: () => {},
+    pollMs: 2000,
+    onMessage: (m) => { if (m.t === "tstate") render(m.state); else if (m.sky) render(m); },
+  });
+  link.start();
+}
+$("login").onsubmit = async (e) => {
+  e.preventDefault(); $("err").textContent = "";
+  try {
+    const r = await api("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: $("user").value, passcode: $("pass").value }) });
+    token = r.token; store("cl_token", token); begin();
+  } catch (x) { $("err").textContent = x.message; }
+};
+token ? begin() : needLogin();
+</script>
+<script>
+/* Laser pointer. While on, touches draw a red dot with a short fading trail and do not reach the sim. */
+(function(){
+  const cv = document.getElementById("laser"), cx = cv.getContext("2d"), btn = document.getElementById("ptr");
+  let on = false, pts = [], down = false, raf = 0;
+  const FADE = 700;
+  function size(){ const d = devicePixelRatio || 1; cv.width = innerWidth * d; cv.height = innerHeight * d; cx.setTransform(d, 0, 0, d, 0, 0); }
+  addEventListener("resize", size); size();
+  btn.addEventListener("click", () => {
+    on = !on; cv.classList.toggle("on", on); btn.classList.toggle("on", on);
+    btn.textContent = on ? "Pointer on" : "Pointer off"; btn.setAttribute("aria-pressed", on);
+    if (!on) { pts = []; down = false; }
+  });
+  function add(e){ pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (!raf) raf = requestAnimationFrame(draw); }
+  cv.addEventListener("pointerdown", (e) => { down = true; try { cv.setPointerCapture(e.pointerId); } catch (_) {} add(e); e.preventDefault(); });
+  cv.addEventListener("pointermove", (e) => { if (down || e.pointerType === "mouse") add(e); });
+  const up = () => { down = false; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  function draw(now){
+    raf = 0;
+    cx.clearRect(0, 0, innerWidth, innerHeight);
+    pts = pts.filter((p) => now - p.t < FADE || (down && p === pts[pts.length - 1]));
+    cx.lineCap = "round"; cx.lineJoin = "round";
+    for (let i = 1; i < pts.length; i++) {
+      const a = 1 - (now - pts[i].t) / FADE; if (a <= 0) continue;
+      cx.strokeStyle = "rgba(255,40,30," + (0.75 * a) + ")"; cx.lineWidth = 10 * a + 2;
+      cx.beginPath(); cx.moveTo(pts[i - 1].x, pts[i - 1].y); cx.lineTo(pts[i].x, pts[i].y); cx.stroke();
+    }
+    const last = pts[pts.length - 1];
+    if (last) {
+      const a = down ? 1 : Math.max(0, 1 - (now - last.t) / FADE);
+      cx.shadowColor = "rgba(255,60,40," + a + ")"; cx.shadowBlur = 22;
+      cx.fillStyle = "rgba(255,45,30," + a + ")"; cx.beginPath(); cx.arc(last.x, last.y, 14, 0, Math.PI * 2); cx.fill();
+      cx.shadowBlur = 0; cx.fillStyle = "rgba(255,230,220," + a + ")"; cx.beginPath(); cx.arc(last.x, last.y, 5, 0, Math.PI * 2); cx.fill();
+    }
+    if (pts.length) raf = requestAnimationFrame(draw);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galileo's Ship: Below Decks</title>
+<style>
+  :root{
+    --bg:#f4f2ec; --panel:#ffffff; --ink:#12120f; --muted:#454239;
+    --good:#0a6b34; --bad:#b00018; --blue:#0b4fa8; --brown:#7a4c00;
+    --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+  :root{color-scheme:light}   /* the scenes are drawn for a light page */
+  :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  *,*::before,*::after{box-sizing:inherit}
+  html{scroll-padding-top:env(safe-area-inset-top,0px)}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:0 14px 28px}
+  .wrap{max-width:min(1040px, calc((100vh - 170px) * 1.16 + 234px));margin:0 auto}
+  h1{font:800 26px var(--font);margin:10px 0 8px}
+
+  .stage{position:relative}
+  .seg{display:flex;border:3px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--panel)}
+  .seg button{flex:1;font:800 17px var(--font);padding:8px 10px;border:0;background:var(--panel);color:var(--ink);cursor:pointer}
+  .seg button+button{border-left:3px solid var(--ink)}
+  .seg button.on{background:var(--ink);color:#fff}
+  .seg button:disabled{opacity:.45;cursor:default}
+
+  .scene{position:relative;border:3px solid var(--ink);border-radius:16px;overflow:hidden;background:#cfe3ee;margin-bottom:12px}
+  .scene canvas{display:block;width:100%;height:auto}
+  .tag{position:absolute;top:10px;left:12px;background:var(--panel);border:2.5px solid var(--ink);border-radius:10px;
+    padding:4px 12px;font:800 18px var(--font)}
+  .read{position:absolute;bottom:10px;left:12px;background:var(--panel);border:2.5px solid var(--ink);border-radius:10px;
+    padding:4px 12px;font:700 17px var(--font)}
+  .read b{color:var(--blue)}
+  .note{position:absolute;bottom:10px;right:12px;font:700 15px var(--font);color:#fff;text-shadow:0 1px 2px #000}
+
+  /* the opening: control window top right of the cabin */
+  #introPanel{position:absolute;top:12px;right:12px;width:300px;max-height:calc(100% - 24px);overflow:auto;
+    background:var(--panel);border:3px solid var(--ink);border-radius:14px;padding:12px;z-index:2}
+  #introPanel>*+*{margin-top:10px}
+  .skip{position:absolute;bottom:10px;right:12px;background:var(--panel);border:2.5px solid var(--ink);border-radius:10px;
+    padding:4px 12px;font:800 17px var(--font);color:var(--ink);cursor:pointer;z-index:3}
+  #introPanel .pic{border:3px dashed var(--ink);border-radius:10px;padding:18px 10px;text-align:center;font:700 15px var(--font)}
+  #introPanel img{display:block;max-width:100%;border-radius:8px}
+
+  /* the simulation: ship and ball views square at the top, controls between them */
+  .top{display:grid;grid-template-columns:1fr 210px 1fr;gap:12px;align-items:start;margin-bottom:12px}
+  .top .scene{margin:0}
+  .sq .read{font-size:13px;padding:2px 8px;top:44px;bottom:auto;right:auto}
+  .sq .tag{font-size:16px;padding:3px 10px}
+  #panel{background:var(--panel);border:3px solid var(--ink);border-radius:14px;padding:10px}
+  #panel>*+*{margin-top:8px}
+  #panel .seg button{font-size:14px;padding:6px 4px}
+  #panel .btns{flex-wrap:wrap;gap:6px}
+  .go.toss{background:#e0782a;border-color:var(--ink);color:#fff}
+  #panel .gos{display:flex;flex-direction:column;gap:6px}
+  #panel .go{font-size:15px;padding:7px 8px;width:100%;flex:1 1 100%}
+  #panel .ghost{font-size:14px;padding:6px 8px;flex:1}
+  #panel .result{font-size:14px}
+  #panel summary{font-size:15px}
+  #panel .ctl{font-size:13px;grid-template-columns:1fr 3.8em;gap:2px 6px}
+  #panel .ctl span{grid-column:1/-1}
+  #panel .chk{font-size:14px;margin:4px 0}
+  #panel .chk input{width:17px;height:17px}
+  @media (max-width:760px){
+    .top{grid-template-columns:1fr 1fr;grid-template-areas:"s b" "p p"}
+    #sceneShip{grid-area:s} #sceneBall{grid-area:b} #panel{grid-area:p}
+  }
+  @media (max-width:480px){ .top{grid-template-columns:1fr;grid-template-areas:"s" "b" "p"} }
+  .btns{display:flex;gap:8px}
+  .go{background:var(--ink);color:#fff;border:3px solid var(--ink);border-radius:12px;font:800 18px var(--font);padding:9px 14px;cursor:pointer}
+  .ghost{background:var(--panel);color:var(--ink);border:3px solid var(--ink);border-radius:12px;font:800 16px var(--font);padding:8px 12px;cursor:pointer}
+  .btns .go{flex:1}
+  .go:disabled,.ghost:disabled{opacity:.4;cursor:default}
+  button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--brown);outline-offset:2px}
+  .result{font:700 17px var(--font);margin:0;min-height:0}
+  .result:empty{display:none}
+  details summary{font:800 17px var(--font);cursor:pointer}
+  details[open] summary{margin-bottom:8px}
+  .ctl{font:700 16px var(--font);display:grid;grid-template-columns:7.2em 1fr 4.6em;align-items:center;gap:6px;margin:6px 0}
+  .ctl input[type=range]{width:100%;accent-color:var(--ink)}
+  .ctl output{font-weight:800;text-align:right}
+  .chk{font:700 16px var(--font);display:flex;align-items:center;gap:8px;cursor:pointer;margin:6px 0}
+  .chk input{width:20px;height:20px;accent-color:var(--ink)}
+
+  /* the opening rounds */
+  #introPanel{width:300px}
+  #introPanel p{font:800 22px var(--font);margin:0}
+  #introPanel .big{font:800 34px var(--font)}
+  #introPanel .big.ok{color:var(--good)} #introPanel .big.no{color:var(--bad)}
+  #introPanel .yn{display:flex;gap:10px} #introPanel .yn button{flex:1}
+  #introPanel .go{width:100%}
+  .hide{display:none!important}
+  @media (max-width:980px){
+    #introPanel{position:static;width:auto;max-height:none;margin:-4px 0 12px}
+  }
+  @media (max-width:560px){
+    h1{font-size:24px} .tag{font-size:15px;padding:3px 8px} .read{font-size:14px;padding:3px 8px} .note{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Galileo's Ship: Below Decks</h1>
+
+  <div class="stage" id="intro">
+    <div class="scene">
+      <canvas id="cShip" width="1000" height="360" aria-label="Below decks, with the curtains closed"></canvas>
+      <div class="tag">Below decks</div>
+      <button class="skip" id="skip">Get to the point &rarr;</button>
+    </div>
+    <div class="panel" id="introPanel" role="status"></div>
+  </div>
+
+  <div class="hide" id="sim">
+    <div class="top">
+      <div class="scene sq" id="sceneShip">
+        <canvas id="cShipSq" width="480" height="360" aria-label="The view from on the ship"></canvas>
+        <div class="tag" id="tagShip">Ship's FoR</div>
+      </div>
+    <div class="panel" id="panel">
+      <div class="seg two" role="group" aria-label="How the ship moves">
+        <button data-mode="u" class="on" aria-pressed="true">Uniform</button>
+        <button data-mode="a">Accelerated</button>
+      </div>
+      <div class="gos">
+        <button class="go toss" data-go="toss">Toss it up</button>
+        <button class="go toss" data-go="drop">Drop it</button>
+        <button class="go toss" data-go="both">Both</button>
+      </div>
+      <div class="btns">
+        <button class="ghost" id="pause">Pause</button>
+        <button class="ghost" id="reset">Start over</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="arrows" checked> Show arrows</label>
+    </div>
+      <div class="scene sq" id="sceneBall">
+        <canvas id="cBall" width="480" height="360" aria-label="The view moving sideways with the ball"></canvas>
+        <div class="tag">Ball's FoR</div>
+      </div>
+    </div>
+  <div class="scene" id="sceneShore">
+    <canvas id="cShore" width="1000" height="360" aria-label="The view from the shore"></canvas>
+    <div class="tag">Shore's FoR</div>
+  </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+/* ═══════════════════════════════════════════════════════════════
+   GALILEO'S SHIP. Everything is worked out in meters and seconds and
+   only turned into pixels when drawn (S px per meter).
+   The ball's flight and the ship's motion during it are exact formulas
+   from the moment of release, so a slow computer shows the same result
+   as a fast one: only the smoothness changes.
+   ═══════════════════════════════════════════════════════════════ */
+var S=40, VIEW=25, LOGW=1000, LOGH=360, SEA=300, DECK=290;   /* deck line in canvas px */
+var G=9.8, L=10, R=0.15;                                   /* ship length, ball radius (m) */
+var HAND_X=3.55, HAND_Y=1.35;                              /* passenger's hand, from the stern, above the deck */
+var DROP_X=7.3, MAST_DROP=6.0, CABIN_DROP=4.2, CABIN_H=4.6, MAST_H=6.6;
+var BELOW=true;   /* true: the below-decks version (windowless cabin; the drop ball hangs from the ceiling) */
+var CATCH=0.2, START_X=0.5, SHIP_SCREEN=230;                /* passenger view: stern sits here */
+
+var st={mode:"u", v:3, a:2, h:3, cabin:false, arrows:true, slow:true,
+        paused:false, shipX:3, shipV:3, odo:0, phase:"idle", fls:{}, ref:null, T:0, Tend:0, tr:{}};
+var KINDS=["toss","drop"];
+
+var $=function(id){ return document.getElementById(id); };
+var cShip=$("cShip"), cShore=$("cShore"), xs=cShip.getContext("2d"), xo=cShore.getContext("2d"),
+    cShipSq=$("cShipSq"), xq=cShipSq.getContext("2d"), cBall=$("cBall"), xb=cBall.getContext("2d");
+var SQ=480, SQH=360, SQ_X=-180, SQ_Y=0, DPR=Math.min(2,window.devicePixelRatio||1);   /* square views: the wide scene, shifted */
+[[cShip,xs,LOGW,LOGH],[cShore,xo,LOGW,LOGH],[cShipSq,xq,SQ,SQH],[cBall,xb,SQ,SQH]].forEach(function(p){
+  p[0].width=p[2]*DPR; p[0].height=p[3]*DPR; p[1].setTransform(DPR,0,0,DPR,0,0); });
+/* paint the square's margins, then draw the wide scene shifted into it */
+/* Zoom: at release each view works out a box holding the whole path of
+   every ball let go (in that view), from the hull up to just above the
+   highest point, and eases in until that box fills the view. The camera
+   then holds still for the whole flight; it does not follow the ball. */
+var FX=0, ZB=null;          /* FX eases 0..1 while a ball is in the air */
+function samplePos(k,T){
+  var f=st.fls[k], s=shipAt(f,T), rel, y;
+  if(T<f.tEnd){ var b=ballAt(f,T); rel=b.x-s.x; y=b.y; } else { rel=f.relEnd; y=f.yEnd; }
+  return {rel:rel, wx:s.x+rel, y:y};
+}
+function zoomBoxes(){
+  var bx={ship:[1e9,1e9,-1e9,DECK+0.5*S], ball:[1e9,1e9,-1e9,DECK+0.5*S], shore:[1e9,1e9,-1e9,DECK+0.5*S]};
+  function add(b,x,y){ b[0]=Math.min(b[0],x-R*S); b[2]=Math.max(b[2],x+R*S); b[1]=Math.min(b[1],y-R*S); }
+  var f0=st.ref;
+  for(var i=0;i<=40;i++){
+    var T=st.Tend*i/40;
+    KINDS.forEach(function(k){
+      if(!st.fls[k]) return;
+      var p=samplePos(k,T), py=DECK-p.y*S;
+      add(bx.ship,SHIP_SCREEN+p.rel*S,py);
+      add(bx.ball,SHIP_SCREEN+(p.wx-f0.sx0-f0.sv0*T)*S,py);
+      add(bx.shore,p.wx*S,py);
+    });
+  }
+  return bx;
+}
+function zoomOn(c,W,H,box,offX,offY,inset){
+  var k=box?FX:0; if(k<0.001) return;
+  var padX=1.0*S, padY=0.3*S, bw=box[2]-box[0]+2*padX, bh=box[3]-box[1]+2*padY;
+  var Z=Math.max(1,Math.min(4,W/bw,(H-inset)/bh)), z=1+(Z-1)*k;
+  var cx=(box[0]+box[2])/2+offX, cy=(box[1]+box[3])/2+offY;
+  c.translate(W/2,H/2+inset/2*k); c.scale(z,z); c.translate(-(W/2+(cx-W/2)*k),-(H/2+(cy-H/2)*k));
+}
+function sqBegin(c,box){
+  c.setTransform(DPR,0,0,DPR,0,0);
+  c.fillStyle=BELOW?"#6b3f25":"#cfe3ee"; c.fillRect(0,0,SQ,SEA+SQ_Y);
+  c.fillStyle=BELOW?"#8a5a34":"#2f6f96"; c.fillRect(0,SEA+SQ_Y,SQ,SQH);
+  zoomOn(c,SQ,SQH,box,SQ_X,SQ_Y,60);
+  c.translate(SQ_X,SQ_Y);
+}
+/* wash the colour out of everything drawn so far, so the ball stands out */
+function fade(c){
+  if(FX<0.001) return;
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  c.globalCompositeOperation="saturation"; c.globalAlpha=0.85*FX; c.fillStyle="#808080"; c.fillRect(0,0,c.canvas.width,c.canvas.height);
+  c.globalCompositeOperation="source-over"; c.globalAlpha=0.3*FX; c.fillStyle="#fff"; c.fillRect(0,0,c.canvas.width,c.canvas.height);
+  c.restore();
+}
+
+/* ── scenery: the far shore repeats every 50 m, fixed to the shore ── */
+var PERIOD=50, TREES=[], seed=7;
+function rnd(){ seed=(seed*16807)%2147483647; return seed/2147483647; }
+for(var x=0;x<PERIOD;x+=0.9+rnd()*1.3) TREES.push({x:x, h:0.5+rnd()*0.6, w:0.45+rnd()*0.3, d:rnd()});
+var CLOUDS=[[3,52,1],[11,38,.8],[19,64,1.1],[30,44,.9],[41,58,1]];
+
+function homeY(k){ return k==="toss"?HAND_Y:(BELOW?CABIN_DROP:MAST_DROP); }
+function refX(k){ return k==="toss"?HAND_X:DROP_X; }
+function accel(){ return st.mode==="a"?st.a:0; }
+
+/* ── the flight, worked out once at release ── */
+function plan(k,shipX,shipV){
+  var a=accel(), y0=homeY(k), vy=k==="toss"?Math.sqrt(2*G*st.h):0;
+  /* the ball keeps the ship's speed at release; the ship gains 1/2 a t^2 on it */
+  var relAt=function(t){ return refX(k)-0.5*a*t*t; };
+  var tEnd, yEnd, caught=false;
+  if(k==="toss"){
+    var tH=2*vy/G;                               /* back down to hand height */
+    if(Math.abs(relAt(tH)-HAND_X)<CATCH){ tEnd=tH; yEnd=HAND_Y; caught=true; }
+  }
+  if(!caught){ tEnd=(vy+Math.sqrt(vy*vy+2*G*(y0-R)))/G; yEnd=R; }
+  return {x0:shipX+refX(k), y0:y0, vx:shipV, vy:vy, sx0:shipX, sv0:shipV, a:a, tEnd:tEnd, yEnd:yEnd, caught:caught,
+          relEnd:relAt(tEnd)};
+}
+function ballAt(f,t){ return {x:f.x0+f.vx*t, y:f.y0+f.vy*t-0.5*G*t*t, vx:f.vx, vy:f.vy-G*t}; }
+function shipAt(f,t){ return {x:f.sx0+f.sv0*t+0.5*f.a*t*t, v:f.sv0+f.a*t}; }
+
+/* the whole flight must stay in the shore view; if not, the ship comes round again first */
+function fits(kinds,shipX,shipV){
+  var end=0;
+  kinds.forEach(function(k){ var f=plan(k,shipX,shipV); end=Math.max(end,shipAt(f,f.tEnd).x); });
+  return shipX>=0.3 && end+L<=VIEW-0.3;
+}
+function release(kinds){
+  if(st.phase==="fly") return;
+  if(!fits(kinds,st.shipX,st.shipV)){
+    if(st.mode==="a") st.shipV=1;
+    st.shipX=START_X;
+  }
+  st.fls={}; st.tr={}; st.T=0; st.Tend=0;
+  kinds.forEach(function(k){
+    var f=plan(k,st.shipX,st.shipV); st.fls[k]=f; st.ref=f; st.Tend=Math.max(st.Tend,f.tEnd);
+    st.tr[k]={ship:[], shore:[], ball:[]};
+  });
+  ZB=zoomBoxes();
+  st.phase="fly"; lock(true);
+}
+
+/* ── the step: exact formulas, so the frame rate only changes smoothness ── */
+function step(dt){
+  if(st.phase==="fly"){
+    var f0=st.ref; st.T=Math.min(st.Tend,st.T+dt);
+    var s=shipAt(f0,st.T);
+    st.odo+=s.x-st.shipX; st.shipX=s.x; st.shipV=s.v;
+    KINDS.forEach(function(k){
+      var f=st.fls[k]; if(!f || st.T>f.tEnd) return;
+      var p=samplePos(k,st.T);
+      st.tr[k].ship.push([p.rel,p.y]); st.tr[k].shore.push([p.wx,p.y]); st.tr[k].ball.push([p.wx-f0.sx0-f0.sv0*st.T,p.y]);
+    });
+    if(st.T>=st.Tend){ st.phase="landed"; lock(false); }
+    return;
+  }
+  var a=accel();
+  var dx=st.shipV*dt+0.5*a*dt*dt; st.shipX+=dx; st.odo+=dx; st.shipV+=a*dt;
+  if(st.shipX>VIEW+1){                       /* off the right edge: comes round again */
+    st.shipX=-L-1;
+    if(st.mode==="a") st.shipV=1;
+    KINDS.forEach(function(k){ if(st.tr[k]) st.tr[k].shore=[]; });
+  }
+}
+
+/* ── drawing ── */
+var INK="#12120f";
+function sky(c){
+  c.fillStyle="#cfe3ee"; c.fillRect(-LOGW,-LOGH,3*LOGW,SEA+LOGH);
+  c.fillStyle="#2f6f96"; c.fillRect(-LOGW,SEA,3*LOGW,LOGH);
+  c.strokeStyle=INK; c.lineWidth=2; c.beginPath(); c.moveTo(-LOGW,SEA); c.lineTo(2*LOGW,SEA); c.stroke();
+}
+function shore(c,cam){                            /* cam in meters: what sits at the left edge */
+  var y=232;
+  c.fillStyle="#7c9a5a"; c.fillRect(-LOGW,y,3*LOGW,SEA-y);
+  c.strokeStyle=INK; c.lineWidth=2; c.beginPath(); c.moveTo(-LOGW,y); c.lineTo(2*LOGW,y); c.stroke();
+  CLOUDS.forEach(function(k){
+    var px=((k[0]-cam*0.25)%PERIOD+PERIOD)%PERIOD*S*0.8 - 60;
+    if(px>LOGW+80) return;
+    c.fillStyle="#fff"; c.strokeStyle=INK; c.lineWidth=2;
+    c.beginPath(); c.ellipse(px,k[1],46*k[2],15*k[2],0,0,Math.PI*2); c.ellipse(px+30*k[2],k[1]-8,30*k[2],13*k[2],0,0,Math.PI*2);
+    c.fill(); c.stroke();
+  });
+  TREES.forEach(function(t){
+    for(var rep=-1;rep<=1;rep++){
+      var px=(t.x+rep*PERIOD - (((cam%PERIOD)+PERIOD)%PERIOD))*S;
+      if(px<-LOGW||px>2*LOGW) continue;
+      c.fillStyle=t.d<.5?"#3f6b34":"#4f7d3c";
+      c.beginPath(); c.moveTo(px-t.w*S/2,y); c.lineTo(px,y-t.h*S); c.lineTo(px+t.w*S/2,y); c.closePath();
+      c.fill(); c.strokeStyle=INK; c.lineWidth=1.5; c.stroke();
+    }
+  });
+  /* ripples on the water, fixed to the shore */
+  c.strokeStyle="rgba(255,255,255,.75)"; c.lineWidth=2.5;
+  for(var i=0;i<20;i++){
+    var wx=((i*2.1-cam)%42+42)%42*S*0.6;
+    for(var q=-1;q<=1;q++){ var qx=wx+q*42*S*0.6;
+    var wy=SEA+20+(i%3)*14;
+    c.beginPath(); c.moveTo(qx,wy); c.lineTo(qx+22,wy); c.stroke(); }
+  }
+}
+/* the ship, its stern at screen x px; glass = draw the cabin as glass (shore view, below decks) */
+function ship(c,px,glass){
+  var X=function(m){ return px+m*S; }, Y=function(m){ return DECK-m*S; };
+  c.lineJoin="round"; c.strokeStyle=INK; c.lineWidth=3;
+  /* mast and sail */
+  c.fillStyle="#5a3a1f"; c.fillRect(X(DROP_X-0.55)-4,Y(MAST_H),8,MAST_H*S);
+  c.strokeRect(X(DROP_X-0.55)-4,Y(MAST_H),8,MAST_H*S);
+  c.fillStyle="#f7f1df";
+  c.beginPath(); c.moveTo(X(DROP_X-0.55)-5,Y(MAST_H-0.3)); c.lineTo(X(DROP_X-0.55)-5,Y(1.6)); c.lineTo(X(3.9),Y(1.6)); c.closePath(); c.fill(); c.stroke();
+  /* lookout platform */
+  c.fillStyle="#7a4a2b"; c.fillRect(X(DROP_X-0.95),Y(MAST_DROP+0.45),0.95*S+12,7); c.strokeRect(X(DROP_X-0.95),Y(MAST_DROP+0.45),0.95*S+12,7);
+  /* hull */
+  c.fillStyle="#6b3f25";
+  c.beginPath(); c.moveTo(X(-0.3),DECK); c.lineTo(X(L+0.6),DECK); c.lineTo(X(L-0.4),DECK+30); c.lineTo(X(0.4),DECK+30); c.closePath();
+  c.fill(); c.stroke();
+  c.strokeStyle="#9b6a45"; c.lineWidth=2; c.beginPath(); c.moveTo(X(0.1),DECK+11); c.lineTo(X(L+0.1),DECK+11); c.stroke();
+  /* passenger, facing the bow, one arm out */
+  person(c,X(HAND_X-0.6),DECK);
+  xMark(c,X(DROP_X));
+  if(!glass){ c.strokeStyle=INK; c.lineWidth=2; c.beginPath(); c.moveTo(X(DROP_X),Y(MAST_DROP+0.45)+7); c.lineTo(X(DROP_X),Y(MAST_DROP+R)); c.stroke(); }
+  else{                                    /* the cabin, drawn as glass so the shore can see in */
+    c.fillStyle="rgba(210,235,250,.35)"; c.strokeStyle=INK; c.lineWidth=2.5;
+    c.beginPath(); c.rect(X(0.4),Y(CABIN_H),(L-0.8)*S,CABIN_H*S); c.fill(); c.stroke();
+    hook(c,X(DROP_X),Y(CABIN_H));
+  }
+}
+function person(c,px,deck){
+  c.strokeStyle=INK; c.lineWidth=4; c.lineCap="round";
+  var hip=deck-0.85*S, sh=deck-1.45*S;
+  c.beginPath(); c.moveTo(px,hip); c.lineTo(px-9,deck); c.moveTo(px,hip); c.lineTo(px+9,deck);   /* legs */
+  c.moveTo(px,hip); c.lineTo(px,sh);                                                                 /* body */
+  c.moveTo(px,sh+6); c.lineTo(px+0.6*S-6,DECK-HAND_Y*S+3);                                          /* arm out */
+  c.moveTo(px,sh+6); c.lineTo(px-10,hip+4);                                                          /* arm down */
+  c.stroke();
+  c.fillStyle="#f1d2b0"; c.lineWidth=3; c.beginPath(); c.arc(px,sh-12,11,0,Math.PI*2); c.fill(); c.stroke();
+  c.lineCap="butt";
+}
+function xMark(c,px){
+  c.strokeStyle="#b00018"; c.lineWidth=3.5;
+  c.beginPath(); c.moveTo(px-8,DECK-4); c.lineTo(px+8,DECK+4); c.moveTo(px+8,DECK-4); c.lineTo(px-8,DECK+4); c.stroke();
+}
+function hook(c,px,topY){
+  c.strokeStyle=INK; c.lineWidth=2.5; c.beginPath(); c.moveTo(px,topY); c.lineTo(px,DECK-(CABIN_DROP+R)*S-2); c.stroke();
+}
+/* below decks, seen by the passenger: no windows, nothing outside */
+function cabinRoom(c,stern){
+  var A=-LOGW, W=3*LOGW;                   /* drawn wide, so a zoomed or sliding view never runs off it */
+  c.fillStyle="#e3cfa7"; c.fillRect(A,-LOGH,W,DECK+LOGH);
+  c.strokeStyle="#c5ab7f"; c.lineWidth=2;
+  for(var y=DECK-24;y>0;y-=24){ c.beginPath(); c.moveTo(A,y); c.lineTo(A+W,y); c.stroke(); }
+  c.fillStyle="#8a5a34"; c.fillRect(A,DECK,W,LOGH);
+  c.strokeStyle=INK; c.lineWidth=3; c.beginPath(); c.moveTo(A,DECK); c.lineTo(A+W,DECK); c.stroke();
+  c.beginPath(); c.moveTo(A,DECK-CABIN_H*S); c.lineTo(A+W,DECK-CABIN_H*S); c.stroke();
+  c.fillStyle="#6b3f25"; c.fillRect(A,-LOGH,W,DECK-CABIN_H*S+LOGH);
+  /* a table, a lamp, a jar — the furniture Galileo mentions; it rides with the ship */
+  var off=(stern===undefined?SHIP_SCREEN:stern)-SHIP_SCREEN;
+  var tx=SHIP_SCREEN+4.9*S+off;
+  c.fillStyle="#7a4a2b"; c.fillRect(tx-40,DECK-0.8*S,80,8); c.strokeRect(tx-40,DECK-0.8*S,80,8);
+  c.fillRect(tx-34,DECK-0.8*S,6,0.8*S); c.fillRect(tx+28,DECK-0.8*S,6,0.8*S);
+  c.fillStyle="#bfe0f0"; c.fillRect(tx-14,DECK-0.8*S-26,28,26); c.strokeRect(tx-14,DECK-0.8*S-26,28,26);
+  var lx=SHIP_SCREEN+1.6*S+off, top=DECK-CABIN_H*S;
+  c.beginPath(); c.moveTo(lx,top); c.lineTo(lx,top+40); c.stroke();
+  c.fillStyle="#f2c94c"; c.beginPath(); c.arc(lx,top+50,10,0,Math.PI*2); c.fill(); c.stroke();
+}
+function cabinScene(c,stern){
+  cabinRoom(c,stern);
+  person(c,stern+(HAND_X-0.6)*S,DECK);
+  xMark(c,stern+DROP_X*S); hook(c,stern+DROP_X*S,DECK-CABIN_H*S);
+}
+function ballDraw(c,px,py){
+  c.fillStyle="#d1281f"; c.strokeStyle=INK; c.lineWidth=2.5;
+  c.beginPath(); c.arc(px,py,R*S+2,0,Math.PI*2); c.fill(); c.stroke();
+}
+function path(c,pts,toPx){
+  if(pts.length<2) return;
+  c.strokeStyle="#d1281f"; c.lineWidth=2.5; c.setLineDash([5,6]);
+  c.beginPath(); pts.forEach(function(p,i){ var q=toPx(p); if(i) c.lineTo(q[0],q[1]); else c.moveTo(q[0],q[1]); });
+  c.stroke(); c.setLineDash([]);
+}
+var AS=14;   /* arrow px per m/s */
+function arrow(c,x,y,dx,dy,col){
+  var len=Math.hypot(dx,dy); if(len<3) return;
+  var ux=dx/len, uy=dy/len;
+  c.strokeStyle=col; c.fillStyle=col; c.lineWidth=4;
+  c.beginPath(); c.moveTo(x,y); c.lineTo(x+dx-ux*10,y+dy-uy*10); c.stroke();
+  c.beginPath(); c.moveTo(x+dx,y+dy); c.lineTo(x+dx-ux*13-uy*7,y+dy-uy*13+ux*7); c.lineTo(x+dx-ux*13+uy*7,y+dy-uy*13-ux*7);
+  c.closePath(); c.fill();
+}
+function vel(c,px,py,vx,vy){
+  if(!st.arrows) return;
+  arrow(c,px,py,vx*AS,0,"#0b4fa8");
+  arrow(c,px,py,0,-vy*AS,"#7a4c00");
+}
+
+/* each ball: where it is relative to the ship, and its velocity */
+function ballState(k){
+  var f=st.fls[k];
+  if(!f) return {rel:refX(k), y:homeY(k), vx:st.shipV, vy:0, fly:false};
+  if(st.phase==="fly" && st.T<f.tEnd){ var b=ballAt(f,st.T); return {rel:b.x-st.shipX, y:b.y, vx:b.vx, vy:b.vy, fly:true}; }
+  return {rel:f.relEnd, y:f.yEnd, vx:st.shipV, vy:0, fly:false};
+}
+function draw(){
+  if(IN.on){ introDraw(); return; }
+  FX+=((st.phase==="fly"?1:0)-FX)*0.15;
+  var fly=st.phase==="fly", f0=st.ref, B={};
+  KINDS.forEach(function(k){ B[k]=ballState(k); });
+  var z=ZB||{};
+
+  /* ship's frame: the camera rides with the ship */
+  sqBegin(xq,z.ship);
+  if(BELOW) cabinScene(xq,SHIP_SCREEN);
+  else { sky(xq); shore(xq,st.odo - SHIP_SCREEN/S); ship(xq,SHIP_SCREEN,false); }
+  fade(xq);
+  KINDS.forEach(function(k){
+    if(st.tr[k]) path(xq,st.tr[k].ship,function(p){ return [SHIP_SCREEN+p[0]*S, DECK-p[1]*S]; });
+    var b=B[k], px=SHIP_SCREEN+b.rel*S, py=DECK-b.y*S;
+    ballDraw(xq,px,py); if(b.fly) vel(xq,px,py,b.vx-st.shipV,b.vy);
+  });
+
+  /* shore's frame: the camera stays put */
+  xo.setTransform(DPR,0,0,DPR,0,0); zoomOn(xo,LOGW,LOGH,z.shore,0,0,60);
+  sky(xo); shore(xo,0);
+  ship(xo,st.shipX*S,BELOW);
+  fade(xo);
+  KINDS.forEach(function(k){
+    if(st.tr[k]) path(xo,st.tr[k].shore,function(p){ return [p[0]*S, DECK-p[1]*S]; });
+    var b=B[k], px=(st.shipX+b.rel)*S, py=DECK-b.y*S;
+    ballDraw(xo,px,py); if(b.fly) vel(xo,px,py,b.vx,b.vy);
+  });
+  xo.setTransform(DPR,0,0,DPR,0,0);
+
+  /* ball's frame: during a flight the camera keeps the balls' sideways speed
+     from the moment they were let go. Otherwise the balls ride the ship,
+     so this view matches the ship's. */
+  var camL=fly ? f0.sx0+f0.sv0*st.T-SHIP_SCREEN/S : st.shipX-SHIP_SCREEN/S;
+  var toScr=function(wx){ return (wx-camL)*S; };
+  sqBegin(xb,z.ball);
+  if(BELOW) cabinScene(xb,toScr(st.shipX));
+  else { sky(xb); shore(xb,st.odo+camL-st.shipX); ship(xb,toScr(st.shipX),false); }
+  fade(xb);
+  KINDS.forEach(function(k){
+    if(fly && st.tr[k]) path(xb,st.tr[k].ball,function(p){ return [SHIP_SCREEN+p[0]*S, DECK-p[1]*S]; });
+    var b=B[k], px=toScr(st.shipX+b.rel), py=DECK-b.y*S;
+    ballDraw(xb,px,py); if(b.fly) vel(xb,px,py,b.vx-f0.sv0,b.vy);
+  });
+  xq.setTransform(DPR,0,0,DPR,0,0); xb.setTransform(DPR,0,0,DPR,0,0);
+}
+function speedText(v){
+  var a=Math.abs(v); if(a<0.05) return "0.0 m/s";
+  return a.toFixed(1)+" m/s "+(v>0?"forward":"backward");
+}
+
+/* ── loop ── */
+var last=performance.now();
+function loop(now){
+  var dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(IN.on) introStep(dt);
+  else if(!st.paused) step(dt*(st.slow && st.phase==="fly"?0.25:1));   /* slow motion only while a ball is in the air */
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ── controls ── */
+function lock(on){
+  document.querySelectorAll("[data-mode],[data-go]").forEach(function(b){ b.disabled=on; });
+}
+function seg(attr,val){
+  document.querySelectorAll("["+attr+"]").forEach(function(b){
+    var on=b.getAttribute(attr)===val; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on);
+  });
+}
+function startOver(){
+  st.phase="idle"; st.fls={}; st.tr={}; st.ref=null; st.T=0; st.Tend=0; ZB=null;
+  st.shipX=3; st.shipV=st.mode==="u"?st.v:1;
+  lock(false);
+}
+document.querySelectorAll("[data-go]").forEach(function(b){ b.addEventListener("click",function(){
+  var g=b.dataset.go; release(g==="both"?["toss","drop"]:[g]);
+}); });
+$("pause").addEventListener("click",function(){ st.paused=!st.paused; this.textContent=st.paused?"Resume":"Pause"; });
+$("reset").addEventListener("click",startOver);
+document.querySelectorAll("[data-mode]").forEach(function(b){ b.addEventListener("click",function(){
+  st.mode=b.dataset.mode; seg("data-mode",st.mode); startOver();
+}); });
+$("arrows").addEventListener("change",function(){ st.arrows=this.checked; });
+
+/* ═══════════════════════════════════════════════════════════════
+   THE OPENING. Below decks, curtains closed. The ball is dropped, the
+   student says whether the boat is moving, then opens the curtains.
+   Whatever they answer, they are told they are wrong. The boat does the
+   opposite of their answer (docked, or a steady 3 m/s); the drop looks the
+   same every time, because in uniform motion it is the same.
+   ═══════════════════════════════════════════════════════════════ */
+var IN={on:true, round:1, phase:"ready", t:0, ans:null, open:0, odo:0, v:0, bt:0};
+var WRONG=["Wrong","Wrong again","Wrong yet again","This is somehow even more wrong than the other times.",
+  {img:""},{img:""}];                       /* rounds 5 and 6: paste the image as a data: URL into img */
+var ROUND_V=3, ROUNDS=WRONG.length;
+var WIN={x:610, y:120, w:290, h:120};
+var T_DROP=Math.sqrt(2*(CABIN_DROP-R)/G);
+function inStart(r){
+  IN.round=r; IN.phase="ready"; IN.t=0; IN.ans=null; IN.open=0; IN.bt=0;
+  IN.v=0;
+  inPanel();
+}
+function introStep(dt){
+  IN.t+=dt; IN.odo+=IN.v*dt;
+  if(IN.phase==="fall"){ IN.bt=Math.min(T_DROP,IN.bt+dt); if(IN.bt>=T_DROP){ IN.phase="ask"; inPanel(); } }
+  if(IN.phase==="opening"){ IN.open=Math.min(1,IN.open+dt/0.7); if(IN.open>=1){ IN.phase="shown"; inPanel(); } }
+}
+function introDraw(){
+  var c=xs;
+  cabinRoom(c);
+  windowDraw(c);
+  person(c,SHIP_SCREEN+(HAND_X-0.6)*S,DECK);
+  var px=SHIP_SCREEN+DROP_X*S;
+  xMark(c,px); hook(c,px,DECK-CABIN_H*S);
+  var y=CABIN_DROP-0.5*G*IN.bt*IN.bt;
+  ballDraw(c,px,DECK-Math.max(R,y)*S);
+}
+/* the window: outside drawn small and low so the shoreline sits in it; curtains over it */
+function windowDraw(c){
+  var w=WIN, o=IN.open;
+  c.save(); c.beginPath(); c.rect(w.x,w.y,w.w,w.h); c.clip();
+  outside(c,w,IN.odo); c.restore();
+  c.strokeStyle="#6b3f25"; c.lineWidth=8; c.strokeRect(w.x,w.y,w.w,w.h);
+  c.lineWidth=5; c.beginPath(); c.moveTo(w.x+w.w/2,w.y); c.lineTo(w.x+w.w/2,w.y+w.h); c.moveTo(w.x,w.y+w.h/2); c.lineTo(w.x+w.w,w.y+w.h/2); c.stroke();
+  c.strokeStyle=INK; c.lineWidth=2.5; c.strokeRect(w.x-4,w.y-4,w.w+8,w.h+8);
+  /* curtain rod */
+  c.fillStyle="#3b2a1a"; c.fillRect(w.x-24,w.y-16,w.w+48,6);
+  var half=w.w/2+18, cw=half*(1-0.82*o);
+  curtain(c,w.x-18,w.y-12,cw,w.h+30);
+  curtain(c,w.x+w.w+18-cw,w.y-12,cw,w.h+30);
+  if(IN.phase==="curtain"){
+    c.strokeStyle="#f2c94c"; c.lineWidth=4; c.setLineDash([10,7]);
+    c.strokeRect(w.x-26,w.y-20,w.w+52,w.h+46); c.setLineDash([]);
+  }
+}
+/* what the window looks out on: sky, clouds, the far shore, the water — fixed to the shore */
+function outside(c,w,odo){
+  var hz=w.y+w.h*0.55, sea=w.y+w.h*0.7, cam=odo*S;
+  c.fillStyle="#cfe3ee"; c.fillRect(w.x,w.y,w.w,w.h);
+  c.fillStyle="#fff"; c.strokeStyle=INK; c.lineWidth=1.5;
+  for(var i=0;i<6;i++){
+    var cx=w.x+(((i*190-cam*0.25)%1140)+1140)%1140-60;
+    c.beginPath(); c.ellipse(cx,w.y+22+(i%2)*10,30,10,0,0,Math.PI*2); c.fill(); c.stroke();
+  }
+  c.fillStyle="#7c9a5a"; c.fillRect(w.x,hz,w.w,sea-hz);
+  TREES.forEach(function(t){
+    for(var rep=-1;rep<=1;rep++){
+      var px=w.x+(t.x+rep*PERIOD)*S-((cam%(PERIOD*S))+PERIOD*S)%(PERIOD*S);
+      if(px<w.x-30||px>w.x+w.w+30) continue;
+      c.fillStyle=t.d<.5?"#3f6b34":"#4f7d3c";
+      c.beginPath(); c.moveTo(px-t.w*S/2,hz); c.lineTo(px,hz-t.h*S); c.lineTo(px+t.w*S/2,hz); c.closePath();
+      c.fill(); c.strokeStyle=INK; c.lineWidth=1.5; c.stroke();
+    }
+  });
+  c.fillStyle="#2f6f96"; c.fillRect(w.x,sea,w.w,w.y+w.h-sea);
+  c.strokeStyle="rgba(255,255,255,.8)"; c.lineWidth=2.5;
+  for(var k=0;k<12;k++){
+    var rx=w.x+((k*53-cam)%636+636)%636-30, ry=sea+9+(k%3)*9;
+    c.beginPath(); c.moveTo(rx,ry); c.lineTo(rx+18,ry); c.stroke();
+  }
+}
+function curtain(c,x,y,w,h){
+  c.fillStyle="#8f2d3b"; c.fillRect(x,y,w,h);
+  c.strokeStyle="#6a1f2b"; c.lineWidth=2;
+  var folds=Math.max(2,Math.round(w/18));
+  for(var i=1;i<folds;i++){ var fx=x+w*i/folds; c.beginPath(); c.moveTo(fx,y+2); c.lineTo(fx,y+h-2); c.stroke(); }
+  c.strokeStyle=INK; c.lineWidth=2.5; c.strokeRect(x,y,w,h);
+}
+function inPanel(){
+  var P=$("introPanel"), h="";
+  if(IN.phase==="ready") h='<button class="go" data-in="drop">Drop the ball</button>';
+  else if(IN.phase==="fall") h='';
+  else if(IN.phase==="ask") h='<p>Is the boat moving?</p><div class="yn"><button class="ghost" data-in="yes">Yes</button><button class="ghost" data-in="no">No</button></div>';
+  else if(IN.phase==="curtain"||IN.phase==="opening") h='<p>Click the curtains to find out!</p>';
+  else if(IN.phase==="shown"){
+    var m=WRONG[IN.round-1];
+    if(typeof m==="string") h='<p class="big no">'+m+'</p>';
+    else h=m.img?'<img src="'+m.img+'" alt="Wrong">':'<div class="pic">Image for round '+IN.round+' goes here</div>';
+    h+=(IN.round<ROUNDS ? '<button class="go" data-in="next">Try again</button>' : '<button class="go" data-in="explore">Explore the ship</button>');
+  }
+  P.innerHTML=h; P.classList.toggle("hide",!h);
+  var f=P.querySelector("button"); if(f) f.focus();
+}
+$("introPanel").addEventListener("click",function(ev){
+  var b=ev.target.closest("[data-in]"); if(!b) return;
+  var k=b.dataset.in;
+  if(k==="drop" && IN.phase==="ready"){ IN.phase="fall"; inPanel(); }
+  else if((k==="yes"||k==="no") && IN.phase==="ask"){ IN.ans=k; IN.v=(k==="yes")?0:ROUND_V; IN.phase="curtain"; inPanel(); }
+  else if(k==="next") inStart(IN.round+1);
+  else if(k==="explore") leaveIntro();
+});
+function canvasPt(ev){
+  var r=cShip.getBoundingClientRect();
+  return [(ev.clientX-r.left)*LOGW/r.width, (ev.clientY-r.top)*LOGH/r.height];
+}
+function onWindow(p){ return p[0]>=WIN.x-26 && p[0]<=WIN.x+WIN.w+26 && p[1]>=WIN.y-20 && p[1]<=WIN.y+WIN.h+26; }
+cShip.addEventListener("click",function(ev){
+  if(IN.on && IN.phase==="curtain" && onWindow(canvasPt(ev))){ IN.phase="opening"; inPanel(); }
+});
+cShip.addEventListener("mousemove",function(ev){
+  cShip.style.cursor=(IN.on && IN.phase==="curtain" && onWindow(canvasPt(ev)))?"pointer":"";
+});
+$("skip").addEventListener("click",leaveIntro);
+function leaveIntro(){
+  IN.on=false;
+  $("intro").classList.add("hide"); $("sim").classList.remove("hide");
+  startOver();
+}
+
+startOver();
+leaveIntro();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

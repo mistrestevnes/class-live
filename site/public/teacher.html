@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Live · Teacher</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  /* teacher-only layout */
+  .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .t-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; gap: 12px; padding: 0 12px 4px; }
+  .t-side, .t-body { min-height: 0; overflow: auto; }
+  .t-side { padding: 14px; }
+  .t-body > .aero-panel + .aero-panel, .t-body > .aero-bar + .aero-panel, .t-body > * + * { margin-top: 12px; }
+  .t-pages { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .t-pages button {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border-radius: var(--aero-radius-sm);
+    padding: 8px 12px; font-weight: 500;
+  }
+  .t-pages button .t-num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--aero-mint); color: var(--aero-forest); font-weight: 700; text-shadow: none; }
+  .t-pages button .t-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t-pages button.locked { color: var(--aero-muted); }
+  .t-pages .t-count { flex: none; font-size: .85rem; padding: 2px 10px; color: var(--aero-forest); text-shadow: none; background: #FFFFFF; }
+  .t-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .t-row.end { justify-content: flex-end; }
+  .t-small { min-height: 40px; padding: 4px 14px; font-size: .95rem; }
+  .t-block { padding: 14px 18px; }
+  .t-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .t-block-head h3 { margin: 0; flex: 1; }
+  .t-hint { color: var(--aero-muted); font-size: .9rem; margin: 6px 0 0; }
+  .t-opt { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .t-opt input { flex: 1; }
+  .t-thumb { max-width: 260px; max-height: 160px; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); display: block; margin-bottom: 10px; }
+  .t-lessons { display: grid; gap: 10px; }
+  .t-lesson { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); background: #FFFFFF; }
+  .t-lesson .t-ltitle { flex: 1; min-width: 200px; font-weight: 600; font-size: 1.1rem; }
+  .t-home { max-width: 1000px; margin: 0 auto; width: 100%; padding: 0 12px; overflow: auto; }
+  .t-home > * + * { margin-top: 12px; }
+  .t-title-input { flex: 1; min-width: 200px; font-size: 1.2rem !important; }
+  .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
+  .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .t-login { max-width: 520px; margin: 10vh auto 0; }
+  .t-login form { display: grid; gap: 12px; }
+  @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
+</style>
+<link rel="stylesheet" href="aerolab.css">
+</head>
+<body>
+
+<!-- sign in -->
+<section id="loginView" hidden>
+  <div class="aero-panel t-login">
+    <h1 id="loginTitle">Teacher sign in</h1>
+    <p id="loginHelp" class="aero-muted"></p>
+    <form id="loginForm">
+      <label class="cl-field" id="resetKeyRow" hidden><span>Reset key</span><input type="password" id="resetKey" autocomplete="off"></label>
+      <label class="cl-field"><span id="userLabel">Username</span><input type="text" id="user" name="username" autocomplete="username" autocapitalize="off"></label>
+      <label class="cl-field"><span id="passLabel">Passcode</span><input type="password" id="pass" name="password" autocomplete="current-password"></label>
+      <label class="cl-field" id="pass2Row" hidden><span>Type the passcode again</span><input type="password" id="pass2" autocomplete="new-password"></label>
+      <span class="aero-chip aero-chip-warn cl-error" id="loginErr"></span>
+      <button class="aero-btn-primary" id="loginBtn">Sign in</button>
+      <button type="button" id="loginSwitch"></button>
+    </form>
+  </div>
+</section>
+
+<!-- change username / passcode -->
+<section id="accountView" hidden>
+  <div class="aero-panel t-login">
+    <h1>Username and passcode</h1>
+    <form id="acctForm">
+      <label class="cl-field"><span>Current passcode</span><input type="password" id="acctCur" autocomplete="current-password"></label>
+      <label class="cl-field"><span>Username</span><input type="text" id="acctUser" name="username" autocomplete="username" autocapitalize="off"></label>
+      <label class="cl-field"><span>New passcode (leave blank to keep the current one)</span><input type="password" id="acctPass" name="password" autocomplete="new-password"></label>
+      <label class="cl-field"><span>Type the new passcode again</span><input type="password" id="acctPass2" autocomplete="new-password"></label>
+      <span class="aero-chip aero-chip-warn cl-error" id="acctErr"></span>
+      <button class="aero-btn-primary" id="acctSave">Save</button>
+      <button type="button" id="acctCancel">Back to lessons</button>
+    </form>
+  </div>
+</section>
+
+<!-- lessons list -->
+<section id="homeView" class="t-wrap" hidden>
+  <header class="cl-top aero-bar">
+    <h1 class="cl-title">Class Live · Lessons</h1>
+    <span class="cl-grow"></span>
+    <span class="aero-chip" id="studentUrl"></span>
+    <button class="t-small" id="accountBtn">Username &amp; passcode</button>
+    <button class="t-small" id="signOutBtn">Sign out</button>
+  </header>
+  <div class="t-home">
+    <div class="aero-panel" id="liveCard" hidden></div>
+    <div class="aero-panel">
+      <div class="t-row" style="margin-bottom:12px">
+        <h2 style="margin:0;flex:1">Your lessons</h2>
+        <button class="aero-btn-primary" id="newLesson">+ New lesson</button>
+      </div>
+      <div class="t-lessons" id="lessonList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- lesson designer -->
+<section id="editView" class="t-wrap" hidden>
+  <header class="cl-top aero-bar">
+    <button id="edBack">◀ Lessons</button>
+    <input type="text" id="edTitle" class="t-title-input" aria-label="Lesson title">
+    <span class="aero-chip" id="saveState">Saved</span>
+    <button id="edModeEdit" aria-pressed="true">Edit</button>
+    <button id="edModePreview" aria-pressed="false">Preview</button>
+    <button class="aero-btn-primary" id="edStart">Start with class</button>
+  </header>
+  <div class="t-cols">
+    <aside class="aero-panel t-side">
+      <h3>Pages</h3>
+      <ul class="t-pages" id="edPages"></ul>
+      <div class="t-row">
+        <button class="t-small" id="pgAdd">+ Page</button>
+        <button class="t-small" id="pgUp" aria-label="Move page up">▲</button>
+        <button class="t-small" id="pgDown" aria-label="Move page down">▼</button>
+        <button class="t-small" id="pgDup">Copy</button>
+        <button class="t-small" id="pgDel">Delete</button>
+      </div>
+    </aside>
+    <div class="t-body" id="edBody"></div>
+  </div>
+</section>
+
+<!-- teaching live -->
+<section id="liveView" class="t-wrap" hidden>
+  <header class="cl-top aero-bar">
+    <h1 class="cl-title" id="lvTitle"></h1>
+    <span class="cl-grow"></span>
+    <span class="aero-chip" id="lvStudents"></span>
+    <span class="aero-chip cl-status" id="lvStatus"></span>
+    <button class="t-small" id="lvEdit">Edit lesson</button>
+    <button class="t-small" id="lvHome">Lessons</button>
+    <button class="t-small" id="lvEnd">End class</button>
+  </header>
+  <div class="t-cols">
+    <aside class="aero-panel t-side">
+      <h3>Pages</h3>
+      <ul class="t-pages" id="lvPages"></ul>
+      <p class="t-hint" id="lvUrlHint"></p>
+    </aside>
+    <div class="t-body">
+      <div class="aero-bar" id="lvPollBar" hidden></div>
+      <div class="aero-panel" id="lvPage"></div>
+    </div>
+  </div>
+  <footer class="cl-bottom aero-bar">
+    <button id="lvRelock" class="t-small">Re-lock last page</button>
+    <span class="aero-muted" id="lvUnlockNote"></span>
+    <button id="lvUnlock" class="aero-btn-primary t-unlock">Unlock next page ▶</button>
+  </footer>
+</section>
+
+<script src="common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let token = store("cl_token");
+let link = null;
+let tstate = null;          // latest teacher state from the server
+let lvSelected = 0;         // page the teacher is looking at while live
+let lvLastUnlocked = -1;
+let lvSession = null;
+
+const authHeaders = (extra = {}) => ({ "x-token": token || "", ...extra });
+const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts.headers) }).catch((e) => {
+  if (e.status === 401 && token) { token = null; store("cl_token", null); route(); }
+  throw e;
+});
+
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView"];
+function show(v) { for (const id of VIEWS) $(id).hidden = id !== v; }
+
+$("studentUrl").textContent = "Students go to: " + location.host;
+
+// ---------------------------------------------------------------- routing
+async function route() {
+  if (!token) return showLogin();
+  ensureLink();
+  const h = location.hash;
+  const m = h.match(/^#\/edit\/([a-z0-9]+)/);
+  if (m) return openEditor(m[1]);
+  if (h === "#/live") return showLive();
+  if (h === "#/account") return showAccount();
+  return showHome();
+}
+window.addEventListener("hashchange", route);
+
+// ---------------------------------------------------------------- sign in
+// mode: "login", "setup" (first visit) or "reset" (forgot passcode)
+async function showLogin(mode) {
+  show("loginView");
+  if (!mode) {
+    let setup = true;
+    try { setup = (await api("/api/auth-status")).setup; } catch {}
+    mode = setup ? "login" : "setup";
+  }
+  const text = {
+    setup: ["Create your teacher sign-in", "This is the first time the teacher page has been opened. Choose a username and a passcode students won't guess. Let your iPad save them when it offers.", "Save and sign in"],
+    login: ["Teacher sign in", "", "Sign in"],
+    reset: ["Reset your sign-in", "Enter the reset key you set in Terminal (see SETUP.txt), then choose a new username and passcode. Other devices will be signed out.", "Reset and sign in"],
+  }[mode];
+  $("loginTitle").textContent = text[0];
+  $("loginHelp").textContent = text[1];
+  $("loginHelp").hidden = !text[1];
+  $("loginBtn").textContent = text[2];
+  $("resetKeyRow").hidden = mode !== "reset";
+  $("pass2Row").hidden = mode === "login";
+  $("passLabel").textContent = mode === "login" ? "Passcode" : "New passcode";
+  $("pass").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("loginSwitch").hidden = mode === "setup";
+  $("loginSwitch").textContent = mode === "reset" ? "Back to sign in" : "Forgot passcode?";
+  $("loginSwitch").onclick = () => { $("loginErr").textContent = ""; showLogin(mode === "reset" ? "login" : "reset"); };
+  $("loginErr").textContent = "";
+  $("loginForm").onsubmit = async (e) => {
+    e.preventDefault();
+    $("loginErr").textContent = "";
+    const username = $("user").value.trim();
+    const passcode = $("pass").value;
+    if (mode !== "login" && passcode !== $("pass2").value) { $("loginErr").textContent = "The two passcodes don't match."; return; }
+    $("loginBtn").disabled = true;
+    try {
+      const r = await api("/api/" + mode, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, passcode, resetKey: $("resetKey").value }),
+      });
+      token = r.token;
+      store("cl_token", token);
+      $("pass").value = $("pass2").value = $("resetKey").value = "";
+      route();
+    } catch (err) {
+      $("loginErr").textContent = err.message;
+    } finally {
+      $("loginBtn").disabled = false;
+    }
+  };
+  (mode === "reset" ? $("resetKey") : $("user").value ? $("pass") : $("user")).focus();
+}
+
+// ---------------------------------------------------------------- account
+$("accountBtn").onclick = () => (location.hash = "#/account");
+$("acctCancel").onclick = () => (location.hash = "#/");
+$("signOutBtn").onclick = () => {
+  token = null;
+  store("cl_token", null);
+  location.reload();
+};
+
+async function showAccount() {
+  show("accountView");
+  $("acctErr").textContent = "";
+  $("acctCur").value = $("acctPass").value = $("acctPass2").value = "";
+  try { $("acctUser").value = (await tapi("/api/account")).username; } catch {}
+  $("acctCur").focus();
+}
+
+$("acctForm").onsubmit = async (e) => {
+  e.preventDefault();
+  $("acctErr").textContent = "";
+  if ($("acctPass").value !== $("acctPass2").value) { $("acctErr").textContent = "The two new passcodes don't match."; return; }
+  $("acctSave").disabled = true;
+  try {
+    await tapi("/api/account", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ currentPasscode: $("acctCur").value, username: $("acctUser").value.trim(), passcode: $("acctPass").value }),
+    });
+    alert("Saved. Use the new username and passcode next time you sign in.");
+    location.hash = "#/";
+  } catch (err) {
+    $("acctErr").textContent = err.message;
+  } finally {
+    $("acctSave").disabled = false;
+  }
+};
+
+// ---------------------------------------------------------------- live connection
+function ensureLink() {
+  if (link) return;
+  link = new Link({
+    wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=teacher&token=" + encodeURIComponent(token),
+    poll: () => tapi("/api/t"),
+    post: (msg) => tapi("/api/t", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(msg) }),
+    onMessage: (m) => onTState(m.t === "tstate" ? m.state : m),
+    onMode: (mode) => {
+      const s = $("lvStatus");
+      s.className = "aero-chip cl-status " + mode + (mode === "offline" || mode === "connecting" ? " aero-chip-warn" : "");
+      s.textContent = { live: "Live", polling: "Checking every 2 s", connecting: "Connecting…", offline: "Reconnecting…" }[mode];
+    },
+  });
+  link.start();
+  // keep the student count fresh
+  setInterval(() => { if (link.ws && link.ws.readyState === 1) link.ws.send(JSON.stringify({ t: "refresh" })); }, 4000);
+}
+
+function onTState(s) {
+  if (!s || !("presence" in s)) return;
+  tstate = s;
+  if (!$("homeView").hidden) renderLiveCard();
+  if (!$("liveView").hidden) renderLive();
+}
+
+// ---------------------------------------------------------------- lessons list
+async function showHome() {
+  show("homeView");
+  renderLiveCard();
+  const list = $("lessonList");
+  list.replaceChildren(el("p", { class: "aero-muted", text: "Loading…" }));
+  let lessons = [];
+  try { lessons = await tapi("/api/lessons"); } catch (e) { list.replaceChildren(el("p", { text: e.message })); return; }
+  if (!lessons.length) {
+    list.replaceChildren(el("p", { class: "aero-muted", text: "No lessons yet. Tap “New lesson” to make one." }));
+    return;
+  }
+  list.replaceChildren(...lessons.map((l) => el("div", { class: "t-lesson" },
+    el("span", { class: "t-ltitle", text: l.title }),
+    el("span", { class: "aero-muted", text: l.pages + (l.pages === 1 ? " page" : " pages") }),
+    el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
+    el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
+    el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
+    el("button", { class: "t-small aero-btn-primary", text: "Start with class", onclick: () => startLesson(l.id) }),
+  )));
+}
+
+function renderLiveCard() {
+  const card = $("liveCard");
+  const live = tstate && tstate.live && tstate.lesson;
+  card.hidden = !live;
+  if (!live) return;
+  const p = tstate.presence;
+  card.replaceChildren(el("div", { class: "t-row" },
+    el("div", { style: "flex:1;min-width:240px" },
+      el("h2", { style: "margin:0", text: "Class running: " + tstate.lesson.title }),
+      el("span", { class: "aero-muted", text: p.count + (p.count === 1 ? " student connected" : " students connected") })),
+    el("button", { class: "aero-btn-primary", text: "Go to class", onclick: () => (location.hash = "#/live") }),
+    el("button", { text: "End class", onclick: endClass }),
+  ));
+}
+
+$("newLesson").onclick = async () => {
+  const id = randomId(10);
+  const lesson = { title: "New lesson", pages: [newPage()] };
+  await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(lesson) });
+  location.hash = "#/edit/" + id;
+};
+
+async function copyLesson(id) {
+  const l = await tapi("/api/lessons/" + id);
+  const copy = { title: l.title + " (copy)", pages: l.pages.map((p) => ({ ...JSON.parse(JSON.stringify(p)), id: randomId(8) })) };
+  await tapi("/api/lessons/" + randomId(10), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(copy) });
+  showHome();
+}
+
+async function deleteLesson(l) {
+  if (!confirm("Delete “" + l.title + "”? This can't be undone.")) return;
+  try { await tapi("/api/lessons/" + l.id, { method: "DELETE" }); } catch (e) { alert(e.message); }
+  showHome();
+}
+
+async function startLesson(id) {
+  if (tstate && tstate.live) {
+    const same = tstate.live.lessonId === id;
+    const ok = confirm(same
+      ? "Start this lesson fresh for a new class? Pages lock again and the current votes are cleared."
+      : "Another lesson is running. Start this one instead? The current class ends and its votes are cleared.");
+    if (!ok) return;
+  }
+  if (edSaveTimer) saveNow(); await saveChain;
+  lvSession = null;
+  await link.send({ t: "start", lessonId: id });
+  location.hash = "#/live";
+}
+
+async function endClass() {
+  if (!confirm("End class? Students go back to the waiting screen and votes are cleared.")) return;
+  await link.send({ t: "end" });
+  location.hash = "#/";
+}
+
+// ---------------------------------------------------------------- lesson designer
+let ed = null;              // lesson being edited
+let edPage = 0;
+let edPreview = false;
+let edSaveTimer = null;
+
+function newPage() { return { id: randomId(8), name: "", blocks: [{ type: "heading", text: "" }, { type: "text", text: "" }] }; }
+
+function pageLabel(p, i) {
+  if (p.name) return p.name;
+  const h = (p.blocks || []).find((b) => (b.type === "heading" || b.type === "text") && b.text && b.text.trim());
+  if (h) return h.text.trim().split("\n")[0].slice(0, 60);
+  const poll = (p.blocks || []).find((b) => b.type === "poll");
+  if (poll) return "Poll: " + (poll.question || "").slice(0, 50);
+  return "Page " + (i + 1);
+}
+
+async function openEditor(id) {
+  show("editView");
+  if (!ed || ed.id !== id) {
+    try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/"; return; }
+    edPage = 0;
+  }
+  $("edTitle").value = ed.title;
+  setSave("Saved");
+  renderEditor();
+}
+
+function setSave(text) { $("saveState").textContent = text; $("saveState").classList.toggle("aero-chip-warn", /n't/.test(text)); }
+
+function changed() {
+  setSave("Saving…");
+  clearTimeout(edSaveTimer);
+  edSaveTimer = setTimeout(saveNow, 700);
+}
+
+// saves run one at a time, in order, so an older save can never overwrite a newer one
+let saveChain = Promise.resolve();
+function saveNow() {
+  clearTimeout(edSaveTimer);
+  edSaveTimer = null;
+  if (!ed) return saveChain;
+  const id = ed.id;
+  const body = JSON.stringify(ed);
+  saveChain = saveChain.then(async () => {
+    try {
+      await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body });
+      if (!edSaveTimer) setSave("Saved");
+    } catch (e) {
+      setSave("Couldn't save. Retrying…");
+      if (!edSaveTimer) edSaveTimer = setTimeout(saveNow, 3000);
+    }
+  });
+  return saveChain;
+}
+window.addEventListener("beforeunload", (e) => { if (edSaveTimer) { saveNow(); e.preventDefault(); } });
+
+$("edTitle").oninput = () => { ed.title = $("edTitle").value; changed(); };
+$("edBack").onclick = async () => { if (edSaveTimer) saveNow(); await saveChain; ed = null; location.hash = "#/"; };
+$("edStart").onclick = () => startLesson(ed.id);
+$("edModeEdit").onclick = () => { edPreview = false; renderEditor(); };
+$("edModePreview").onclick = () => { edPreview = true; renderEditor(); };
+
+$("pgAdd").onclick = () => { ed.pages.splice(edPage + 1, 0, newPage()); edPage++; changed(); renderEditor(); };
+$("pgDup").onclick = () => {
+  const copy = JSON.parse(JSON.stringify(ed.pages[edPage])); copy.id = randomId(8);
+  ed.pages.splice(edPage + 1, 0, copy); edPage++; changed(); renderEditor();
+};
+$("pgDel").onclick = () => {
+  if (ed.pages.length === 1) { alert("A lesson needs at least one page."); return; }
+  if (!confirm("Delete page " + (edPage + 1) + "?")) return;
+  ed.pages.splice(edPage, 1); edPage = Math.min(edPage, ed.pages.length - 1); changed(); renderEditor();
+};
+$("pgUp").onclick = () => movePage(-1);
+$("pgDown").onclick = () => movePage(1);
+function movePage(d) {
+  const j = edPage + d;
+  if (j < 0 || j >= ed.pages.length) return;
+  [ed.pages[edPage], ed.pages[j]] = [ed.pages[j], ed.pages[edPage]];
+  edPage = j; changed(); renderEditor();
+}
+
+function renderEditor() {
+  $("edModeEdit").setAttribute("aria-pressed", String(!edPreview));
+  $("edModePreview").setAttribute("aria-pressed", String(edPreview));
+  $("edPages").replaceChildren(...ed.pages.map((p, i) => el("li", {},
+    el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; renderEditor(); } },
+      el("span", { class: "t-num", text: i + 1 }),
+      el("span", { class: "t-label", text: pageLabel(p, i) })))));
+  $("pgUp").disabled = edPage === 0;
+  $("pgDown").disabled = edPage === ed.pages.length - 1;
+
+  const body = $("edBody");
+  const page = ed.pages[edPage];
+  if (edPreview) {
+    body.replaceChildren(
+      el("div", { class: "aero-bar" }, el("span", { text: "Preview of page " + (edPage + 1) + " as students will see it." })),
+      el("div", { class: "aero-panel" }, renderPage(page, { preview: true })));
+    return;
+  }
+
+  const blocks = page.blocks || (page.blocks = []);
+  const hasPoll = blocks.some((b) => b.type === "poll");
+  const items = [];
+  items.push(el("div", { class: "aero-panel t-block" },
+    el("label", { class: "cl-field", style: "margin:0" },
+      el("span", { text: "Page name (only you see this)" }),
+      el("input", { type: "text", value: page.name || "", placeholder: pageLabel({ blocks }, edPage),
+        oninput: (e) => { page.name = e.target.value; changed(); refreshPageLabels(); } }))));
+  blocks.forEach((b, i) => items.push(blockEditor(page, b, i)));
+  items.push(el("div", { class: "aero-bar t-addbar" },
+    el("span", { text: "Add:" }),
+    ...[["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["poll", "Poll"], ["sim", "Sim"]].map(([type, label]) =>
+      el("button", { class: "t-small", text: "+ " + label, disabled: type === "poll" && hasPoll,
+        title: type === "poll" && hasPoll ? "One poll per page" : "",
+        onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
+  body.replaceChildren(...items);
+}
+
+function refreshPageLabels() {
+  const labels = $("edPages").querySelectorAll(".t-label");
+  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = pageLabel(p, i); });
+}
+
+function newBlock(type) {
+  if (type === "poll") return { type, question: "", options: ["", ""] };
+  if (type === "image") return { type, imageId: "", caption: "", size: "medium" };
+  if (type === "sim") return { type, url: "", height: "tall" };
+  return { type, text: "" };
+}
+
+const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Image", poll: "Poll", sim: "Sim" };
+
+function blockEditor(page, b, i) {
+  const blocks = page.blocks;
+  const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
+  const head = el("div", { class: "t-block-head" },
+    el("h3", { text: BLOCK_NAMES[b.type] || b.type }),
+    el("button", { class: "t-small", text: "▲", "aria-label": "Move up", disabled: i === 0,
+      onclick: () => { [blocks[i - 1], blocks[i]] = [blocks[i], blocks[i - 1]]; changed(); renderEditor(); } }),
+    el("button", { class: "t-small", text: "▼", "aria-label": "Move down", disabled: i === blocks.length - 1,
+      onclick: () => { [blocks[i + 1], blocks[i]] = [blocks[i], blocks[i + 1]]; changed(); renderEditor(); } }),
+    el("button", { class: "t-small", text: "Remove",
+      onclick: () => { if (!confirm("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?")) return; blocks.splice(i, 1); changed(); renderEditor(); } }));
+  const box = el("div", { class: "aero-panel t-block" }, head);
+
+  if (b.type === "heading") {
+    box.append(el("input", { type: "text", value: b.text || "", style: "width:100%", placeholder: "Heading", oninput: set("text") }));
+  } else if (b.type === "text") {
+    box.append(el("textarea", { rows: 6, style: "width:100%", value: b.text || "", placeholder: "Type here…", oninput: set("text") }),
+      el("p", { class: "t-hint", text: "Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
+  } else if (b.type === "poll") {
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Question" }),
+      el("textarea", { rows: 2, value: b.question || "", oninput: set("question") })));
+    const opts = el("div");
+    const drawOpts = () => {
+      opts.replaceChildren(...b.options.map((o, j) => el("div", { class: "t-opt" },
+        el("span", { class: "cl-letter", text: LETTERS[j] }),
+        el("input", { type: "text", value: o, placeholder: "Answer choice", oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
+        el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
+          onclick: () => { b.options.splice(j, 1); changed(); drawOpts(); } }))),
+        el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
+          onclick: () => { b.options.push(""); changed(); drawOpts(); opts.querySelectorAll("input")[b.options.length - 1].focus(); } }));
+    };
+    drawOpts();
+    box.append(opts, el("p", { class: "t-hint", text: "Results stay hidden until you show them. Showing results also closes voting." }));
+  } else if (b.type === "image") {
+    const status = el("span", { class: "aero-muted" });
+    const file = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
+      const f = file.files[0]; if (!f) return;
+      status.textContent = "Uploading…";
+      try { b.imageId = await uploadImage(f); changed(); renderEditor(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    if (b.imageId) box.append(el("img", { class: "t-thumb", src: "/img/" + b.imageId, alt: "" }));
+    box.append(el("div", { class: "t-row", style: "margin-bottom:10px" },
+      el("button", { class: "t-small", text: b.imageId ? "Replace image" : "Choose image", onclick: () => file.click() }), status, file));
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Caption (optional)" }),
+      el("input", { type: "text", value: b.caption || "", oninput: set("caption") })));
+    box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Size" }),
+      sizeSelect(b, "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"]])));
+  } else if (b.type === "sim") {
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Sim web address" }),
+      el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: set("url") })));
+    box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Height" }),
+      sizeSelect(b, "height", [["tall", "Fills the screen"], ["medium", "About half the screen"]])));
+    box.append(el("p", { class: "t-hint", text: "Paste the address of one of your sims (it must start with https://)." }));
+  }
+  return box;
+}
+
+function sizeSelect(b, key, choices) {
+  const s = el("select", { onchange: (e) => { b[key] = e.target.value; changed(); } },
+    ...choices.map(([v, t]) => el("option", { value: v, text: t })));
+  s.value = b[key] || choices[0][0];
+  return s;
+}
+
+// shrink big photos so they upload fast and load quickly on Chromebooks
+async function uploadImage(file) {
+  let blob = file;
+  if (!(file.type === "image/gif" && file.size < 1.5e6)) {
+    const img = await new Promise((res, rej) => {
+      const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That file isn't an image I can read.")); i.src = URL.createObjectURL(file);
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    const g = c.getContext("2d");
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.88));
+  }
+  const r = await tapi("/api/images", { method: "POST", headers: { "content-type": blob.type }, body: blob });
+  return r.id;
+}
+
+// ---------------------------------------------------------------- teaching live
+function showLive() {
+  show("liveView");
+  $("lvUrlHint").textContent = "Students go to: " + location.host;
+  renderLive();
+}
+
+$("lvEdit").onclick = () => { if (tstate && tstate.live) { ed = null; location.hash = "#/edit/" + tstate.live.lessonId; } };
+$("lvHome").onclick = () => (location.hash = "#/");
+$("lvEnd").onclick = endClass;
+$("lvUnlock").onclick = () => {
+  if (!tstate || !tstate.live) return;
+  link.send({ t: "unlock", to: tstate.live.unlocked + 1 });
+};
+$("lvRelock").onclick = () => {
+  if (!tstate || !tstate.live || tstate.live.unlocked === 0) return;
+  link.send({ t: "unlock", to: tstate.live.unlocked - 1 });
+};
+
+function renderLive() {
+  if (!tstate) return;
+  const { live, lesson, presence, tallies } = tstate;
+  if (!live || !lesson || !lesson.pages.length) {
+    $("lvTitle").textContent = "No class running";
+    $("lvPages").replaceChildren();
+    $("lvPollBar").hidden = true;
+    $("lvPage").replaceChildren(el("p", { text: "Start a lesson from the Lessons screen." }));
+    $("lvUnlock").disabled = $("lvRelock").disabled = true;
+    $("lvStudents").textContent = presence.count + " connected";
+    return;
+  }
+  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; }
+  if (live.unlocked > lvLastUnlocked) lvSelected = live.unlocked; // follow the page just unlocked
+  lvLastUnlocked = live.unlocked;
+  lvSelected = Math.min(lvSelected, lesson.pages.length - 1);
+
+  $("lvTitle").textContent = lesson.title;
+  $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
+    (presence.polling ? " (" + presence.polling + " checking every few seconds)" : "");
+
+  $("lvPages").replaceChildren(...lesson.pages.map((p, i) => {
+    const locked = i > live.unlocked;
+    const n = presence.onPage[i] || 0;
+    return el("li", {}, el("button", {
+      class: locked ? "locked" : "", "aria-pressed": i === lvSelected ? "true" : "false",
+      onclick: () => { lvSelected = i; renderLive(); },
+    },
+      el("span", { class: "t-num", text: i + 1 }),
+      el("span", { class: "t-label", text: (locked ? "🔒 " : "") + pageLabel(p, i) }),
+      !locked ? el("span", { class: "aero-chip t-count", text: n, title: n + " on this page" }) : null));
+  }));
+
+  const page = lesson.pages[lvSelected];
+  const poll = (page.blocks || []).find((b) => b.type === "poll");
+  const bar = $("lvPollBar");
+  const revealed = !!live.revealed[page.id];
+  const tally = tallies[page.id] || { counts: [], total: 0 };
+  bar.hidden = !poll;
+  if (poll) {
+    bar.replaceChildren(
+      el("span", { class: "aero-chip", text: tally.total + " of " + presence.count + " voted" }),
+      el("span", { class: "aero-muted", text: revealed ? "Results showing · voting closed" : lvSelected > live.unlocked ? "Page is locked" : "Results hidden · voting open" }),
+      el("span", { class: "cl-grow" }),
+      el("button", { class: revealed ? "" : "aero-btn-primary", text: revealed ? "Hide results" : "Show results",
+        onclick: () => link.send({ t: "reveal", pageId: page.id, on: !revealed }) }),
+      el("button", { class: "t-small", text: "Clear votes", disabled: !tally.total,
+        onclick: () => { if (confirm("Clear the votes on this page so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id }); } }));
+  }
+  mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null });
+
+  const next = live.unlocked + 1;
+  const more = next < lesson.pages.length;
+  $("lvUnlock").disabled = !more;
+  $("lvUnlock").textContent = more ? "Unlock page " + (next + 1) + " ▶" : "All pages unlocked";
+  $("lvUnlockNote").textContent = more ? "Next: " + pageLabel(lesson.pages[next], next) : "";
+  $("lvRelock").disabled = live.unlocked === 0;
+  $("lvRelock").textContent = "Re-lock page " + (live.unlocked + 1);
+}
+
+route();
+</script>
+</body>
+</html>

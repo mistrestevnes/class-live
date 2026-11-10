@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>Turning Sky</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Varela+Round&display=swap">
+<style>
+
+
+
+
+:root {
+  /* palette */
+  --aero-forest: #12291F;      /* page background, all body text */
+  --aero-emerald: #1E5E46;     /* primary actions, icons, links */
+  --aero-emerald-dark: #12432F;
+  --aero-jade: #5FA084;        /* fills, slider tracks, data series */
+  --aero-mint: #D2E8DD;        /* soft surfaces, highlights, selected rows */
+  --aero-gold: #E0B43C;        /* accent, vectors, warnings */
+  --aero-mist: #EEF5F1;        /* sim stage on light, panel tint */
+  --aero-muted: #3A5247;       /* secondary text on white */
+  --aero-line: #BFDCCD;        /* borders, table rules */
+  --aero-stage: #0B1C15;       /* behind videos / dark canvases */
+
+  /* type */
+  --aero-font-display: "Varela Round", "Lexend", sans-serif;
+  --aero-font-body: "Lexend", system-ui, sans-serif;
+  --aero-font-data: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* shape */
+  --aero-radius: 24px;
+  --aero-radius-sm: 12px;
+  --aero-shadow: 0 12px 32px rgba(0, 0, 0, .35), inset 0 1px 0 #FFFFFF;
+  --aero-focus: 0 0 0 3px #FFFFFF, 0 0 0 6px #12291F;
+
+  color-scheme: light;
+}
+
+/* ---------- page ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 17px; }
+body {
+  margin: 0;
+  color: var(--aero-forest);
+  font-family: var(--aero-font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: .03em;
+  word-spacing: .1em;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, .22) 0px, rgba(0, 0, 0, .22) 2px, transparent 2px, transparent 4px),
+    var(--aero-forest);
+  background-attachment: fixed;
+}
+
+h1, h2 { font-family: var(--aero-font-display); font-weight: 400; letter-spacing: .02em; text-transform: none; margin: 0 0 .4em; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 .3em; }
+p { margin: 0 0 .8em; }
+a { color: var(--aero-emerald); }
+a:hover { color: var(--aero-forest); }
+em, i { font-style: normal; font-weight: 600; } /* no italics, for readability */
+
+.aero-muted { color: var(--aero-muted); }
+.aero-data, code, pre, table, output, input[type=number] {
+  font-family: var(--aero-font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+/* ---------- surfaces ---------- */
+.aero-panel, dialog {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: var(--aero-radius);
+  box-shadow: var(--aero-shadow);
+  padding: 20px 24px;
+  color: var(--aero-forest);
+}
+.aero-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 20px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+}
+.aero-stage {
+  background: var(--aero-stage);
+  border-radius: var(--aero-radius);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 32px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+
+/* ---------- buttons: light mint gel (default) ---------- */
+button, .aero-btn {
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid #A8CDB9;
+  color: var(--aero-forest);
+  background: linear-gradient(180deg, #F8FBF9 0%, #E3F0E9 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 3px 8px rgba(18, 41, 31, .12);
+  cursor: pointer;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+button:hover:not(:disabled), .aero-btn:hover:not(:disabled) {
+  border-color: #7FB59A;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EAF5EF 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 5px 12px rgba(18, 41, 31, .18);
+}
+button:active:not(:disabled), .aero-btn:active:not(:disabled) {
+  border-color: #8FBFA6;
+  background: #E0EEE6;
+  box-shadow: inset 0 1px 2px rgba(18, 41, 31, .14), 0 2px 5px rgba(18, 41, 31, .1);
+}
+
+/* ---------- buttons: emerald gel (primary) ---------- */
+.aero-btn-primary, button.primary, button[aria-pressed="true"] {
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid var(--aero-emerald-dark);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+  background: linear-gradient(180deg, #2E7357 0%, #1E5E46 50%, #19533E 51%, #1E5E46 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 10px rgba(18, 67, 47, .3);
+}
+.aero-btn-primary:hover:not(:disabled), button.primary:hover:not(:disabled), button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--aero-emerald-dark);
+  background: linear-gradient(180deg, #3A8264 0%, #26694F 50%, #1F5D46 51%, #26694F 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 14px rgba(18, 67, 47, .38);
+}
+.aero-btn-primary:active:not(:disabled), button.primary:active:not(:disabled), button[aria-pressed="true"]:active:not(:disabled) {
+  background: linear-gradient(180deg, #1C5842 0%, #1E5E46 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .25), 0 2px 5px rgba(18, 67, 47, .25);
+}
+
+/* ---------- disabled ---------- */
+button:disabled, .aero-btn:disabled, .aero-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: #5E7068;
+  text-shadow: none;
+  background: #D3DED8;
+  border-color: #B3C4BB;
+  box-shadow: none;
+}
+
+/* ---------- keyboard focus ---------- */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--aero-focus) !important;
+  border-radius: 999px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-radius: var(--aero-radius-sm); }
+
+/* ---------- form controls ---------- */
+select, input[type=text], input[type=number], textarea {
+  font: inherit;
+  color: var(--aero-forest);
+  background: #FFFFFF;
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius-sm);
+  min-height: 40px;
+  padding: 6px 10px;
+}
+input[type=range], input[type=checkbox], input[type=radio], progress { accent-color: var(--aero-emerald); }
+input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+label { cursor: pointer; }
+
+/* ---------- chips & readouts ---------- */
+.aero-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid var(--aero-line);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aero-chip-warn { background: #F8EDCB; border-color: var(--aero-gold); }
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { text-align: right; font-weight: 600; color: var(--aero-muted); padding: 6px 10px; border-bottom: 1px solid var(--aero-line); background: #FFFFFF; }
+td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--aero-line); }
+tbody tr:hover td, tr.current td { background: var(--aero-mint); }
+
+/* ---------- details / explainers ---------- */
+details { border-top: 1px solid var(--aero-line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--aero-emerald); }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Layout: the sky fills the window, one control bar below. Single AeroLab look. */
+:root{color-scheme:light}
+html,body{height:100%}
+body{overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#stage{flex:1 1 auto;min-height:0;position:relative;border-radius:var(--aero-radius-sm)}
+#sky{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#sky.drag{cursor:grabbing}
+#sky:focus-visible{border-radius:0;box-shadow:none!important;outline:2px solid var(--aero-mint);outline-offset:-2px}
+.aero-bar{flex:0 0 auto;padding:6px 12px;gap:6px 10px}
+.aero-bar button{padding:6px 16px}
+.group{display:flex;gap:4px}
+.spacer{flex:1 1 auto}
+#play{min-width:92px}
+.aero-chip{white-space:nowrap}
+#clock{min-width:108px;justify-content:center}
+#dayn{min-width:96px;justify-content:center}
+
+/* Layout: the sky fills the whole window and controls float over it.
+   Controls drop the AeroLab gel look for a compact dark panel that suits a night sky, keeping its emerald and mint. */
+html,body{background:#000}
+#app{position:relative;padding:0!important;gap:0!important;display:block!important;height:100%}
+#stage{position:relative;width:100%;height:100%!important;border-radius:0!important;box-shadow:none!important;background:#000!important}
+.ctl{position:absolute;z-index:5;top:10px;left:max(10px,env(safe-area-inset-left,0px));width:150px;max-height:calc(100% - 20px);display:flex;flex-direction:column;gap:5px;padding:7px!important;
+  background:rgba(12,24,19,.86)!important;border:1px solid rgba(210,232,221,.22)!important;border-radius:10px!important;box-shadow:none!important;color:#E6F1EB;
+  overflow-y:auto;letter-spacing:0;word-spacing:0;font-family:Helvetica,Arial,sans-serif;font-size:13px}
+.ctl button{width:100%;min-height:26px;padding:1px 6px;font:500 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;color:#E6F1EB;text-shadow:none;
+  background:rgba(255,255,255,.09);border:1px solid rgba(210,232,221,.2);border-radius:6px;box-shadow:none}
+.ctl button:hover:not(:disabled){background:rgba(255,255,255,.17);border-color:rgba(210,232,221,.4);box-shadow:none}
+.ctl button:active:not(:disabled){background:rgba(255,255,255,.05);box-shadow:none}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:#2E7357;border-color:#5FA084;color:#fff;box-shadow:none}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:#3A8264;border-color:#5FA084;box-shadow:none}
+.ctl button:disabled{background:transparent;border-color:rgba(210,232,221,.1);color:rgba(230,241,235,.32)}
+.ctl .aero-chip{justify-content:center;padding:1px 4px;font:600 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;min-width:0!important;width:100%;white-space:nowrap;background:transparent;border:0;color:#fff}
+.ctl input[type=range]{flex:0 0 auto!important;width:100%;height:20px!important;margin:0;accent-color:#5FA084}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.lbl{font-size:12px;font-weight:400;color:#A9C6B7;margin-top:3px}
+.end{margin-top:5px}
+/* one-row panel for the page where a column would cover the map */
+.ctl.top{flex-direction:row;align-items:center;width:auto;flex-wrap:wrap;max-width:calc(100% - 20px);padding:5px 8px!important;gap:5px 8px}
+.ctl.top .aero-chip{width:92px;flex:0 0 auto}
+.ctl.top .lbl{margin-top:0}
+.ctl.top .pair{flex:0 0 112px}
+.ctl.top .pl{display:flex;gap:3px}
+.ctl.top .pl button{width:82px}
+/* Ptolemaic pages */
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ctl.wide{width:auto;right:8px;top:8px;max-height:none;overflow:visible}
+.row{display:flex;gap:6px;align-items:center}
+.row>button{flex:1 1 0;min-width:0}
+.row>.aero-chip{width:auto;flex:0 0 auto;padding:1px 6px}
+.row>.lbl{margin-top:0}
+.row>input[type=range]{flex:1 1 0!important;width:auto;min-width:60px}
+.row>button[data-b]{padding:1px 2px}
+@media (max-width:760px){.ctl.wide{left:10px!important;top:auto;bottom:6px}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style id="notebook">
+/* Astronomer's Notebook panels over the black sky */
+:root{--paper:#F3EAD3;--sheet:#FFFBEF;--ink:#2A2118;--soft:#574832;--faint:#C9B98F;--accent:#8C3B22;--accent-dark:#6F2D19;--on-accent:#FFF8E8;--tint:#E7DABB;--nb-sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;--nb-serif:"Source Serif 4",Georgia,serif}
+.ctl,.ctl.aero-panel{background:var(--paper)!important;border:0!important;border-radius:14px!important;box-shadow:0 6px 18px rgba(0,0,0,.45)!important;color:var(--ink)!important;font-family:var(--nb-sans)!important;font-size:14px!important;padding:9px!important}
+.ctl.top{padding:6px 10px!important}
+.ctl button,.ctl button.primary{font:400 14px var(--nb-sans)!important;color:var(--ink)!important;background:transparent!important;border:1px solid var(--ink)!important;border-radius:8px!important;box-shadow:none!important;text-shadow:none!important}
+.ctl button:hover:not(:disabled){background:var(--tint)!important;border-color:var(--ink)!important}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--on-accent)!important;font-weight:600!important}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:var(--accent-dark)!important;border-color:var(--accent-dark)!important}
+.ctl button:disabled{background:transparent!important;border-color:var(--faint)!important;color:#8E7E62!important}
+.ctl .aero-chip,.ctl .chip{font-family:var(--nb-serif)!important;font-weight:600!important;color:var(--ink)!important;font-size:15px;background:transparent!important}
+.ctl.top .aero-chip{font-size:24px}
+.ctl input[type=range]{accent-color:var(--accent)!important}
+.ctl .lbl{color:var(--soft)!important;font-size:14px}
+.ctl button{white-space:nowrap;padding:1px 4px!important}
+.ctl.top .tm button{width:84px!important}
+#sm{flex:0 0 158px!important}
+.ctl,.ctl.aero-panel{top:auto!important;bottom:10px;left:10px;width:auto;max-width:calc(100% - 494px);flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.ctl .aero-chip{width:auto!important;flex:0 0 auto}
+.ctl input[type=range]{width:130px!important}
+.ctl #hour{width:170px!important}
+.ctl button{width:auto;padding:1px 10px!important;min-height:30px}
+.ctl .pair{display:flex;gap:3px}
+.ctl .lbl{margin:0}
+.end{margin:0}
+.ctl [hidden]{display:none!important}
+.ctl.zod{max-width:370px}
+.ctl.zod #hour{width:340px!important}
+.ctl.zod #tspeed{width:190px!important}
+.ctl.zod .pair,.ctl.zod #reset{display:none}
+@media (max-width:1000px){.ctl,.ctl.aero-panel{max-width:calc(100% - 20px)}}
+#bigdate{position:absolute;z-index:4;color:#fff;pointer-events:none;font:600 40px/1.1 "Source Serif 4",Georgia,serif;text-shadow:0 1px 4px #000;top:6px;left:0;right:0;text-align:center}
+#bigdate small,#bigdate .tm2{display:inline;font:inherit;margin-left:.5em}
+.ctl,.ctl.aero-panel{left:auto!important;right:24px!important;bottom:24px;max-width:calc(100% - 48px)}
+.ctl.zod{left:24px!important;right:auto!important}
+.ctl:not(.zod) #hour,.ctl #reset,#bigdate:not(.zod) #dayn{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bigdate"><span id="dayn"></span><span id="clock" class="tm2"></span></div>
+  <div class="ctl aero-panel" role="toolbar" aria-label="Sky controls">
+    
+    
+    <input type="range" id="hour" min="0" max="23.95" step="0.05" value="4.5" aria-label="Time of day">
+    <button id="play" class="primary">Play</button><label class="lbl" for="tspeed">Speed</label><input type="range" id="tspeed" min="0" max="100" value="50"><span class="aero-chip" id="trate"></span>
+    <div class="pair"><button id="vwWide" data-vw="wide" aria-pressed="true">Wide</button><button id="vwNormal" data-vw="normal" aria-pressed="false">Normal</button></div>
+    <button id="con" aria-pressed="false" hidden>Constellations</button><button id="zbtn" hidden>Show the zodiac</button>
+    <button id="reset" class="end">Start over</button>
+    <div hidden><button id="spDay" data-sp="day" aria-pressed="true">Day</button><button id="spMonth" data-sp="month">Month</button><button id="spYear" data-sp="year">Year</button><button id="trail">t</button><button id="names" aria-pressed="true">n</button><button id="daylight" aria-pressed="true">d</button></div>
+  </div>
+  <div id="stage" class="aero-stage"><canvas id="sky" tabindex="0" aria-label="The sky seen from the ground. Drag to look around."></canvas></div>
+</div>
+<script>
+(function(){
+"use strict";
+/* Stars: [RA deg, Dec deg, magnitude, B-V] from the Yale Bright Star data (via d3-celestial). */
+var STARS=[[2.1,29.09,2.1,-0.0],[2.29,59.15,2.3,0.4],[2.35,-45.75,3.9,1.0],[3.31,15.18,2.8,-0.2],[4.86,-8.82,3.6,1.2],[6.55,-43.68,3.9,0.2],[6.57,-42.31,2.4,1.1],[8.25,62.93,4.2,0.1],[9.24,53.9,3.7,-0.2],[9.83,30.86,3.3,1.3],[10.13,56.54,2.2,1.2],[10.9,-17.99,2.0,1.0],[11.83,24.27,4.1,1.1],[12.28,57.82,3.5,0.6],[14.18,60.72,2.1,-0.0],[14.19,38.5,3.9,0.1],[14.65,-29.36,4.3,-0.2],[15.74,7.89,4.3,1.0],[16.52,-46.72,3.3,0.9],[17.1,-55.25,3.9,-0.1],[17.15,-10.18,3.5,1.2],[17.19,86.26,4.2,1.2],[17.38,47.24,4.3,0.0],[17.43,35.62,2.1,1.6],[21.01,-8.18,3.6,1.1],[21.45,60.24,2.7,0.2],[22.09,-43.32,3.4,1.5],[22.81,-49.07,3.9,1.0],[22.87,15.35,3.6,1.0],[24.2,41.41,4.1,0.5],[24.43,-57.24,0.5,-0.2],[24.5,48.63,3.6,1.3],[25.92,50.69,4.0,-0.1],[26.02,-15.94,3.5,0.7],[26.35,9.16,4.3,0.9],[27.87,-10.34,3.7,1.1],[28.27,29.58,3.4,0.5],[28.38,19.29,3.9,-0.0],[28.6,63.67,3.4,-0.1],[28.66,20.81,2.6,0.2],[28.99,-51.61,3.7,0.8],[30.0,-21.08,4.0,1.6],[30.51,2.76,3.8,0.0],[30.86,72.42,4.0,-0.0],[30.97,42.33,2.1,1.4],[31.79,23.46,2.0,1.2],[32.39,34.99,3,0.1],[34.13,-51.51,3.6,-0.1],[34.33,33.85,4.0,0.0],[36.75,-47.7,4.2,-0.1],[37.04,8.46,4.3,-0.1],[37.95,89.26,2.0,0.6],[39.87,0.33,4.1,-0.2],[40.17,-39.86,4.1,1.0],[40.83,3.24,3.5,0.1],[41.03,-13.86,4.2,-0.1],[41.05,49.23,4.1,0.5],[41.24,10.11,4.3,0.3],[42.5,27.26,3.6,-0.1],[42.65,38.32,4.2,0.3],[42.67,55.9,3.8,1.7],[43.56,52.76,3.9,0.8],[44.11,-8.9,3.9,1.1],[44.57,-40.3,2.9,0.1],[45.57,4.09,2.5,1.6],[45.6,-23.62,4.1,0.2],[46.2,53.51,2.9,0.7],[46.29,38.84,3.3,1.5],[47.04,40.96,2.1,-0.0],[47.27,49.61,4.0,0.6],[47.37,44.86,3.8,1.0],[48.02,-28.99,3.8,0.5],[49.88,-21.76,3.7,1.6],[49.98,-43.07,4.3,0.7],[51.08,49.86,1.8,0.5],[51.2,9.03,3.6,0.9],[51.79,9.73,3.7,-0.1],[52.27,59.94,4.2,0.4],[52.72,12.94,4.1,1.1],[53.23,-9.46,3.7,0.9],[53.45,-21.63,4.3,-0.1],[54.22,0.4,4.3,0.6],[55.73,47.79,3.0,-0.1],[55.81,-9.76,3.5,0.9],[56.08,32.29,3.8,0.0],[56.22,24.11,3.7,-0.1],[56.3,42.58,3.8,0.4],[56.3,24.47,4.3,-0.1],[56.46,24.37,3.9,-0.1],[56.58,23.95,4.1,-0.1],[56.71,-23.25,4.2,0.4],[56.87,24.11,2.9,-0.1],[57.15,-37.62,4.3,-0.0],[57.29,24.05,3.6,-0.1],[57.36,-36.2,4.2,0.9],[58.53,31.88,2.8,0.3],[59.46,40.01,2.9,-0.2],[59.51,-13.51,3.0,1.6],[59.74,35.79,4.0,0.0],[60.17,12.49,3.4,-0.1],[60.79,5.99,3.9,0.0],[61.65,50.35,4.2,-0.0],[62.17,47.71,4.0,-0.0],[62.97,-6.84,4.0,0.3],[63.5,-42.29,3.9,1.1],[63.72,48.41,4.1,0.9],[63.88,8.89,4.3,-0.1],[64.01,-51.49,4.3,0.3],[64.47,-33.8,3.5,-0.1],[64.95,15.63,3.6,1.0],[65.73,17.54,3.8,1.0],[66.01,-34.02,4.0,1.5],[66.34,22.29,4.2,0.1],[66.37,17.93,4.3,0.0],[66.58,22.81,4.3,0.3],[67.14,15.96,3.8,1.0],[67.15,19.18,3.5,1.0],[67.17,15.87,3.4,0.2],[68.5,-55.05,3.3,-0.1],[68.89,-30.56,3.8,1.0],[68.91,10.16,4.2,0.2],[68.98,16.51,0.9,1.5],[69.08,-3.35,3.9,-0.2],[69.17,41.26,4.2,1.2],[69.54,12.51,4.3,0.1],[69.55,-14.3,3.9,1.1],[70.56,22.96,4.3,-0.1],[71.38,-3.25,4.0,-0.1],[72.46,6.96,3.2,0.5],[72.8,5.61,3.7,-0.2],[73.51,66.34,4.3,-0.0],[73.56,2.44,3.7,-0.2],[74.09,13.51,4.1,1.2],[74.25,33.17,2.7,1.5],[75.49,43.82,3.0,0.5],[75.62,41.08,3.7,1.2],[75.85,60.44,4.0,0.9],[76.37,-22.37,3.2,1.5],[76.63,41.23,3.2,-0.1],[76.96,-5.09,2.8,0.2],[77.29,-8.75,4.2,-0.2],[78.23,-16.21,3.3,-0.1],[78.63,-8.2,0.2,-0.0],[79.17,46.0,0.1,0.8],[79.4,-6.84,3.6,-0.1],[79.89,-13.18,4.3,-0.2],[80.99,-7.81,4.1,0.9],[81.12,-2.4,3.4,-0.2],[81.28,6.35,1.6,-0.2],[81.57,28.61,1.6,-0.1],[82.06,-20.76,2.8,0.8],[82.7,5.95,4.2,-0.1],[82.8,-35.47,3.9,1.1],[83.0,-0.3,2.2,-0.2],[83.18,-17.82,2.6,0.2],[83.78,9.93,3.4,-0.2],[83.86,-5.91,2.8,-0.2],[84.05,-1.2,1.7,-0.2],[84.23,9.29,4.1,1.0],[84.41,21.14,3.0,-0.1],[84.69,-2.6,3.8,-0.2],[84.91,-34.07,2.6,-0.1],[85.19,-1.94,1.7,-0.2],[86.12,-22.45,3.6,0.5],[86.74,-14.82,3.5,0.1],[86.82,-51.07,3.9,0.2],[86.94,-9.67,2.1,-0.2],[87.74,-35.77,3.1,1.1],[87.83,-20.88,3.8,1.0],[87.87,39.15,4.0,1.1],[88.79,7.41,0.5,1.5],[89.1,-14.17,3.7,0.3],[89.79,-42.82,4.0,1.1],[89.88,54.28,3.7,1.0],[89.88,44.95,1.9,0.1],[89.93,37.21,2.6,-0.1],[89.98,45.94,4.3,1.7],[90.6,9.65,4.1,0.2],[91.03,23.26,4.2,0.8],[93.71,-6.27,4.0,1.3],[93.72,22.51,3.3,1.6],[95.08,-30.06,3.0,-0.2],[95.53,-33.44,3.9,0.9],[95.67,-17.96,2.0,-0.2],[95.74,22.51,2.9,1.6],[95.99,-52.7,-0.6,0.2],[97.2,-7.03,3.8,-0.1],[97.24,20.21,4.1,-0.1],[99.17,-19.26,4.0,1.0],[99.43,16.4,1.9,0.0],[99.44,-43.2,3.2,-0.1],[100.98,25.13,3.1,1.4],[101.29,-16.72,-1.4,0.0],[101.32,12.9,3.4,0.4],[102.46,-32.51,3.5,-0.1],[102.48,-50.61,2.9,1.2],[103.2,33.96,3.6,0.1],[103.53,-24.18,3.9,1.7],[103.55,-12.04,4.1,1.4],[104.66,-28.97,1.5,-0.2],[105.43,-27.93,3.5,1.7],[105.76,-23.83,3.0,-0.1],[105.94,-15.63,4.1,-0.1],[106.03,20.57,4.0,0.9],[107.1,-26.39,1.8,0.7],[107.97,-0.49,4.2,-0.0],[108.7,-26.77,4.0,-0.1],[109.29,-37.1,2.7,1.6],[109.52,16.54,3.6,0.1],[110.03,21.98,3.5,0.4],[111.02,-29.3,2.5,-0.1],[111.43,27.8,3.8,1.0],[111.79,8.29,2.9,-0.1],[112.28,31.78,4.2,0.3],[112.31,-43.3,3.2,1.5],[113.65,31.89,1.6,0.0],[113.98,26.9,4.1,1.5],[114.71,-26.8,3.8,-0.2],[114.83,5.22,0.4,0.4],[115.31,-9.55,3.9,1.0],[115.83,28.88,4.2,1.1],[115.95,-28.95,3.9,0.2],[116.11,24.4,3.6,0.9],[116.31,-37.97,3.6,1.7],[116.33,28.03,1.2,1.0],[117.31,-46.37,4.1,-0.2],[117.32,-24.86,3.3,1.2],[118.05,-40.58,3.7,1.0],[118.33,-48.1,4.2,-0.1],[119.19,-52.98,3.5,-0.2],[119.21,-22.88,4.2,0.7],[120.9,-40.0,2.2,-0.3],[121.89,-24.3,2.8,0.5],[122.38,-47.34,1.8,-0.1],[124.13,9.19,3.5,1.5],[125.63,-59.51,1.9,1.2],[125.71,43.19,4.2,1.6],[126.42,-3.91,3.9,-0.0],[127.57,60.72,3.4,0.9],[129.41,-42.99,4.1,0.1],[129.41,5.7,4.1,0.0],[130.03,-35.31,4.0,0.9],[130.07,-52.92,3.6,-0.2],[130.16,-46.65,3.8,0.7],[130.81,3.4,4.3,-0.2],[130.9,-33.19,3.7,-0.2],[131.1,-42.65,4.0,0.9],[131.17,18.15,3.9,1.1],[131.18,-54.71,1.9,0.0],[131.51,-46.04,3.9,0.0],[131.67,28.76,4.0,1.0],[131.69,6.42,3.4,0.7],[132.63,-27.71,4.0,1.3],[133.85,5.95,3.1,1.0],[134.62,11.86,4.3,0.1],[134.8,48.04,3.1,0.2],[135.16,41.78,4.0,0.5],[135.91,47.16,3.6,0.0],[136.04,-47.1,3.8,1.2],[137.0,-43.43,2.2,1.7],[137.74,-58.97,3.4,-0.2],[138.59,2.31,3.9,-0.1],[139.27,-59.28,2.2,0.2],[139.71,36.8,3.8,0.1],[140.26,34.39,3.1,1.6],[140.53,-55.01,2.5,-0.1],[141.9,-8.66,2.0,1.4],[142.68,-40.47,3.6,0.4],[142.81,-57.03,3.2,1.5],[142.88,63.06,3.6,0.4],[143.21,51.68,3.2,0.5],[143.61,-59.23,4.1,-0.0],[144.27,81.33,4.3,1.5],[144.96,-1.14,3.9,1.3],[145.29,9.89,3.5,0.5],[146.46,23.77,3.0,0.8],[147.75,59.04,3.8,0.3],[147.87,-14.85,4.1,0.9],[148.19,26.01,3.9,1.2],[149.22,-54.57,3.5,-0.1],[151.83,16.76,3.5,-0.0],[152.09,11.97,1.4,-0.1],[152.65,-12.35,3.6,1.0],[153.68,-42.12,3.9,0.1],[154.17,23.42,3.4,0.3],[154.27,42.91,3.5,0.0],[154.99,19.84,2.0,1.1],[155.58,41.5,3.1,1.6],[156.52,-16.84,3.8,1.5],[156.79,-31.07,4.3,1.4],[156.97,-58.74,3.8,0.3],[156.97,36.71,4.2,0.9],[158.2,9.31,3.8,-0.1],[159.33,-48.23,3.8,0.3],[159.83,-55.6,4.3,1.0],[161.69,-49.42,2.7,0.9],[162.41,-16.19,3.1,1.2],[163.33,34.21,3.8,1.0],[163.37,-58.85,3.8,0.9],[163.9,24.75,4.3,0.0],[164.94,-18.3,4.1,1.1],[165.46,56.38,2.3,0.0],[165.93,61.75,1.8,1.1],[167.15,-58.98,3.9,1.2],[167.42,44.5,3,1.1],[168.53,20.52,2.6,0.1],[168.56,15.43,3.3,-0.0],[169.55,31.53,3.8,0.6],[169.62,33.09,3.5,1.4],[169.84,-14.78,3.6,1.1],[170.25,-54.49,3.9,-0.2],[170.28,6.03,4.0,-0.1],[170.98,10.53,4,0.4],[171.22,-17.68,4.1,0.2],[172.85,69.33,3.8,1.6],[173.25,-31.86,3.5,0.9],[174.24,-0.82,4.3,1.0],[176.46,6.53,4.0,1.5],[176.51,47.78,3.7,1.2],[177.26,14.57,2.1,0.1],[177.67,1.76,3.6,0.5],[178.23,-33.91,4.3,-0.1],[178.46,53.69,2.4,0.0],[181.3,8.73,4.1,1.0],[182.09,-50.72,2.6,-0.1],[182.1,-24.73,4.0,0.3],[182.53,-22.62,3.0,1.3],[182.91,-52.37,4.0,-0.2],[183.79,-58.75,2.8,-0.2],[183.86,57.03,3.3,0.1],[183.95,-17.54,2.6,-0.1],[184.98,-0.67,3.9,0.0],[187.01,-50.23,3.9,-0.2],[187.47,-16.52,2.9,-0.0],[187.79,-57.11,1.6,1.6],[188.02,-16.2,4.3,0.4],[188.37,69.79,3.9,-0.1],[188.44,41.36,4.2,0.6],[188.6,-23.4,2.6,0.9],[189.43,-48.54,3.9,0.0],[190.38,-48.96,2.2,-0.0],[190.42,-1.45,2.7,0.4],[191.93,-59.69,1.2,-0.2],[193.36,-40.18,4.2,0.2],[193.51,55.96,1.8,-0.0],[193.65,-57.18,4.0,-0.2],[193.9,3.4,3.4,1.6],[194.01,38.32,2.9,-0.1],[195.54,10.96,2.9,0.9],[196.73,-49.91,4.3,-0.2],[197.97,27.88,4.2,0.6],[199.73,-23.17,3.0,0.9],[200.15,-36.71,2.8,0.1],[200.98,54.93,2.2,0.1],[201.3,-11.16,1.0,-0.2],[201.31,54.99,4.0,0.2],[202.76,-39.41,3.9,1.2],[203.67,-0.6,3.4,0.1],[204.97,-53.47,2.3,-0.2],[206.42,-33.04,4.2,0.4],[206.89,49.31,1.9,-0.1],[207.36,-34.45,4.2,1.5],[207.37,15.8,4.0,1.5],[207.38,-41.69,3.4,-0.2],[207.4,-42.47,3.5,-0.2],[208.67,18.4,2.7,0.6],[208.88,-47.29,2.5,-0.2],[209.57,-42.1,3.8,-0.2],[209.67,-44.8,3.9,-0.2],[210.41,1.54,4.2,0.1],[211.1,64.38,3.7,-0.0],[211.59,-26.68,3.2,1.1],[211.67,-36.37,2.1,1.0],[213.22,-10.27,4.2,1.3],[213.92,19.18,-0.1,1.2],[214.0,-6.0,4.1,0.5],[214.1,46.09,4.2,0.1],[214.85,-46.06,3.5,-0.2],[215.08,-56.39,4.3,0.1],[215.14,-37.89,4.0,-0.0],[216.3,51.85,4.0,0.5],[216.88,75.7,4.2,1.4],[217.96,30.37,3.6,1.3],[218.02,38.31,3.0,0.2],[218.88,-42.16,2.3,-0.2],[219.47,-49.43,4.0,-0.2],[220.29,13.73,3.8,0.0],[220.48,-47.39,2.3,-0.2],[220.49,-37.79,4.0,-0.2],[220.77,-5.66,3.9,0.4],[220.91,-35.17,4.1,1.4],[221.25,27.07,2.4,1.0],[221.56,1.89,3.7,-0.0],[222.68,74.16,2.1,1.5],[222.72,-16.04,2.8,0.1],[224.63,-43.13,2.7,-0.2],[224.79,-42.1,3.1,-0.2],[225.49,40.39,3.5,1.0],[226.02,-25.28,3.2,1.7],[226.28,-47.05,3.9,-0.1],[227.21,-45.28,4.1,-0.2],[227.98,-48.74,3.9,-0.0],[228.07,-52.1,3.4,0.9],[228.88,33.31,3.5,1.0],[229.25,-9.38,2.6,-0.1],[229.38,-58.8,4.1,0.1],[229.63,-47.88,4.3,-0.1],[230.18,71.83,3,0.1],[230.34,-40.65,3.2,-0.2],[230.45,-36.26,3.6,1.5],[230.67,-44.69,3.4,-0.2],[231.23,58.97,3.3,1.2],[231.96,29.11,3.7,0.3],[233.23,31.36,4.1,-0.1],[233.67,26.71,2.2,0.0],[233.7,10.54,3.8,0.3],[233.79,-41.17,2.8,-0.2],[233.88,-14.79,3.9,1.0],[234.26,-28.14,3.6,1.4],[234.66,-29.78,3.7,-0.2],[235.69,26.3,3.8,0.0],[236.01,77.79,4.3,0.0],[236.07,6.43,2.6,1.2],[236.55,15.42,3.6,0.1],[237.18,18.14,4.1,1.6],[237.41,-3.43,3.5,-0.0],[237.7,4.48,3.7,0.1],[237.74,-33.63,4.0,-0.0],[238.46,-16.73,4.1,1.0],[239.11,15.66,3.9,0.5],[239.22,-29.21,3.9,-0.2],[239.4,26.88,4.1,1.2],[239.71,-26.11,2.9,-0.2],[240.03,-38.4,3.4,-0.2],[240.08,-22.62,2.3,-0.1],[240.47,58.57,4.0,0.5],[241.09,-11.37,4.2,0.5],[241.36,-19.81,2.6,-0.1],[241.65,-36.8,4.2,-0.2],[241.7,-20.67,3.9,-0.0],[242.19,44.93,4.2,-0.0],[243.0,-19.46,4,0.1],[243.59,-3.69,2.7,1.6],[244.58,-4.69,3.2,1.0],[244.94,46.31,3.9,-0.2],[244.96,-50.16,4.0,1.1],[245.3,-25.59,2.9,0.3],[245.48,19.15,3.7,0.3],[246.0,61.51,2.7,0.9],[246.76,-18.46,4.2,0.2],[247.35,-26.43,1.1,1.9],[247.56,21.49,2.8,0.9],[247.73,1.98,3.8,0.0],[247.78,-16.61,4.3,0.9],[247.85,-34.7,4.2,-0.2],[248.53,42.44,4.2,-0.0],[248.97,-28.22,2.8,-0.2],[249.09,-35.26,4.2,1.5],[249.29,-10.57,2.5,0.0],[250.32,31.6,2.8,0.7],[250.72,38.92,3.5,0.9],[251.49,82.04,4.2,0.9],[252.45,-59.04,3.8,1.6],[252.54,-34.29,2.3,1.1],[252.97,-38.05,3,-0.2],[253.08,-38.02,3.6,-0.2],[253.65,-42.36,3.6,1.4],[254.42,9.38,3.2,1.2],[254.66,-55.99,3.1,1.6],[254.9,-53.16,4.1,1.5],[255.07,30.93,3.9,-0.0],[257.2,65.71,3.2,-0.1],[257.59,-15.72,2.4,0.1],[258.04,-43.24,3.3,0.4],[258.66,14.39,2.8,1.2],[258.76,24.84,3.1,0.1],[258.76,36.81,3.2,1.4],[260.5,-25.0,3.3,-0.2],[260.92,37.15,4.2,-0.0],[261.32,-55.53,2.8,1.5],[261.35,-56.38,3.3,-0.1],[261.59,-24.18,4.2,0.3],[261.84,-29.87,4.3,0.4],[262.61,52.3,2.8,1.0],[262.69,-37.3,2.7,-0.2],[262.96,-49.88,2.8,-0.1],[263.4,-37.1,1.6,-0.2],[263.73,12.56,2.1,0.2],[264.14,-38.64,4.3,1.1],[264.33,-43.0,1.9,0.4],[264.4,-15.4,3.5,0.3],[264.87,46.01,3.8,-0.2],[265.35,-12.88,4.2,0.1],[265.62,-39.03,2.4,-0.2],[265.87,4.57,2.8,1.2],[266.61,27.72,3.4,0.8],[266.9,-40.13,3.0,0.5],[266.97,2.71,3.8,0.0],[267.46,-37.04,3.2,1.2],[268.38,56.87,3.7,1.2],[269.06,37.25,3.9,1.4],[269.15,51.49,2.2,1.5],[269.44,29.25,3.7,0.9],[269.76,-9.77,3.3,1.0],[270.16,2.93,3.9,0.0],[270.38,21.6,4.3,0.4],[271.36,2.5,4.0,0.9],[271.45,-30.42,3.0,1.0],[271.66,-50.09,3.6,-0.1],[271.84,9.56,3.7,0.2],[271.89,28.76,3.8,-0.0],[273.44,-21.06,3.8,0.2],[274.41,-36.76,3.1,1.6],[275.19,71.34,4.2,-0.1],[275.25,-29.83,2.7,1.4],[275.26,72.73,3.5,0.5],[275.33,-2.9,3.2,0.9],[275.92,21.77,3.9,1.2],[276.04,-34.38,1.8,-0.0],[276.74,-45.97,3.5,-0.2],[276.99,-25.42,2.8,1.0],[277.21,-49.07,4.1,1.0],[278.8,-8.24,3.9,1.3],[279.23,38.78,0.0,-0.0],[281.41,-26.99,3.2,-0.1],[281.42,20.55,4.2,0.5],[281.79,-4.75,4.2,1.1],[282.52,33.36,3.5,0.0],[283.63,36.9,4.2,1.6],[283.82,-26.3,2.0,-0.1],[283.83,43.95,4.1,1.4],[284.43,-21.11,3.5,1.2],[284.74,32.69,3.2,-0.0],[284.91,15.07,4.0,1.1],[285.42,-5.74,4.0,1.1],[285.65,-29.88,2.6,0.1],[286.17,-21.74,3.8,1.0],[286.35,13.86,3.0,0.0],[286.56,-4.88,3.4,-0.1],[286.6,-37.06,4.2,0.5],[286.74,-27.67,3.3,1.2],[287.37,-37.9,4.1,0.0],[287.44,-21.02,2.9,0.4],[287.51,-39.34,4.1,1.2],[288.14,67.66,3.1,1.0],[289.28,53.37,3.8,0.9],[290.42,-17.85,3.9,0.2],[290.66,-44.46,4.0,-0.1],[290.8,-44.8,4.3,0.3],[290.97,-40.62,4.0,-0.1],[291.37,3.11,3.4,0.3],[292.43,51.73,3.8,0.1],[292.68,27.96,3.0,1.1],[296.24,45.13,2.9,-0.0],[296.56,10.61,2.7,1.5],[296.85,18.53,3.7,1.3],[297.04,70.27,3.8,0.9],[297.7,8.87,0.8,0.2],[298.12,1.01,3.9,0.6],[298.82,-41.87,4.1,1.1],[298.83,6.41,3.7,0.9],[299.08,35.08,3.9,1.0],[299.69,19.49,3.5,1.6],[302.83,-0.82,3.2,-0.1],[303.35,56.57,4.3,0.1],[303.41,46.74,3.8,1.3],[303.87,47.71,4.0,1.5],[304.41,-12.51,4.3,0.9],[304.51,-12.54,3.6,0.9],[305.25,-14.78,3.0,0.8],[305.56,40.26,2.2,0.7],[306.41,-56.74,1.9,-0.1],[307.35,30.37,4.0,0.4],[307.4,62.99,4.2,0.2],[308.3,11.3,4.0,-0.1],[309.39,14.6,3.6,0.4],[309.39,-47.29,3.1,1.0],[309.91,15.91,3.8,-0.1],[310.36,45.28,1.2,0.1],[311.32,61.84,3.4,0.9],[311.42,30.72,4.2,1.1],[311.52,-25.27,4.1,0.4],[311.55,33.97,2.5,1.0],[311.66,16.12,4.3,1.0],[311.92,-9.5,3.8,0.0],[312.96,-26.92,4.1,1.6],[313.7,-58.45,3.7,1.2],[314.29,41.17,3.9,0.0],[316.23,43.93,3.7,1.6],[316.49,-17.23,4.1,-0.0],[318.23,30.23,3.2,1.0],[318.7,38.05,3.7,0.4],[318.96,5.25,3.9,0.5],[319.35,39.39,4.2,0.1],[319.64,62.59,2.5,0.3],[320.52,19.8,4.1,1.1],[320.56,-16.83,4.3,0.9],[321.67,-22.41,3.8,1.0],[322.17,70.56,3.2,-0.2],[322.89,-5.57,2.9,0.8],[323.5,45.59,4.0,0.9],[325.02,-16.66,3.7,0.3],[325.88,58.78,4.2,2.2],[326.05,9.88,2.4,1.5],[326.16,25.64,4.1,0.4],[326.36,61.12,4.2,0.5],[326.7,49.31,4.2,-0.1],[326.76,-16.13,2.9,0.2],[328.48,-37.36,3,-0.1],[330.95,64.63,4.3,0.4],[331.45,-0.32,3.0,1.0],[331.61,-13.87,4.3,-0.1],[331.75,25.35,3.8,0.4],[332.06,-46.96,1.7,-0.1],[332.5,33.18,4.3,0.5],[332.55,6.2,3.5,0.1],[332.71,58.2,3.4,1.6],[333.76,57.04,4.2,0.3],[333.99,37.75,4.1,1.4],[334.21,-7.78,4.2,1.0],[335.41,-1.39,3.9,-0.1],[337.21,-0.02,3.6,0.4],[337.29,58.42,4.1,0.8],[337.32,-43.5,4.0,1.0],[337.44,-43.75,4.1,1.6],[337.82,50.28,3.8,0.0],[337.88,-32.35,4.3,0.0],[338.84,-0.12,4.0,-0.1],[340.16,-27.04,4.2,-0.1],[340.37,10.83,3.4,-0.1],[340.67,-46.88,2.1,1.6],[340.75,30.22,2.9,0.9],[341.63,23.57,4.0,1.1],[341.67,12.17,4.2,0.5],[342.14,-51.32,3.5,0.1],[342.4,-13.59,4.0,1.6],[342.42,66.2,3.5,1.1],[342.5,24.6,3.5,0.9],[343.15,-7.58,3.7,1.6],[343.66,-15.82,3.3,0.1],[343.99,-32.54,4.2,1.0],[344.41,-29.62,1.2,0.1],[345.22,-52.75,4.1,1.0],[345.48,42.33,3.6,-0.1],[345.94,28.08,2.4,1.7],[346.19,15.21,2.5,-0.0],[346.72,-43.52,4.3,0.4],[347.36,-21.17,3.7,1.2],[347.59,-45.25,3.9,1.0],[348.58,-6.05,4.2,1.5],[348.97,-9.09,4.2,1.1],[349.29,3.28,3.7,0.9],[349.36,-58.24,4.0,0.4],[350.74,-20.1,4.0,1.1],[351.99,6.38,4.3,1.1],[354.39,46.46,3.8,1.0],[354.53,43.27,4.3,-0.1],[354.84,77.63,3.2,1.0],[354.99,5.63,4.1,0.5],[355.1,44.33,4.2,-0.1],[359.83,6.86,4.0,0.4]];
+var CON=[{"n":"Aquarius","p":[337.5,-5],"l":[[[311.92,-9.5],[313.16,-8.98],[322.89,-5.57],[331.45,-0.32],[335.41,-1.39],[337.21,-0.02],[338.84,-0.12],[343.15,-7.58],[349.48,-9.18],[347.36,-21.17]],[[322.89,-5.57],[331.61,-13.87]],[[331.45,-0.32],[334.21,-7.78]],[[337.21,-0.02],[336.32,1.38]],[[350.74,-20.1],[349.48,-9.18],[355.44,-17.82]]]},{"n":"Aries","p":[42,22],"l":[[[42.5,27.26],[31.79,23.46],[28.66,20.81],[28.38,19.29]]]},{"n":"Cancer","p":[128.2,27],"l":[[[134.62,11.86],[131.17,18.15],[130.82,21.47],[131.67,28.77]],[[131.17,18.15],[124.13,9.19]]]},{"n":"Capricornus","p":[315,-22],"l":[[[304.41,-12.51],[305.25,-14.78],[307.22,-17.81],[311.52,-25.27],[312.96,-26.92],[321.67,-22.41],[326.76,-16.13],[325.02,-16.66],[320.56,-16.83],[316.49,-17.23],[304.41,-12.51]]]},{"n":"Gemini","p":[107.2,23.5],"l":[[[93.72,22.51],[95.74,22.51],[100.98,25.13],[107.78,30.25],[113.65,31.89],[116.33,28.03],[113.98,26.9],[110.03,21.98],[106.03,20.57],[99.43,16.4],[101.32,12.9]],[[110.03,21.98],[109.52,16.54]]]},{"n":"Leo","p":[159,15],"l":[[[152.09,11.97],[151.83,16.76],[154.99,19.84],[168.53,20.52],[177.26,14.57],[168.56,15.43],[152.09,11.97]],[[154.99,19.84],[154.17,23.42],[148.19,26.01],[146.46,23.77]]]},{"n":"Libra","p":[231,-26],"l":[[[226.02,-25.28],[222.72,-16.04],[229.25,-9.38],[233.88,-14.79],[234.26,-28.14],[234.66,-29.78]],[[222.72,-16.04],[233.88,-14.79]]]},{"n":"Pisces","p":[19.5,15],"l":[[[18.44,24.58],[17.92,30.09],[19.87,27.26],[18.44,24.58],[17.86,21.03],[22.87,15.35],[26.35,9.16],[30.51,2.76],[28.39,3.19],[25.36,5.49],[22.55,6.14],[18.43,7.58],[15.74,7.89],[12.17,7.59],[359.83,6.86],[354.99,5.63],[351.99,6.38],[350.09,5.38],[349.29,3.28],[351.73,1.26],[355.51,1.78],[356.6,3.49],[354.99,5.63]],[[349.29,3.28],[345.97,3.82]]]},{"n":"Sagittarius","p":[292.5,-34],"l":[[[274.41,-36.76],[276.04,-34.38],[275.25,-29.83],[276.99,-25.42],[273.44,-21.06]],[[290.66,-44.46],[290.97,-40.62],[285.65,-29.88],[281.41,-26.99],[276.99,-25.42]],[[298.82,-41.87],[299.93,-35.28],[298.96,-26.3],[294.18,-24.88],[291.32,-24.51],[288.89,-25.26],[283.82,-26.3],[281.41,-26.99],[275.25,-29.83],[271.45,-30.42],[276.04,-34.38],[285.65,-29.88],[286.74,-27.67],[283.82,-26.3],[286.17,-21.74],[287.44,-21.02],[289.41,-18.95],[290.42,-17.85],[290.43,-15.96]],[[286.17,-21.74],[284.43,-21.11],[283.54,-22.74],[283.82,-26.3]]]},{"n":"Scorpius","p":[249,-38],"l":[[[239.71,-26.11],[240.08,-22.62],[241.36,-19.81]],[[240.08,-22.62],[245.3,-25.59],[247.35,-26.43],[248.97,-28.22],[252.54,-34.29],[252.97,-38.05],[253.65,-42.36],[258.04,-43.24],[264.33,-43.0],[266.9,-40.13],[265.62,-39.03],[263.4,-37.1]]]},{"n":"Taurus","p":[54,15],"l":[[[84.41,21.14],[68.98,16.51],[67.17,15.87],[64.95,15.63],[65.73,17.54],[67.15,19.18],[81.57,28.61]],[[64.95,15.63],[60.17,12.49],[51.79,9.73],[60.79,5.99]],[[51.79,9.73],[51.2,9.03],[54.22,0.4]]]},{"n":"Virgo","p":[199.5,-4],"l":[[[176.46,6.53],[177.67,1.76],[184.98,-0.67],[190.42,-1.45],[197.49,-5.54],[201.3,-11.16],[214.0,-6.0],[220.77,-5.66]],[[195.54,10.96],[193.9,3.4],[190.42,-1.45]],[[197.49,-5.54],[203.67,-0.6],[210.41,1.54],[221.56,1.89]]]}];
+var rad=Math.PI/180, deg=180/Math.PI;
+function rv(p){var a=p[0]*rad,b=p[1]*rad;return [Math.cos(b)*Math.cos(a),Math.cos(b)*Math.sin(a),Math.sin(b)];}
+var CONV=[],CONN=[];CON.forEach(function(C){C.l.forEach(function(L){CONV.push(L.map(rv));});if(C.p)CONN.push({n:C.n,v:rv(C.p)});});
+var LAT=0*rad, LON=-93.75, ZONE=6;             /* Shreveport; clock runs on standard time */
+var START_D=9800.5;                               /* days from J2000.0 to 0h UT, 2026-11-01 */
+var OBL=23.4393*rad;
+var DAY_SECONDS=36, RATE={month:30/20, year:365.25/60}, NIGHT_HOUR=21;
+
+/* Standish orbital elements, 1800-2050: a,e,I,L,peri,node then rates per century */
+var EL={
+ Mercury:[0.38709927,0.20563593,7.00497902,252.2503235,77.45779628,48.33076593, 0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
+ Venus:[0.72333566,0.00677672,3.39467605,181.9790995,131.60246718,76.67984255, 0.0000039,-0.00004107,-0.0007889,58517.81538729,0.00268329,-0.27769418],
+ Earth:[1.00000261,0.01671123,-0.00001531,100.46457166,102.93768193,0, 0.00000562,-0.00004392,-0.01294668,35999.37244981,0.32327364,0],
+ Mars:[1.52371034,0.0933941,1.84969142,-4.55343205,-23.94362959,49.55953891, 0.00001847,0.00007882,-0.00813131,19140.30268499,0.44441088,-0.29257343],
+ Jupiter:[5.202887,0.04838624,1.30439695,34.39644051,14.72847983,100.47390909, -0.00011607,-0.00013253,-0.00183714,3034.74612775,0.21252668,0.20469106],
+ Saturn:[9.53667594,0.05386179,2.48599187,49.95424423,92.59887831,113.66242448, -0.0012506,-0.00050991,0.00193609,1222.49362201,-0.41897216,-0.28867794]
+};
+var PLANETS=[
+ {key:"Mercury",r:1.7,c:"#E6EAF2"},
+ {key:"Venus",r:1.7,c:"#FFF8E6"},
+ {key:"Mars",r:1.7,c:"#FFC9AE"},
+ {key:"Jupiter",r:1.7,c:"#FFF0D2"},
+ {key:"Saturn",r:1.7,c:"#F2E3B8"}
+];
+
+function helio(k,T){
+  var e=EL[k],a=e[0]+e[6]*T,ec=e[1]+e[7]*T,I=(e[2]+e[8]*T)*rad,L=e[3]+e[9]*T,p=e[4]+e[10]*T,O=e[5]+e[11]*T;
+  var M=(((L-p)%360)+540)%360-180; M*=rad;
+  var E=M+ec*Math.sin(M);
+  for(var i=0;i<6;i++) E-=(E-ec*Math.sin(E)-M)/(1-ec*Math.cos(E));
+  var x=a*(Math.cos(E)-ec), y=a*Math.sqrt(1-ec*ec)*Math.sin(E), w=(p-O)*rad; O*=rad;
+  var cw=Math.cos(w),sw=Math.sin(w),cO=Math.cos(O),sO=Math.sin(O),cI=Math.cos(I),sI=Math.sin(I);
+  return [(cw*cO-sw*sO*cI)*x+(-sw*cO-cw*sO*cI)*y,(cw*sO+sw*cO*cI)*x+(-sw*sO+cw*cO*cI)*y,(sw*sI)*x+(cw*sI)*y];
+}
+/* ecliptic vector to unit equatorial vector */
+function toEq(v){
+  var c=Math.cos(OBL),s=Math.sin(OBL),x=v[0],y=c*v[1]-s*v[2],z=s*v[1]+c*v[2],n=Math.hypot(x,y,z);
+  return [x/n,y/n,z/n];
+}
+function moonVec(T){
+  function S(a,b){return Math.sin((a+b*T)*rad);}
+  var lon=(218.32+481267.881*T+6.29*S(135,477198.87)-1.27*S(259.3,-413335.36)+0.66*S(235.7,890534.22)
+    +0.21*S(269.9,954397.74)-0.19*S(357.5,35999.05)-0.11*S(186.5,966404.03))*rad;
+  var lat=(5.13*S(93.3,483202.02)+0.28*S(228.2,960400.89)-0.28*S(318.3,6003.15)-0.17*S(217.6,-407332.21))*rad;
+  return toEq([Math.cos(lat)*Math.cos(lon),Math.cos(lat)*Math.sin(lon),Math.sin(lat)]);
+}
+function bodies(D){
+  var T=D/36525, E=helio("Earth",T), out={};
+  out.sun=toEq([-E[0],-E[1],-E[2]]);
+  out.moon=moonVec(T);
+  PLANETS.forEach(function(p){var h=helio(p.key,T);out[p.key]=toEq([h[0]-E[0],h[1]-E[1],h[2]-E[2]]);});
+  /* which side of the Sun Venus sits on decides its Greek name */
+  var hv=helio("Venus",T), vx=hv[0]-E[0], vy=hv[1]-E[1];
+  out.venusMorning=((-E[0])*vy-(-E[1])*vx)<0;
+  return out;
+}
+
+/* state */
+var S0={day:0,hour:4.5,speed:"day",playing:false,camAz:180,camAlt:26,view:"wide",con:false,trailOn:false,names:true,daylight:true};
+var sNorm=1,sAll=1,zt=0,zSave=null,zFree=false,zRate=5;
+var st=Object.assign({},S0), trail=[], lastTrailDay=-1;
+var cv=document.getElementById("sky"),ctx=cv.getContext("2d"),W=0,H=0,dpr=1,s=1;
+var starVec=STARS.map(function(a){
+  var ra=a[0]*rad,de=a[1]*rad,bv=a[3];
+  var col=bv>1.2?"255,232,212":bv>0.6?"255,244,228":bv<0?"222,232,255":"240,244,255";
+  return {x:Math.cos(de)*Math.cos(ra),y:Math.cos(de)*Math.sin(ra),z:Math.sin(de),
+          r:Math.max(.9,1.9-.25*a[2]),a:Math.min(1,.6+.1*(5-a[2])),m:a[2],c:col};
+});
+
+var sinL=Math.sin(LAT),cosL=Math.cos(LAT);
+var cH,sH,fx,fy,fz,rx,ry,ux,uy,uz;
+function setFrame(D,hour){
+  var ut=hour+ZONE;
+  var gmst=280.46061837+0.98564736629*D+360*(0.5+ut/24)+0;
+  var lst=(gmst+LON)*rad; cH=Math.cos(lst); sH=Math.sin(lst);
+  var A=st.camAz*rad,a=st.camAlt*rad;   /* camAlt 90 looks straight up: north at top, east at left */
+  fx=Math.cos(a)*Math.sin(A); fy=Math.cos(a)*Math.cos(A); fz=Math.sin(a);
+  rx=Math.cos(A); ry=-Math.sin(A);
+  ux=-Math.sin(a)*Math.sin(A); uy=-Math.sin(a)*Math.cos(A); uz=Math.cos(a);
+}
+/* equatorial unit vector to [East,North,Up] */
+function enu(v,o){
+  var x=cH*v[0]+sH*v[1], y=-sH*v[0]+cH*v[1], z=v[2];   /* x toward the meridian, y toward east */
+  o[0]=y; o[1]=cosL*z-sinL*x; o[2]=sinL*z+cosL*x; return o;
+}
+var P=[0,0,0],Q=[0,0,0,0];
+function proj(e,o){
+  var X=e[0]*rx+e[1]*ry, Y=e[0]*ux+e[1]*uy+e[2]*uz, Z=e[0]*fx+e[1]*fy+e[2]*fz;
+  o[2]=Z; if(Z<-0.75) return false;
+  var k=s/(1+Z); o[0]=W/2+X*k; o[1]=H*0.5-Y*k; return true;
+}
+function resize(){
+  var r=cv.getBoundingClientRect(); dpr=Math.min(2,window.devicePixelRatio||1);
+  W=Math.max(1,r.width); H=Math.max(1,r.height); cv.width=W*dpr; cv.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  sNorm=st.view==="wide"?W/2/Math.tan(47.5*rad):Math.max(W/2/Math.tan(32.5*rad),H/2/Math.tan(22*rad));
+  sAll=W/2/Math.tan(47.5*rad); s=sNorm+(sAll-sNorm)*zt;
+}
+function mix(a,b,t){return a.map(function(v,i){return Math.round(v+(b[i]-v)*t);});}
+function rgb(c){return "rgb("+c.join(",")+")";}
+function pill(text,x,y,dark){
+  ctx.font="400 14px Helvetica, Arial, sans-serif";
+  var w=ctx.measureText(text).width+18,h=28;
+  x=Math.max(4,Math.min(W-w-4,x)); y=Math.max(4,Math.min(H-h-4,y));
+  ctx.fillStyle="#FFFFFF"; ctx.textBaseline="middle"; ctx.textAlign="left";
+  ctx.fillText(text,x+9,y+h/2+1);
+}
+function skyText(t,x,y,col,al){ctx.font="400 14px Helvetica, Arial, sans-serif";ctx.textAlign=al;ctx.textBaseline="middle";ctx.fillStyle=col;ctx.shadowColor="rgba(0,0,0,.7)";ctx.shadowBlur=3;ctx.fillText(t,x,y);ctx.shadowBlur=0;}
+function hill(az){return 1.1+0.7*Math.sin(az*3*rad+1)+0.5*Math.sin(az*7*rad+2)+0.3*Math.sin(az*17*rad);}
+function dirVec(az,alt,o){
+  var a=alt*rad,A=az*rad; o[0]=Math.cos(a)*Math.sin(A); o[1]=Math.cos(a)*Math.cos(A); o[2]=Math.sin(a); return o;
+}
+function currentD(){return START_D+st.day+(st.hour+ZONE)/24;}
+
+/* Landscape shared by the horizon pages: hazy hills and a tree line, fixed to compass directions. */
+var LAND=(function(){
+  var seed=11;function R(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+  var N=1800,T=new Float32Array(N),i;
+  function put(az,w,h,pine){
+    for(var k=Math.floor((az-w)*5);k<=Math.ceil((az+w)*5);k++){
+      var d=(k/5-az)/w,v;if(Math.abs(d)>=1) continue;
+      if(pine){var a=1-Math.abs(d),b=(a*5)%1;v=h*(0.12+0.88*(a*(0.82+0.18*b)));}
+      else v=h*Math.sqrt(1-d*d)*(0.86+0.14*Math.sin(k*1.7+az));
+      var m=((k%N)+N)%N;if(v>T[m])T[m]=v;
+    }
+  }
+  for(var az=0;az<360;az+=0.45+R()*1.1){
+    var clump=0.62+0.38*Math.sin(az*5*Math.PI/180+1)*Math.sin(az*2*Math.PI/180+0.4);
+    if(R()>clump) continue;
+    if(R()<0.55) put(az,0.55+R()*0.4,2.4+R()*2.3,true); else put(az,1.1+R()*0.9,1.9+R()*1.7,false);
+  }
+  return {tree:function(az){return T[((Math.round(az*5)%N)+N)%N];}};
+})();
+function landLayer(pt,a0,f,step,col){
+  var first=true,q,az;ctx.fillStyle=col;ctx.beginPath();
+  for(az=a0-115;az<=a0+115;az+=step){q=pt(az,f(az));if(!q) continue;if(first){ctx.moveTo(q[0],q[1]);first=false;}else ctx.lineTo(q[0],q[1]);}
+  for(az=a0+115;az>=a0-115;az-=4){q=pt(az,-0.5);if(q) ctx.lineTo(q[0],q[1]);}
+  ctx.closePath();ctx.fill();
+}
+function drawLand(pt,a0,far,mid,near){
+  landLayer(pt,a0,function(a){return 1.5+0.8*Math.sin(a*2.2*Math.PI/180+0.7)+0.45*Math.sin(a*6.1*Math.PI/180+2);},2,far);
+  landLayer(pt,a0,function(a){return 0.9+0.5*Math.sin(a*3*Math.PI/180+1)+0.3*Math.sin(a*9*Math.PI/180+2);},1.5,mid);
+  landLayer(pt,a0,function(a){return 0.35+LAND.tree(a);},0.2,near);
+}
+/* Moon surface: dark seas and bright craters placed as on the real near side (north up). */
+var MOONTEX=(function(){
+  var S=128,c=document.createElement("canvas");c.width=c.height=S;var g=c.getContext("2d");
+  g.fillStyle="#DDD9CC";g.fillRect(0,0,S,S);
+  function spot(u,v,r,col,o){var x=(u+1)/2*S,y=(1-v)/2*S,R=r*S/2,G=g.createRadialGradient(x,y,R*0.12,x,y,R);
+    G.addColorStop(0,"rgba("+col+","+o+")");G.addColorStop(1,"rgba("+col+",0)");g.fillStyle=G;g.fillRect(x-R,y-R,2*R,2*R);}
+  [[-.25,.55,.36],[.25,.45,.22],[.42,.15,.25],[.72,.30,.14],[.68,-.08,.19],[.50,-.25,.11],[-.62,.25,.36],[-.55,-.05,.31],[-.2,-.35,.25],[-.55,-.40,.14],[-.25,.78,.13],[.1,.78,.13]].forEach(function(m){spot(m[0],m[1],m[2]*1.3,"128,126,120",.62);spot(m[0],m[1],m[2]*.8,"128,126,120",.4);});
+  for(var i=0;i<14;i++){var a=i/14*6.283;g.strokeStyle="rgba(245,242,232,.16)";g.lineWidth=1;g.beginPath();g.moveTo(.44*S,.85*S);g.lineTo(.44*S+Math.cos(a)*48,.85*S+Math.sin(a)*48);g.stroke();}
+  spot(-.12,-.70,.07,"250,248,240",.8);spot(-.33,.17,.05,"240,238,228",.45);spot(-.6,.14,.03,"240,238,228",.45);
+  return g.getImageData(0,0,S,S).data;
+})();
+var moonC=document.createElement("canvas"),moonX=moonC.getContext("2d");
+var MOON_R=15;
+function drawMoon(x,y,up,toSun,cosE,light,warm){
+  var n=Math.ceil(2*MOON_R*Math.min(2,window.devicePixelRatio||1)),im=moonX.createImageData(n,n),d=im.data,sinE=Math.sqrt(Math.max(0,1-cosE*cosE));
+  var illum=(1-cosE)/2,es=(1-illum)*(1-light)*0.3,day=1-0.5*light,tr=1,tg=1-0.2*warm,tb=1-0.5*warm;
+  for(var j=0;j<n;j++)for(var i=0;i<n;i++){
+    var sx=(i+.5)/n*2-1,sy=1-(j+.5)/n*2,r2=sx*sx+sy*sy;if(r2>=1) continue;
+    var nz=Math.sqrt(1-r2),L=(sx*toSun[0]+sy*toSun[1])*sinE-nz*cosE;
+    var b=Math.max(0,Math.min(1,(L+.02)/.16));
+    var tu=sx*up[1]-sy*up[0],tv=sx*up[0]+sy*up[1];
+    var p=(Math.floor((1-tv)/2*127.99)*128+Math.floor((tu+1)/2*127.99))*4,sh=b*(0.72+0.34*Math.max(0,L));
+    var e=j*n*4+i*4,edge=Math.min(1,(1-Math.sqrt(r2))*n/2);
+    d[e]=Math.min(255,MOONTEX[p]*(sh+es*.8)*tr);d[e+1]=Math.min(255,MOONTEX[p+1]*(sh+es*.85)*tg);d[e+2]=Math.min(255,MOONTEX[p+2]*(sh+es)*tb);
+    d[e+3]=255*edge*Math.min(1,b*day+es);
+  }
+  moonC.width=moonC.height=n;moonX.putImageData(im,0,0);
+  var gl=ctx.createRadialGradient(x,y,MOON_R*.8,x,y,MOON_R*3.2),o=0.28*illum*(1-light);
+  gl.addColorStop(0,"rgba(235,230,210,"+o+")");gl.addColorStop(1,"rgba(235,230,210,0)");ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,MOON_R*3.2,0,6.3);ctx.fill();
+  ctx.drawImage(moonC,x-MOON_R,y-MOON_R,2*MOON_R,2*MOON_R);
+}
+/* Sky color by direction, from the Sun's height: black night, deep blue twilight, orange low toward the Sun. */
+var skyC=document.createElement("canvas");skyC.width=96;skyC.height=54;var skyX=skyC.getContext("2d"),skyI=skyX.createImageData(96,54);
+function cl(v){return Math.max(0,Math.min(1,v));}
+function paintSky(sunAlt,sunE){
+  if(sunAlt<-18){ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);return;}
+  var n=cl((sunAlt+18)/12),dy=cl((sunAlt+6)/10),gw=cl(1-Math.abs(sunAlt+2)/9),hs=Math.hypot(sunE[0],sunE[1])||1,d=skyI.data,p=0;
+  var z=[20*n+(58-20*n)*dy,36*n+(126-36*n)*dy,84*n+(196-84*n)*dy],h=[50*n+(176-50*n)*dy,64*n+(210-64*n)*dy,106*n+(232-106*n)*dy];
+  for(var j=0;j<54;j++)for(var i=0;i<96;i++){
+    var X=(((i+.5)/96)*W-W/2)/s,Y=(H/2-((j+.5)/54)*H)/s,q=X*X+Y*Y,Zz=(1-q)/(1+q),X3=X*(1+Zz),Y3=Y*(1+Zz);
+    var e=X3*rx+Y3*ux+Zz*fx,nn=X3*ry+Y3*uy+Zz*fy,u=Y3*uz+Zz*fz,alt=Math.max(0,Math.asin(Math.max(-1,Math.min(1,u)))*deg);
+    var ca=(e*sunE[0]+nn*sunE[1])/((Math.hypot(e,nn)||1)*hs),w=Math.pow(.5+.5*ca,2),m=1-Math.exp(-alt/18);
+    var r=h[0]+(z[0]-h[0])*m,g=h[1]+(z[1]-h[1])*m,b=h[2]+(z[2]-h[2])*m;
+    var a=gw*Math.exp(-alt/11)*(.22+.78*w),a2=gw*Math.exp(-alt/4)*w*w;
+    r+=(240-r)*a;g+=(128-g)*a;b+=(62-b)*a;r+=(255-r)*a2;g+=(208-g)*a2;b+=(134-b)*a2;
+    d[p++]=r;d[p++]=g;d[p++]=b;d[p++]=255;
+  }
+  skyX.putImageData(skyI,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(skyC,0,0,W,H);
+}
+function draw(){
+  var D=START_D+st.day+(st.hour+ZONE)/24;
+  setFrame(D,st.hour);
+  var b=bodies(D), sunE=enu(b.sun,[0,0,0]), sunAlt=Math.asin(sunE[2])*deg;
+  var light=st.daylight?Math.max(0,Math.min(1,(sunAlt+12)/14)):0;
+  var dusk=st.daylight?Math.max(0,1-Math.abs(sunAlt+3)/9):0;
+  /* sky */
+  if(st.daylight) paintSky(sunAlt,sunE); else {ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);}
+  /* nothing shows through the Moon: it hides what is behind it */
+  var mScr=[0,0,0,0],mOn=!st.zod&&proj(enu(b.moon,[0,0,0]),mScr),hid=function(x,y){return mOn&&Math.hypot(x-mScr[0],y-mScr[1])<MOON_R+2;};
+  /* stars */
+  var starA=1-Math.min(1,light*1.15);
+  if(starA>0.02){
+    for(var i=0;i<starVec.length;i++){
+      var t=starVec[i], x=cH*t.x+sH*t.y, y=-sH*t.x+cH*t.y, z=t.z;
+      P[0]=y; P[1]=cosL*z-sinL*x; P[2]=sinL*z+cosL*x;
+      if(P[2]<-0.05||!proj(P,Q)) continue;
+      if(Q[0]<-4||Q[0]>W+4||Q[1]<-4||Q[1]>H+4||hid(Q[0],Q[1])) continue;
+      var seen=cl(1-light*(1.1+t.m*.45)),thick=.15+.85*cl(P[2]/.22);   /* faint stars go first at dawn; low stars dim */
+      if(seen<.02) continue;
+      ctx.fillStyle="rgba("+t.c+","+(t.a*seen*thick)+")";
+      ctx.beginPath(); ctx.arc(Q[0],Q[1],t.r,0,6.3); ctx.fill();
+    }
+  }
+  /* constellations */
+  if(st.con&&starA>0.02){
+    ctx.strokeStyle="rgba(150,195,235,"+(0.5*starA)+")";ctx.lineWidth=1.2;
+    CONV.forEach(function(L){ctx.beginPath();var on=false;
+      for(var n=0;n<L.length;n++){enu(L[n],P);if(P[2]>-0.1&&proj(P,Q)){if(on)ctx.lineTo(Q[0],Q[1]);else ctx.moveTo(Q[0],Q[1]);on=true;}else on=false;}
+      ctx.stroke();});
+  }
+  /* trail, fixed to the stars */
+  if(st.trailOn&&trail.length>1){
+    ctx.strokeStyle="#E0B43C"; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.beginPath();
+    var pen=false;
+    for(var j=0;j<trail.length;j++){
+      enu(trail[j],P); if(proj(P,Q)&&P[2]>-0.3){ if(pen) ctx.lineTo(Q[0],Q[1]); else ctx.moveTo(Q[0],Q[1]); pen=true; } else pen=false;
+    }
+    ctx.stroke();
+  }
+  /* wanderers */
+  var labels=[];
+  PLANETS.forEach(function(p){
+    var e=enu(b[p.key],[0,0,0]); if(!proj(e,Q)||hid(Q[0],Q[1])) return;
+    var vis=1-Math.min(1,light*1.25);
+    if(vis>0.02){
+      ctx.globalAlpha=vis; ctx.fillStyle=p.c; ctx.shadowColor=p.c; ctx.shadowBlur=2;
+      ctx.beginPath(); ctx.arc(Q[0],Q[1],p.r,0,6.3); ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=1;
+    }
+  });
+  /* moon, with its true phase; north and the lit side are found from the real directions */
+  var me=enu(b.moon,[0,0,0]);
+  if(!st.zod&&proj(me,Q)){
+    var mx=Q[0],my=Q[1],mE=me.slice(),near=function(v){
+      var o=[0,0,0],q2=[0,0,0,0];
+      enu([b.moon[0]+v[0]*.02,b.moon[1]+v[1]*.02,b.moon[2]+v[2]*.02],o);var L=Math.hypot(o[0],o[1],o[2]);o[0]/=L;o[1]/=L;o[2]/=L;proj(o,q2);
+      var dx=q2[0]-mx,dy=my-q2[1],l=Math.hypot(dx,dy)||1;return [dx/l,dy/l];};
+    var c0=b.moon[0]*b.sun[0]+b.moon[1]*b.sun[1]+b.moon[2]*b.sun[2];
+    var up=near([-b.moon[2]*b.moon[0],-b.moon[2]*b.moon[1],1-b.moon[2]*b.moon[2]]);
+    var toS=near([b.sun[0]-c0*b.moon[0],b.sun[1]-c0*b.moon[1],b.sun[2]-c0*b.moon[2]]);
+    drawMoon(mx,my,up,toS,c0,light,Math.exp(-Math.max(0,Math.asin(mE[2])*deg)/7));
+  }
+  /* sun: dims and reddens near the horizon */
+  if(proj(sunE,Q)){
+    var low=Math.exp(-Math.max(0,sunAlt)/8),sc=[255,246-96*low,204-140*low].map(Math.round).join(",");
+    var rg=ctx.createRadialGradient(Q[0],Q[1],6,Q[0],Q[1],70);
+    rg.addColorStop(0,"rgba("+sc+",.9)"); rg.addColorStop(1,"rgba("+sc+",0)");
+    ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(Q[0],Q[1],70,0,6.3); ctx.fill();
+    ctx.fillStyle="rgb("+sc+")"; ctx.beginPath(); ctx.arc(Q[0],Q[1],14,0,6.3); ctx.fill();
+  }
+  /* ground: everything outside the horizon circle (a true circle in this projection) */
+  var ca=Math.max(0.6,st.camAlt)*rad, Yf=-Math.tan(ca/2)*s, Yb=s/Math.tan(ca/2);
+  var yc=H*0.5-(Yf+Yb)/2, rr=(Yb-Yf)/2;
+  var gc=mix([12,20,16],[64,104,70],Math.max(light,0.08));
+  ctx.fillStyle=rgb(gc); ctx.beginPath(); ctx.rect(0,0,W,H);
+  ctx.arc(W/2,yc,rr,0,6.2832,true); ctx.fill("evenodd");
+  /* land: hazy far hills, nearer hills, then trees. Moonlight and day brighten it. */
+  var mUp=Math.max(0,me[2]),c1=b.moon[0]*b.sun[0]+b.moon[1]*b.sun[1]+b.moon[2]*b.sun[2],lit=Math.max(light,.08)+.1*mUp*(1-c1)/2;
+  var hc=[50+126*light,64+146*light,106+126*light],V=[0,0,0];
+  function pt(az,alt){dirVec(az,alt,V);if(!proj(V,Q)) return null;return [Q[0],Q[1]];}
+  var fc=mix([30,42,40],[150,176,170],lit),mc=mix([24,36,30],[98,132,104],lit),nc=mix([18,30,23],[36,62,42],lit);
+  drawLand(pt,st.camAz,rgb(mix(fc,hc.map(Math.round),.25*light)),rgb(mc),rgb(nc));
+  /* compass */
+  [["N",0],["NE",45],["E",90],["SE",135],["S",180],["SW",225],["W",270],["NW",315]].forEach(function(c){
+    dirVec(c[1],-1.5,V); if(proj(V,Q)&&Q[2]>-0.3&&Q[0]>0&&Q[0]<W){
+      ctx.font="400 14px Helvetica, Arial, sans-serif";
+      pill(c[0],Q[0]-ctx.measureText(c[0]).width/2-9,Q[1],true);
+    }
+  });
+  if(st.con&&starA>0.02) CONN.forEach(function(c){enu(c.v,P);if(P[2]>0.06&&proj(P,Q)&&Q[0]>30&&Q[0]<W-30&&Q[1]>12&&Q[1]<H-12) skyText(c.n,Q[0],Q[1],"rgba(190,216,240,"+(0.85*starA)+")","center");});
+  if(st.names) labels.forEach(function(l){ if(l[1]>-60&&l[1]<W&&l[2]>-40&&l[2]<H) skyText(l[0],l[1],l[2]+14,"#FFFFFF","left");});
+}
+
+function fmt(h){
+  var m=Math.floor((h%1)*60/5)*5, H24=Math.floor(h)%24, ap=H24<12?"AM":"PM", H12=H24%12||12;
+  return H12+":"+(m<10?"0":"")+m+" "+ap;
+}
+var dayEl=document.getElementById("dayn"),clockEl=document.getElementById("clock");
+function readout(){ dayEl.textContent=new Date(Date.UTC(2026,10,1)+Math.floor(st.day)*864e5).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}); clockEl.textContent=fmt(st.hour); var h=document.getElementById("hour"); if(h&&document.activeElement!==h) h.value=st.zod?st.day:st.hour; }
+function addTrail(){
+  var d=Math.floor(st.day);
+  if(d===lastTrailDay) return; lastTrailDay=d;
+  var D=currentD(),T=D/36525,E=helio("Earth",T),h=helio("Mars",T);
+  trail.push(toEq([h[0]-E[0],h[1]-E[1],h[2]-E[2]]));
+}
+function step(dt){
+  if(st.zod){st.day+=zRate*dt;if(st.day>=365)st.day-=365;st.hour=0;}
+  else if(st.speed==="day"){
+    st.hour+=rate*dt;
+    while(st.hour>=24){st.hour-=24;st.day+=1;}
+  } else {
+    st.hour=NIGHT_HOUR; st.day+=RATE[st.speed]*dt;
+  }
+  if(st.trailOn) addTrail();
+}
+var rate=24/DAY_SECONDS;   /* clock hours per real second */
+var zAnim=null;
+var last=0;
+function loop(now){
+  var dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(zAnim){zAnim.t=Math.min(1,zAnim.t+dt/2);var e=zAnim.t*zAnim.t*(3-2*zAnim.t);zt=zAnim.to?e:1-e;
+    st.camAz=zAnim.az0+zAnim.daz*e;st.camAlt=zAnim.alt0+(zAnim.alt1-zAnim.alt0)*e;s=sNorm+(sAll-sNorm)*zt;draw();if(zAnim.t>=1)zAnim=null;}
+  if(st.playing){ step(dt); draw(); readout(); }
+  requestAnimationFrame(loop);
+}
+
+/* controls */
+var $=function(id){return document.getElementById(id);};
+function press(el,on){el.setAttribute("aria-pressed",on?"true":"false");}
+function setPlay(on){st.playing=on; $("play").textContent=on?"Pause":"Play";}
+function setSpeed(sp){
+  st.speed=sp;
+  document.querySelectorAll("[data-sp]").forEach(function(b){press(b,b.dataset.sp===sp);});
+  if(sp!=="day"){st.hour=NIGHT_HOUR;}
+  draw();readout();
+}
+$("play").addEventListener("click",function(){setPlay(!st.playing);});
+document.querySelectorAll("[data-sp]").forEach(function(b){b.addEventListener("click",function(){setSpeed(b.dataset.sp);});});
+function setView(vw){
+  st.view=vw;
+  document.querySelectorAll("[data-vw]").forEach(function(b){press(b,b.dataset.vw===vw);});
+  resize();draw();
+}
+document.querySelectorAll("[data-vw]").forEach(function(b){b.addEventListener("click",function(){setView(b.dataset.vw);});});
+$("trail").addEventListener("click",function(){
+  st.trailOn=!st.trailOn; press(this,st.trailOn); trail=[]; lastTrailDay=-1; if(st.trailOn) addTrail(); draw();
+});
+$("con").addEventListener("click",function(){st.con=!st.con;press(this,st.con);draw();});
+$("names").addEventListener("click",function(){st.names=!st.names;press(this,st.names);draw();});
+$("daylight").addEventListener("click",function(){st.daylight=!st.daylight;press(this,st.daylight);draw();});
+$("reset").addEventListener("click",function(){
+  var nm=st.names,dl=st.daylight,vw=st.view,cn=st.con; st=Object.assign({},S0,{names:nm,daylight:dl,view:vw,con:cn}); trail=[]; lastTrailDay=-1;
+  setPlay(false); press($("trail"),false); setSpeed("day");
+});
+var drag=null;
+cv.addEventListener("pointerdown",function(e){if(st.zod)return;drag={x:e.clientX,y:e.clientY,az:st.camAz,alt:st.camAlt};cv.setPointerCapture(e.pointerId);cv.classList.add("drag");});
+cv.addEventListener("pointermove",function(e){
+  if(!drag) return;
+  var k=2*Math.atan(1/s*1)*deg;
+  st.camAz=((drag.az-(e.clientX-drag.x)*k)%360+360)%360;
+  st.camAlt=Math.max(0,Math.min(85,drag.alt+(e.clientY-drag.y)*k));
+  if(!st.playing) draw();
+});
+function endDrag(){drag=null;cv.classList.remove("drag");}
+cv.addEventListener("pointerup",endDrag); cv.addEventListener("pointercancel",endDrag);
+cv.addEventListener("keydown",function(e){
+  var m={ArrowLeft:[-5,0],ArrowRight:[5,0],ArrowUp:[0,5],ArrowDown:[0,-5]}[e.key]; if(!m) return;
+  e.preventDefault(); st.camAz=(st.camAz+m[0]+360)%360; st.camAlt=Math.max(0,Math.min(85,st.camAlt+m[1])); if(!st.playing) draw();
+});
+document.getElementById("hour").addEventListener("input",function(){if(st.zod){st.day=+this.value;draw();readout();return;}st.hour=+this.value;draw();clockEl.textContent=fmt(st.hour);});
+function setRate(){if(st.zod){zRate=0.5*Math.pow(60,+$("tspeed").value/100);$("trate").textContent=(zRate<10?zRate.toFixed(1):Math.round(zRate))+" days per second";return;}rate=0.1*Math.pow(40,+$("tspeed").value/100);var m=rate*60;$("trate").textContent=(m<60?Math.round(m)+" min":(m/60).toFixed(1)+" hr")+" per second";}
+$("tspeed").addEventListener("input",setRate);
+function setZod(on){
+  if(!!st.zod===on) return;
+  var h=$("hour");setPlay(false);
+  var az0=st.camAz,alt0=st.camAlt,az1,alt1;
+  if(on){zSave={hour:st.hour,day:st.day,az:st.camAz,alt:st.camAlt};st.zod=true;st.con=true;st.hour=0;st.day=Math.floor(st.day);az1=180;alt1=55;h.min=0;h.max=365;h.step=1;h.value=st.day;}
+  else{st.zod=false;st.con=false;st.hour=zSave.hour;st.day=zSave.day;az1=zSave.az;alt1=zSave.alt;h.min=0;h.max=23.95;h.step=.05;h.value=st.hour;}
+  zAnim={t:0,to:on,az0:az0,daz:((az1-az0+540)%360)-180,alt0:alt0,alt1:alt1};
+  document.querySelector(".ctl").classList.toggle("zod",on);$("bigdate").classList.toggle("zod",on);$("zbtn").textContent=on?"Back to the horizon":"Show the zodiac";
+  setRate();draw();readout();
+}
+$("zbtn").addEventListener("click",function(){setZod(!st.zod);});
+window.addEventListener("message",function(e){var m=e.data;if(!m||m.type!=="zodiac"||e.source!==window.parent)return;
+  zFree=m.free;$("zbtn").hidden=!zFree;if(m.on!==lastZ){lastZ=m.on;setZod(!!m.on);}});
+var lastZ=false;
+
+function fit(){resize();draw();}
+window.addEventListener("resize",fit);
+if(window.ResizeObserver) new ResizeObserver(fit).observe(cv);
+window._sky={get st(){return st;},bodies:bodies,draw:draw,readout:readout,step:step,enu:enu,setFrame:setFrame,trail:function(){return trail;},addTrail:addTrail,
+  look:function(az,alt){st.camAz=az;st.camAlt=alt;draw();},jump:function(day,hour){st.day=day;st.hour=hour;draw();readout();}};
+setRate(); fit(); readout();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
+requestAnimationFrame(function(n){last=n;loop(n);});
+})();
+</script>
+
+<style>#bigdate{left:auto!important;top:auto!important;width:auto!important;text-align:right!important;white-space:nowrap}</style>
+<script>
+/* Date and time sit at the bottom right, just left of the controls (above them when the screen is narrow). */
+(function(){var d=document.getElementById("bigdate"),c=document.querySelector(".ctl");if(!d||!c)return;
+function place(){var p=d.offsetParent||document.body,pr=p.getBoundingClientRect(),cr=c.getBoundingClientRect(),dw=d.offsetWidth,dh=d.offsetHeight,g=16;
+d.style.left="auto";d.style.top="auto";
+if(cr.left-pr.left-g-dw>=10){d.style.right=(pr.right-cr.left+g)+"px";d.style.bottom=(pr.bottom-cr.bottom+(cr.height-dh)/2)+"px";}
+else{d.style.right=(pr.right-cr.right)+"px";d.style.bottom=(pr.bottom-cr.top+8)+"px";}}
+place();addEventListener("resize",place);if(window.ResizeObserver){var o=new ResizeObserver(place);o.observe(d);o.observe(c);}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(place);})();
+</script>
+</body>
+</html>

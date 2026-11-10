@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>Better Epicycles</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Varela+Round&display=swap">
+<style>
+
+
+
+
+:root {
+  /* palette */
+  --aero-forest: #12291F;      /* page background, all body text */
+  --aero-emerald: #1E5E46;     /* primary actions, icons, links */
+  --aero-emerald-dark: #12432F;
+  --aero-jade: #5FA084;        /* fills, slider tracks, data series */
+  --aero-mint: #D2E8DD;        /* soft surfaces, highlights, selected rows */
+  --aero-gold: #E0B43C;        /* accent, vectors, warnings */
+  --aero-mist: #EEF5F1;        /* sim stage on light, panel tint */
+  --aero-muted: #3A5247;       /* secondary text on white */
+  --aero-line: #BFDCCD;        /* borders, table rules */
+  --aero-stage: #0B1C15;       /* behind videos / dark canvases */
+
+  /* type */
+  --aero-font-display: "Varela Round", "Lexend", sans-serif;
+  --aero-font-body: "Lexend", system-ui, sans-serif;
+  --aero-font-data: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* shape */
+  --aero-radius: 24px;
+  --aero-radius-sm: 12px;
+  --aero-shadow: 0 12px 32px rgba(0, 0, 0, .35), inset 0 1px 0 #FFFFFF;
+  --aero-focus: 0 0 0 3px #FFFFFF, 0 0 0 6px #12291F;
+
+  color-scheme: light;
+}
+
+/* ---------- page ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 17px; }
+body {
+  margin: 0;
+  color: var(--aero-forest);
+  font-family: var(--aero-font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: .03em;
+  word-spacing: .1em;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, .22) 0px, rgba(0, 0, 0, .22) 2px, transparent 2px, transparent 4px),
+    var(--aero-forest);
+  background-attachment: fixed;
+}
+
+h1, h2 { font-family: var(--aero-font-display); font-weight: 400; letter-spacing: .02em; text-transform: none; margin: 0 0 .4em; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 .3em; }
+p { margin: 0 0 .8em; }
+a { color: var(--aero-emerald); }
+a:hover { color: var(--aero-forest); }
+em, i { font-style: normal; font-weight: 600; } /* no italics, for readability */
+
+.aero-muted { color: var(--aero-muted); }
+.aero-data, code, pre, table, output, input[type=number] {
+  font-family: var(--aero-font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+/* ---------- surfaces ---------- */
+.aero-panel, dialog {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: var(--aero-radius);
+  box-shadow: var(--aero-shadow);
+  padding: 20px 24px;
+  color: var(--aero-forest);
+}
+.aero-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 20px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+}
+.aero-stage {
+  background: var(--aero-stage);
+  border-radius: var(--aero-radius);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 32px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+
+/* ---------- buttons: light mint gel (default) ---------- */
+button, .aero-btn {
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid #A8CDB9;
+  color: var(--aero-forest);
+  background: linear-gradient(180deg, #F8FBF9 0%, #E3F0E9 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 3px 8px rgba(18, 41, 31, .12);
+  cursor: pointer;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+button:hover:not(:disabled), .aero-btn:hover:not(:disabled) {
+  border-color: #7FB59A;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EAF5EF 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 5px 12px rgba(18, 41, 31, .18);
+}
+button:active:not(:disabled), .aero-btn:active:not(:disabled) {
+  border-color: #8FBFA6;
+  background: #E0EEE6;
+  box-shadow: inset 0 1px 2px rgba(18, 41, 31, .14), 0 2px 5px rgba(18, 41, 31, .1);
+}
+
+/* ---------- buttons: emerald gel (primary) ---------- */
+.aero-btn-primary, button.primary, button[aria-pressed="true"] {
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid var(--aero-emerald-dark);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+  background: linear-gradient(180deg, #2E7357 0%, #1E5E46 50%, #19533E 51%, #1E5E46 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 10px rgba(18, 67, 47, .3);
+}
+.aero-btn-primary:hover:not(:disabled), button.primary:hover:not(:disabled), button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--aero-emerald-dark);
+  background: linear-gradient(180deg, #3A8264 0%, #26694F 50%, #1F5D46 51%, #26694F 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 14px rgba(18, 67, 47, .38);
+}
+.aero-btn-primary:active:not(:disabled), button.primary:active:not(:disabled), button[aria-pressed="true"]:active:not(:disabled) {
+  background: linear-gradient(180deg, #1C5842 0%, #1E5E46 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .25), 0 2px 5px rgba(18, 67, 47, .25);
+}
+
+/* ---------- disabled ---------- */
+button:disabled, .aero-btn:disabled, .aero-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: #5E7068;
+  text-shadow: none;
+  background: #D3DED8;
+  border-color: #B3C4BB;
+  box-shadow: none;
+}
+
+/* ---------- keyboard focus ---------- */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--aero-focus) !important;
+  border-radius: 999px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-radius: var(--aero-radius-sm); }
+
+/* ---------- form controls ---------- */
+select, input[type=text], input[type=number], textarea {
+  font: inherit;
+  color: var(--aero-forest);
+  background: #FFFFFF;
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius-sm);
+  min-height: 40px;
+  padding: 6px 10px;
+}
+input[type=range], input[type=checkbox], input[type=radio], progress { accent-color: var(--aero-emerald); }
+input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+label { cursor: pointer; }
+
+/* ---------- chips & readouts ---------- */
+.aero-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid var(--aero-line);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aero-chip-warn { background: #F8EDCB; border-color: var(--aero-gold); }
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { text-align: right; font-weight: 600; color: var(--aero-muted); padding: 6px 10px; border-bottom: 1px solid var(--aero-line); background: #FFFFFF; }
+td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--aero-line); }
+tbody tr:hover td, tr.current td { background: var(--aero-mint); }
+
+/* ---------- details / explainers ---------- */
+details { border-top: 1px solid var(--aero-line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--aero-emerald); }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Layout: the model fills the window, zoom controls float at the top right. Single AeroLab look. */
+:root{color-scheme:light}
+html,body{height:100%}
+body{overflow:hidden}
+#app{height:100%;display:flex;gap:8px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#stage{flex:1 1 0;min-width:0;height:100%;position:relative;border-radius:var(--aero-radius-sm)}
+#side{flex:0 0 48%;min-width:0;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--aero-radius-sm)}
+#view{flex:1 1 auto;min-height:0;width:100%;display:block;background:#000;border-radius:var(--aero-radius-sm)}
+#side .group{display:flex;flex-wrap:wrap;gap:6px}
+#side button{padding:6px 12px}
+.speed{display:flex;align-items:center;gap:12px;font-weight:600}
+.speed input{flex:1 1 auto;min-width:0}
+#sky{position:absolute;inset:0;width:100%;height:100%;display:block}
+#sky:focus-visible{border-radius:0;box-shadow:none!important;outline:2px solid var(--aero-mint);outline-offset:-2px}
+.zoom{position:absolute;top:8px;right:8px;padding:5px 7px;gap:5px}
+.zoom button{padding:6px 16px}
+.eyeb{position:absolute;z-index:4;width:30px;min-height:20px;height:20px;padding:0;display:flex;align-items:center;justify-content:center;color:#E6F1EB;background:rgba(255,255,255,.1);border:1px solid rgba(210,232,221,.3);border-radius:5px;box-shadow:none}
+.eyeb:hover:not(:disabled){background:rgba(255,255,255,.2);border-color:rgba(210,232,221,.5);box-shadow:none}
+.eyeb[aria-pressed="true"]{background:#2E7357;border-color:#5FA084;color:#fff;font-weight:400;text-shadow:none;box-shadow:none}
+.eyeb[aria-pressed="true"]:hover:not(:disabled){background:#3A8264;border-color:#5FA084;box-shadow:none}
+.eyeb:disabled{background:transparent;color:rgba(230,241,235,.2);border-color:rgba(210,232,221,.08)}
+
+/* Layout: the sky fills the whole window and controls float over it.
+   Controls drop the AeroLab gel look for a compact dark panel that suits a night sky, keeping its emerald and mint. */
+html,body{background:#000}
+#app{position:relative;padding:0!important;gap:0!important;display:block!important;height:100%}
+#stage{position:relative;width:100%;height:100%!important;border-radius:0!important;box-shadow:none!important;background:#000!important}
+.ctl{position:absolute;z-index:5;top:10px;left:max(10px,env(safe-area-inset-left,0px));width:150px;max-height:calc(100% - 20px);display:flex;flex-direction:column;gap:5px;padding:7px!important;
+  background:rgba(12,24,19,.86)!important;border:1px solid rgba(210,232,221,.22)!important;border-radius:10px!important;box-shadow:none!important;color:#E6F1EB;
+  overflow-y:auto;letter-spacing:0;word-spacing:0;font-family:Helvetica,Arial,sans-serif;font-size:13px}
+.ctl button{width:100%;min-height:26px;padding:1px 6px;font:500 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;color:#E6F1EB;text-shadow:none;
+  background:rgba(255,255,255,.09);border:1px solid rgba(210,232,221,.2);border-radius:6px;box-shadow:none}
+.ctl button:hover:not(:disabled){background:rgba(255,255,255,.17);border-color:rgba(210,232,221,.4);box-shadow:none}
+.ctl button:active:not(:disabled){background:rgba(255,255,255,.05);box-shadow:none}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:#2E7357;border-color:#5FA084;color:#fff;box-shadow:none}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:#3A8264;border-color:#5FA084;box-shadow:none}
+.ctl button:disabled{background:transparent;border-color:rgba(210,232,221,.1);color:rgba(230,241,235,.32)}
+.ctl .aero-chip{justify-content:center;padding:1px 4px;font:600 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;min-width:0!important;width:100%;white-space:nowrap;background:transparent;border:0;color:#fff}
+.ctl input[type=range]{flex:0 0 auto!important;width:100%;height:20px!important;margin:0;accent-color:#5FA084}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.lbl{font-size:12px;font-weight:400;color:#A9C6B7;margin-top:3px}
+.end{margin-top:5px}
+/* one-row panel for the page where a column would cover the map */
+.ctl.top{flex-direction:row;align-items:center;width:auto;flex-wrap:wrap;max-width:calc(100% - 20px);padding:5px 8px!important;gap:5px 8px}
+.ctl.top .tm{display:flex;align-items:center;gap:4px}
+.ctl.top .tm button{width:72px;min-height:32px}
+.ctl.top .aero-chip{width:262px;flex:0 0 auto;font-size:24px;line-height:1.2;padding:0 6px}
+.ctl.top .lbl{margin-top:0}
+.ctl.top .pair{flex:0 0 112px}
+.ctl.top .pl{display:flex;gap:3px}
+.ctl.top .pl button{width:82px}
+/* Ptolemaic pages */
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ctl.wide{width:auto;right:8px;top:8px;max-height:none;overflow:visible}
+.row{display:flex;gap:6px;align-items:center}
+.row>button{flex:1 1 0;min-width:0}
+.row>.aero-chip{width:auto;flex:0 0 auto;padding:1px 6px}
+.row>.lbl{margin-top:0}
+.row>input[type=range]{flex:1 1 0!important;width:auto;min-width:60px}
+.row>button[data-b]{padding:1px 2px}
+@media (max-width:760px){.ctl.wide{left:auto!important;right:10px!important;top:auto;bottom:6px}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style id="notebook">
+/* Astronomer's Notebook panels over the black sky */
+:root{--paper:#F3EAD3;--sheet:#FFFBEF;--ink:#2A2118;--soft:#574832;--faint:#C9B98F;--accent:#8C3B22;--accent-dark:#6F2D19;--on-accent:#FFF8E8;--tint:#E7DABB;--nb-sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;--nb-serif:"Source Serif 4",Georgia,serif}
+.ctl,.ctl.aero-panel{background:var(--paper)!important;border:0!important;border-radius:14px!important;box-shadow:0 6px 18px rgba(0,0,0,.45)!important;color:var(--ink)!important;font-family:var(--nb-sans)!important;font-size:14px!important;padding:9px!important}
+.ctl.top{padding:6px 10px!important}
+.ctl button,.ctl button.primary{font:400 14px var(--nb-sans)!important;color:var(--ink)!important;background:transparent!important;border:1px solid var(--ink)!important;border-radius:8px!important;box-shadow:none!important;text-shadow:none!important}
+.ctl button:hover:not(:disabled){background:var(--tint)!important;border-color:var(--ink)!important}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--on-accent)!important;font-weight:600!important}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:var(--accent-dark)!important;border-color:var(--accent-dark)!important}
+.ctl button:disabled{background:transparent!important;border-color:var(--faint)!important;color:#8E7E62!important}
+.ctl .aero-chip,.ctl .chip{font-family:var(--nb-serif)!important;font-weight:600!important;color:var(--ink)!important;font-size:15px;background:transparent!important}
+.ctl.top .aero-chip{font-size:24px}
+.ctl input[type=range]{accent-color:var(--accent)!important}
+.ctl .lbl{color:var(--soft)!important;font-size:14px}
+.ctl button{white-space:nowrap;padding:1px 4px!important}
+.ctl.top .tm button{width:84px!important}
+#sm{flex:0 0 158px!important}
+#link{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.pg{display:flex;gap:2px}
+.ctl .pg button{flex:1 1 auto;min-width:0}
+.ctl .pg button[data-z]{flex:0 0 28px;padding:0!important}
+#sm{flex:1 1 100%!important}
+.ctl.wide .row{flex-wrap:wrap}
+#qph{position:absolute;right:8px;width:320px;z-index:4;box-sizing:border-box;padding:12px 14px;background:#F3EAD3;color:#2A2118;border-radius:14px;display:flex;flex-direction:column;gap:6px;font:18px "Source Sans 3",Helvetica,Arial,sans-serif}
+#qph b{font:600 20px "Source Serif 4",Georgia,serif;border-bottom:2px solid #2A2118;padding-bottom:6px}
+#qph p{margin:0;color:#574832}
+#qph textarea{flex:1;min-height:40px;border:1px solid #6B5835;border-radius:8px;background:#FFFBEF;resize:none}
+#bigdate{position:absolute;z-index:4;color:#fff;pointer-events:none;font:600 40px/1.1 "Source Serif 4",Georgia,serif;text-shadow:0 1px 4px #000;top:8px;right:8px;width:320px;text-align:center}
+#bigdate small{display:inline;font:inherit;margin-left:.5em}
+#bigdate{right:24px;top:16px;width:auto;text-align:right;white-space:nowrap}#bigdate small{display:inline-block;min-width:3.7em;text-align:left}#hr:empty{display:none}
+#qph{right:24px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bigdate"><span id="date"></span><small id="hr"></small></div>
+  <div id="stage" class="aero-stage"><canvas id="sky" tabindex="0" aria-label="Earth at the center with wanderers riding epicycles, each with two extra small epicycles."></canvas><canvas id="view" aria-label="A map of the stars and zodiac, as seen from Earth"></canvas><canvas id="link" aria-hidden="true"></canvas>
+  <div id="qph"><b>Question</b><p>Your teacher will start a question here.</p><textarea disabled aria-label="Answer box"></textarea></div>
+  <div class="ctl wide aero-panel">
+    <div class="row"><button id="play" class="primary" style="flex:0 0 64px">Pause</button><span class="aero-chip" id="rate"></span></div>
+    <div class="row"><label class="lbl" for="speed">Speed</label><input type="range" id="speed" min="0" max="100" value="83"><button id="sm" aria-pressed="false">Hide Sun and Moon</button><button id="rotB" aria-pressed="false">Show daily rotation</button></div>
+    <div class="pgrid" style="grid-template-columns:1fr 1fr"><span class="pg"><button data-b="Mercury" aria-pressed="false">Mercury</button><button data-z="-1" data-n="Mercury" aria-label="Zoom out on Mercury">−</button><button data-z="1" data-n="Mercury" aria-label="Zoom in on Mercury">+</button></span><span class="pg"><button data-b="Venus" aria-pressed="false">Venus</button><button data-z="-1" data-n="Venus" aria-label="Zoom out on Venus">−</button><button data-z="1" data-n="Venus" aria-label="Zoom in on Venus">+</button></span><span class="pg"><button data-b="Mars" aria-pressed="true">Mars</button><button data-z="-1" data-n="Mars" aria-label="Zoom out on Mars">−</button><button data-z="1" data-n="Mars" aria-label="Zoom in on Mars">+</button></span><span class="pg"><button data-b="Jupiter" aria-pressed="false">Jupiter</button><button data-z="-1" data-n="Jupiter" aria-label="Zoom out on Jupiter">−</button><button data-z="1" data-n="Jupiter" aria-label="Zoom in on Jupiter">+</button></span><span class="pg"><button data-b="Saturn" aria-pressed="false">Saturn</button><button data-z="-1" data-n="Saturn" aria-label="Zoom out on Saturn">−</button><button data-z="1" data-n="Saturn" aria-label="Zoom in on Saturn">+</button></span></div>
+  </div></div>
+</div>
+<script>
+(function(){
+"use strict";
+var MODEL="revised";
+function fmtDate(d){return new Date(Date.UTC(2026,10,1)+Math.floor(d)*864e5).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});}
+var YEAR_SECONDS=17.3, TAU=Math.PI*2;
+/* Periods in days. Distances are schematic, in Ptolemy's order. Epicycle sizes keep the true ratio to each deferent. */
+var B=[
+ {n:"Moon",   R:1.0, per:27.32, c:"#EDEAD8", s:6, L:[218.32,481267.881]},
+ {n:"Mercury",  R:1.8, r:0.70, per:365.25, epi:87.97, c:"#E6EAF2", s:4, L:[252.25,149472.674]},
+ {n:"Venus",R:2.9, r:2.09, per:365.25, epi:224.7, c:"#FFF8E6", s:4, L:[181.98,58517.815]},
+ {n:"Sun",   R:4.4, per:365.25, c:"#FFD76A", s:9, L:[280.46,35999.372]},
+ {n:"Mars",  R:6.0, r:3.94, per:687, sup:true, c:"#FFC9AE", s:4, L:[-4.55,19140.303]},
+ {n:"Jupiter", R:8.0, r:1.54, per:4333, sup:true, c:"#FFF0D2", s:4, L:[34.40,3034.746]},
+ {n:"Saturn",  R:10.0,r:1.05, per:10759, sup:true, c:"#F2E3B8", s:4, L:[49.95,1222.494]}
+];
+var STAR_R=12, T0=9800.5/36525;
+var EXT={Mercury:[.20563,77.46],Venus:[.00677,131.6],Mars:[.0934,-23.94],Jupiter:[.0484,14.73],Saturn:[.0539,92.6]};
+/* start each wanderer at its true mean longitude, so the model lines up with the zodiac */
+B.forEach(function(b){b.a0=((b.L[0]+b.L[1]*T0)%360)*Math.PI/180;});
+var SUN0=B[3].a0, ZOD=[[[311.7,8.1],[313.1,8.2],[323.4,8.6],[333.4,10.7],[336.7,8.2],[338.9,8.8],[340.4,8.1],[341.6,-0.4],[346.7,-4.3],[340.0,-14.5]],[[323.4,8.6],[328.7,-2.1]],[[333.4,10.7],[333.3,2.7]],[[338.9,8.8],[338.6,10.5]],[[343.5,-14.8],[346.7,-4.3],[348.6,-14.5]],[[48.2,10.4],[37.7,10.0],[34.0,8.5],[33.2,7.2]],[[133.6,-5.1],[128.7,0.1],[127.5,3.2],[126.3,10.4]],[[128.7,0.1],[124.3,-10.3]],[[303.8,7.0],[304.0,4.6],[305.2,1.2],[307.2,-7.0],[308.0,-9.0],[316.9,-7.0],[323.5,-2.6],[321.8,-2.6],[317.7,-1.4],[313.8,-0.6],[303.8,7.0]],[[93.4,-0.9],[95.3,-0.8],[99.9,2.1],[105.4,7.8],[110.2,10.1],[113.2,6.7],[111.3,5.2],[108.5,-0.2],[105.0,-2.0],[99.1,-6.7],[101.2,-10.1]],[[108.5,-0.2],[108.8,-5.6]],[[149.8,0.5],[147.9,4.9],[149.6,8.8],[161.3,14.3],[171.6,12.3],[163.4,9.7],[149.8,0.5]],[[149.6,8.8],[147.6,11.9],[141.4,12.4],[140.7,9.7]],[[230.7,-7.6],[225.1,0.3],[229.4,8.5],[235.1,4.4],[238.6,-8.5],[239.3,-10.0]],[[225.1,0.3],[235.1,4.4]],[[26.5,15.5],[28.3,20.7],[28.8,17.5],[26.5,15.5],[24.5,12.4],[26.8,5.4],[27.7,-1.6],[29.4,-9.1],[27.5,-7.9],[25.5,-4.7],[23.1,-3.1],[19.9,-0.2],[17.5,1.1],[14.1,2.2],[2.6,6.4],[357.6,7.2],[355.2,9.0],[353.0,8.9],[351.5,7.3],[352.9,4.4],[356.6,3.4],[358.3,4.6],[357.6,7.2]],[[351.5,7.3],[348.6,9.1]],[[273.6,-13.4],[275.1,-11.0],[274.6,-6.5],[276.3,-2.1],[273.2,2.3]],[[285.8,-22.1],[286.6,-18.4],[283.6,-7.2],[280.2,-4.0],[276.3,-2.1]],[[292.6,-20.7],[294.9,-14.4],[295.9,-5.4],[291.9,-3.3],[289.3,-2.5],[287.0,-2.9],[282.4,-3.5],[280.2,-4.0],[274.6,-6.5],[271.3,-7.0],[275.1,-11.0],[283.6,-7.2],[284.8,-5.1],[282.4,-3.5],[285.0,0.9],[286.3,1.4],[288.4,3.3],[289.5,4.2],[289.7,6.1]],[[285.0,0.9],[283.4,1.7],[282.5,0.1],[282.4,-3.5]],[[242.9,-5.5],[242.6,-2.0],[243.2,1.0]],[[242.6,-2.0],[247.8,-4.0],[249.8,-4.6],[251.5,-6.1],[255.3,-11.7],[256.2,-15.4],[257.2,-19.6],[260.7,-20.2],[265.6,-19.6],[267.5,-16.7],[266.5,-15.6],[264.6,-13.8]],[[84.8,-2.2],[69.8,-5.5],[68.0,-5.8],[65.8,-5.7],[66.9,-4.0],[68.5,-2.6],[82.6,5.4]],[[65.8,-5.7],[60.6,-8.0],[51.9,-8.8],[59.9,-14.5]],[[51.9,-8.8],[51.2,-9.3],[52.0,-18.4]],[[174.2,4.6],[177.2,0.7],[184.8,1.4],[190.1,2.8],[198.2,1.7],[203.8,-2.1],[213.8,7.2],[220.1,9.7]],[[189.9,16.2],[191.5,8.6],[190.1,2.8]],[[198.2,1.7],[202.1,8.6],[207.7,13.1],[218.5,17.1]]], ZSTARS=[[14.3,25.7,2.1],[35.1,51.2,2.3],[9.2,12.6,2.8],[301.0,-64.8,2.8],[345.5,-40.6,2.4],[37.8,46.6,2.2],[2.6,-20.8,2.0],[43.9,48.8,2.1],[30.4,25.9,2.1],[47.9,46.4,2.7],[345.3,-59.4,0.5],[34.0,8.5,2.6],[342.1,-64.2,2.9],[44.2,27.8,2.1],[37.7,10.0,2.0],[42.4,20.6,3],[88.6,66.1,2.0],[23.3,-53.7,2.9],[44.3,-12.6,2.5],[60.0,34.5,2.9],[56.2,22.4,2.1],[62.1,30.1,1.8],[64.8,27.3,3.0],[60.0,4.1,2.9],[63.1,11.3,2.8],[65.7,19.1,2.9],[53.9,-33.2,3.0],[69.8,-5.5,0.9],[71.9,-15.4,3.2],[76.6,10.5,2.7],[78.8,20.9,3.0],[72.1,-45.0,3.2],[79.4,18.3,3.2],[75.3,-27.9,2.8],[76.8,-31.1,0.2],[81.9,22.9,0.1],[80.9,-16.8,1.6],[82.6,5.4,1.6],[79.7,-43.9,2.8],[82.4,-23.6,2.2],[81.4,-41.1,2.6],[83.0,-29.2,2.8],[83.5,-24.5,1.7],[84.8,-2.2,3.0],[82.2,-57.4,2.6],[84.7,-25.3,1.7],[86.4,-33.1,2.1],[86.4,-59.2,3.1],[88.8,-16.0,0.5],[89.9,21.5,1.9],[89.9,13.8,2.6],[97.4,-53.4,3.0],[97.2,-41.3,2.0],[95.3,-0.8,2.9],[105.0,-75.8,-0.6],[99.1,-6.7,1.9],[107.1,-66.1,3.2],[99.9,2.1,3.1],[104.1,-39.6,-1.4],[117.7,-72.9,2.9],[110.8,-51.4,1.5],[111.0,-46.1,3.0],[113.4,-48.5,1.8],[120.3,-58.5,2.7],[119.5,-50.6,2.5],[112.2,-13.5,2.9],[110.2,10.1,1.6],[115.8,-16.0,0.4],[113.2,6.7,1.2],[138.6,-58.3,2.2],[131.4,-43.3,2.8],[147.3,-64.5,1.8],[173.1,-72.7,1.9],[168.9,-67.2,1.9],[134.6,-11.0,3.1],[122.8,29.6,3.1],[161.2,-55.9,2.2],[212.0,-72.2,1.7],[185.3,-67.1,2.2],[131.8,18.0,3.1],[178.9,-63.7,2.5],[147.3,-22.4,2.0],[184.2,-64.2,3.2],[127.3,34.9,3.2],[140.7,9.7,3.0],[202.9,-67.5,2.9],[149.8,0.5,1.4],[149.6,8.8,2.0],[141.2,29.0,3.1],[209.2,-62.1,2.7],[190.5,-51.1,2.7],[170.4,-21.8,3.1],[139.4,45.1,2.3],[135.2,49.7,1.8],[148.8,35.5,3],[161.3,14.3,2.6],[214.5,-56.8,3.1],[171.6,12.3,2.1],[150.5,47.1,2.4],[207.5,-44.5,2.6],[191.7,-19.7,3.0],[215.7,-50.4,2.8],[190.7,-14.5,2.6],[221.9,-52.9,0.8],[193.5,-12.2,2.9],[216.7,-47.8,1.6],[197.4,-18.0,2.6],[230.4,-56.6,2.7],[212.3,-40.2,2.2],[190.1,2.8,2.7],[230.2,-55.2,3.0],[221.6,-48.6,1.2],[158.9,54.3,1.8],[174.6,40.1,2.9],[189.9,16.2,2.9],[207.0,-13.7,3.0],[213.1,-26.0,2.8],[165.7,56.4,2.2],[203.8,-2.1,1.0],[225.6,-39.6,2.3],[176.9,54.4,1.9],[199.3,28.1,2.7],[225.0,-32.9,2.5],[233.8,-44.1,0.6],[222.3,-22.1,2.1],[204.2,30.7,-0.1],[197.7,49.6,3.0],[230.2,-25.5,2.3],[239.5,-42.6,1.4],[239.5,-42.6,-0.0],[233.5,-30.0,2.3],[242.4,-46.2,3.2],[208.1,40.6,2.4],[133.3,73.0,2.1],[225.1,0.3,2.8],[235.0,-25.0,2.7],[234.8,-24.0,3.1],[229.4,8.5,2.6],[249.4,-48.1,2.9],[141.6,75.2,3],[222.3,44.3,2.2],[241.5,-21.2,2.8],[232.1,25.5,2.6],[251.8,-41.9,2.8],[242.9,-5.5,2.9],[242.6,-2.0,2.3],[243.2,1.0,2.6],[242.3,17.2,2.7],[247.8,-4.0,2.9],[194.5,78.4,2.7],[249.8,-4.6,1.1],[241.1,42.7,2.8],[251.5,-6.1,2.8],[249.2,11.4,2.5],[241.5,53.1,2.8],[260.9,-46.2,1.9],[255.3,-11.7,2.3],[256.2,-15.4,3],[251.8,31.8,3.2],[259.8,-33.1,3.1],[183.4,84.8,3.2],[258.0,7.2,2.4],[256.2,37.3,2.8],[254.8,47.7,3.1],[252.1,59.6,3.2],[264.2,-32.3,2.8],[252.0,75.3,2.8],[264.0,-14.0,2.7],[264.9,-26.6,2.8],[264.6,-13.8,1.6],[262.4,35.8,2.1],[265.6,-19.6,1.9],[266.5,-15.6,2.4],[265.3,27.9,2.8],[267.5,-16.7,3.0],[267.9,-13.6,3.2],[268.0,74.9,2.2],[271.3,-7.0,3.0],[273.6,-13.4,3.1],[274.6,-6.5,2.7],[275.1,-11.1,1.8],[276.3,-2.1,2.8],[285.3,61.7,0.0],[280.2,-4.0,3.2],[282.4,-3.4,2.0],[283.6,-7.2,2.6],[289.8,36.2,3.0],[286.3,1.4,2.9],[17.2,82.9,3.1],[301.3,49.0,3.0],[316.2,64.4,2.9],[300.9,31.2,2.7],[301.8,29.3,0.8],[304.0,4.6,3.0],[324.8,57.1,2.2],[293.8,-36.3,1.9],[299.1,-27.8,3.1],[335.3,59.9,1.2],[327.7,49.4,2.5],[12.8,68.9,2.5],[323.4,8.6,2.9],[331.9,22.1,2.4],[323.5,-2.6,2.9],[317.4,-23.1,3],[333.4,10.7,3.0],[315.9,-32.9,1.7],[309.7,-45.4,2.9],[322.3,-35.4,2.1],[355.7,35.1,2.9],[333.9,-21.1,1.2],[359.4,31.1,2.4],[353.5,19.4,2.5]], ZN=[["Pisces",23.7],["Aries",46.2],["Taurus",55.3],["Gemini",105.7],["Cancer",123.8],["Leo",155.0],["Virgo",199.5],["Libra",235.2],["Scorpius",252.9],["Sagittarius",288.9],["Capricornus",311.1],["Aquarius",337.3]];
+if(MODEL==="concentric") B.forEach(function(b,i){b.R=1.5*(i+1);});
+var stars=[]; for(var i=0;i<140;i++) stars.push([Math.random()*TAU,STAR_R+Math.random()*0.5,Math.random()*0.8+0.5]);
+var cv=document.getElementById("sky"),ctx=cv.getContext("2d"),W=1,H=1,fit=1,zoom=1,trail=[],lastT=-1,LB=[1,1],zooms={},LO=[0,0],ROT=0,spin=false;
+function resize(){
+  var vw=document.getElementById("view");
+  if(vw){ /* model on the left at full height, controls and the five sky strips beside it */
+    var par=vw.parentNode,bh=par.clientHeight,bw=par.clientWidth,c2=document.querySelector(".ctl.wide"),col=368,sh=78;
+    var sz=Math.min(bh-sh,bw-col),lx=Math.round((bw-col-sz)/2);
+    vw.style.cssText="inset:auto;left:"+lx+"px;top:0;width:"+sz+"px;height:"+sh+"px";
+    cv.style.cssText="inset:auto;left:"+lx+"px;top:"+sh+"px;width:"+sz+"px;height:"+sz+"px";
+    c2.style.cssText="left:auto;right:24px;top:auto;bottom:24px;width:320px";
+    var ph=document.getElementById("qph"),pt=92,pb=c2.offsetTop-6;ph.style.cssText="top:"+pt+"px;height:"+Math.max(80,pb-pt)+"px";
+    var ln=document.getElementById("link"),ld=Math.min(2,window.devicePixelRatio||1);ln.width=bw*ld;ln.height=bh*ld;ln.getContext("2d").setTransform(ld,0,0,ld,0,0);LB=[bw,bh];
+    /* the question window sits above the controls, which stay at the bottom right */
+    try{window.parent.postMessage({type:"qspot",top:pt,bottom:pb},"*");}catch(e){}
+  }
+  var r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);
+  W=Math.max(1,r.width);H=Math.max(1,r.height);cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0);
+  fit=(H/2-10)/(STAR_R+1.1);
+}
+function pill(t,x,y){
+  ctx.font="400 14px Helvetica, Arial, sans-serif";ctx.textBaseline="middle";ctx.textAlign="left";ctx.lineWidth=3;ctx.lineJoin="round";ctx.strokeStyle="#000";ctx.strokeText(t,x+9,y+15);ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+9,y+15);
+}
+/* place of each body at time t (days) */
+function place(b,t){
+  var sun=SUN0+TAU*t/365.25, a=b.a0+TAU*t/b.per, cx,cy;
+  if(MODEL==="concentric"||!b.r) return {x:b.R*Math.cos(a),y:b.R*Math.sin(a)};
+  var X2=MODEL==="revised"?EXT[b.n]:null,w=X2?X2[1]*Math.PI/180:0;
+  function extra(px,py,L,len){ /* two small epicycles, as in Ibn al-Shatir's models */
+    var e=X2[0]*len,r1=1.5*e,r2=.5*e,x1=px-r1*Math.cos(w),y1=py-r1*Math.sin(w);
+    return {x:x1+r2*Math.cos(2*L-w),y:y1+r2*Math.sin(2*L-w),c:[[px,py,r1],[x1,y1,r2]]};
+  }
+  if(b.sup){ cx=b.R*Math.cos(a);cy=b.R*Math.sin(a);var cs=null;
+    if(X2){var q=extra(cx,cy,a,b.R);cx=q.x;cy=q.y;cs=q.c;}
+    return {cx:cx,cy:cy,x:cx+b.r*Math.cos(sun),y:cy+b.r*Math.sin(sun),small:cs}; }
+  cx=b.R*Math.cos(sun);cy=b.R*Math.sin(sun);
+  var e=TAU*t/b.epi+b.a0,ex=cx+b.r*Math.cos(e),ey=cy+b.r*Math.sin(e),cn=null;
+  if(X2){var q2=extra(ex,ey,e,b.r);ex=q2.x;ey=q2.y;cn=q2.c;}
+  return {cx:cx,cy:cy,x:ex,y:ey,small:cn};
+}
+function draw(t){
+  var k=fit*zoom,ox=W/2,oy=H/2;
+  /* zoomed in: the moving center of the planet's small circle stays centered, and the view travels with it */
+  var sel=ROWS.filter(function(x){return on[x.n];})[0];
+  if(zoom>1&&sel){var pc=place(sel,t);ox=W/2-pc.cx*k;oy=H/2+pc.cy*k;}
+  LO=[ox,oy];
+  function X(v){return ox+v*k;} function Y(v){return oy-v*k;}
+  ctx.fillStyle="#000000";ctx.fillRect(0,0,W,H);
+  /* daily rotation: the whole heavens turn east to west around Earth once a day (clockwise from above) */
+  ROT=spin&&zoom===1?TAU*(t%1):0;var cR=Math.cos(ROT),sR=Math.sin(ROT);
+  function turned(x,y){var dx=x-ox,dy=y-oy;return [ox+dx*cR-dy*sR,oy+dx*sR+dy*cR];}
+  ctx.save();ctx.translate(ox,oy);ctx.rotate(ROT);ctx.translate(-ox,-oy);
+  stars.forEach(function(s){
+    ctx.fillStyle="rgba(236,242,255,.75)";ctx.beginPath();ctx.arc(X(s[1]*Math.cos(s[0])),Y(s[1]*Math.sin(s[0])),s[2],0,TAU);ctx.fill();
+  });
+  if(MODEL!=="concentric"){
+    ctx.strokeStyle="rgba(150,195,235,.22)";ctx.lineWidth=1;
+    ZOD.forEach(function(L){ctx.beginPath();L.forEach(function(p,i){var a=p[0]*Math.PI/180,r=STAR_R+0.2+p[1]/18;
+      var x=X(r*Math.cos(a)),y=Y(r*Math.sin(a));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();});
+  }
+  ctx.lineCap="round";ctx.lineWidth=1.8;ctx.setLineDash([.1,6]);ctx.strokeStyle="rgba(210,232,221,.6)";
+  B.forEach(function(b){if(!shown(b)) return;ctx.beginPath();ctx.arc(ox,oy,b.R*k,0,TAU);ctx.stroke();});
+  ctx.setLineDash([]);ctx.lineCap="butt";
+  var P=B.map(function(b){return place(b,t);});
+  if(MODEL!=="concentric"){
+    B.forEach(function(b,i){ if(!b.r||!shown(b)||!eyes[b.n]) return; var p=P[i],d=Math.hypot(p.x,p.y)||1,e=STAR_R/d;
+      ctx.strokeStyle="rgba(255,255,255,.45)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(X(p.x*e),Y(p.y*e));ctx.stroke();});
+    B.forEach(function(b,i){ if(!b.r||!shown(b)) return; var p=P[i];
+      ctx.lineCap="round";ctx.lineWidth=1.4;ctx.setLineDash([.1,5]);ctx.strokeStyle="rgba(210,232,221,.55)";
+      ctx.beginPath();ctx.arc(X(p.cx),Y(p.cy),b.r*k,0,TAU);ctx.stroke();
+      if(p.small) p.small.forEach(function(c){ctx.beginPath();ctx.arc(X(c[0]),Y(c[1]),c[2]*k,0,TAU);ctx.stroke();});
+      ctx.strokeStyle="rgba(210,232,221,.28)";ctx.lineWidth=1.1;ctx.setLineDash([.1,4]);
+      ctx.beginPath();ctx.moveTo(X(p.cx),Y(p.cy));ctx.lineTo(X(p.x),Y(p.y));ctx.stroke();
+      ctx.setLineDash([]);ctx.lineCap="butt";ctx.fillStyle="rgba(210,232,221,.5)";ctx.beginPath();ctx.arc(X(p.cx),Y(p.cy),2,0,TAU);ctx.fill();
+    });
+  }
+  /* Earth */
+  ctx.fillStyle="#4D9C7E";ctx.beginPath();ctx.arc(ox,oy,Math.max(11,0.28*k),0,TAU);ctx.fill();
+  ctx.strokeStyle="#D2E8DD";ctx.lineWidth=1.5;ctx.stroke();
+  /* simple land shapes fixed on Earth, so the shadow visibly moves across a motionless world */
+  (function(){var r=Math.max(11,0.28*k);ctx.save();ctx.translate(ox,oy);ctx.rotate(-ROT);ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.clip();
+    ctx.fillStyle="#2B6CA3";ctx.fillRect(-r,-r,2*r,2*r);ctx.fillStyle="#6DB56F";
+    [[[-.75,-.3],[-.35,-.65],[.0,-.5],[-.1,-.1],[-.45,.05],[-.7,.0]],[[.1,-.35],[.5,-.55],[.8,-.15],[.55,.2],[.2,.1]],[[-.4,.3],[-.05,.25],[.05,.6],[-.2,.85],[-.45,.6]],[[.35,.45],[.7,.35],[.75,.7],[.45,.8]]].forEach(function(L){
+      ctx.beginPath();L.forEach(function(q,i){i?ctx.lineTo(q[0]*r,q[1]*r):ctx.moveTo(q[0]*r,q[1]*r);});ctx.closePath();ctx.fill();});
+    ctx.restore();ctx.strokeStyle="#D2E8DD";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ox,oy,r,0,TAU);ctx.stroke();})();
+  /* night side: the half facing away from the Sun */
+  function night(x,y,r){var sp=P[3],a=Math.atan2(Y(sp.y)-y,X(sp.x)-x);ctx.fillStyle="rgba(0,0,0,.72)";ctx.beginPath();ctx.arc(x,y,r,a+Math.PI/2,a+Math.PI*1.5);ctx.closePath();ctx.fill();}
+  night(ox,oy,Math.max(11,0.28*k));
+  B.forEach(function(b,i){var p=P[i];if(!shown(b)) return;
+        ctx.fillStyle=b.c;ctx.shadowColor=b.c;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(X(p.x),Y(p.y),b.s,0,TAU);ctx.fill();ctx.shadowBlur=0;
+    if(b.n==="Moon") night(X(p.x),Y(p.y),b.s);
+  });
+  ctx.restore();
+  ctx.font="400 14px Helvetica, Arial, sans-serif";
+  if(MODEL==="concentric"){
+    B.forEach(function(b){pill(b.n,ox-ctx.measureText(b.n).width/2-9,Y(b.R)-14);});
+  } else {
+    B.forEach(function(b,i){var p=P[i];if(!b.r||!shown(b)) return;
+      if(b.n==="Mercury"||b.n==="Venus"){ /* label on the side away from Earth */
+        var tq=turned(X(p.x),Y(p.y)),dx=tq[0]-ox,dy=tq[1]-oy,dl=Math.hypot(dx,dy)||1,tw=ctx.measureText(b.n).width,lx=tq[0]+dx/dl*12,ly=tq[1]+dy/dl*14;
+        pill(b.n,(dx<0?lx-tw:lx)-9,ly-15);
+      } else {var tp=turned(X(p.x),Y(p.y));pill(b.n,tp[0]+8,tp[1]-32);}});
+  }
+  var ts=turned(ox,Y(STAR_R));pill("Stars",ts[0]-30,ts[1]-2);
+  ctx.font='400 12px Helvetica, Arial, sans-serif';ctx.fillStyle="rgba(190,216,240,.5)";ctx.textAlign="center";ctx.textBaseline="middle";
+  ZN.forEach(function(z){var a=z[1]*Math.PI/180,r=STAR_R+0.62;var zq=turned(X(r*Math.cos(a)),Y(r*Math.sin(a)));ctx.fillText(z[0],zq[0],zq[1]);});
+}
+/* Page 7: wanderers can be turned on and off; the side panel shows where each appears from Earth. */
+var on={Mars:true};
+var rateEl=document.getElementById("rate");
+function showRate(){var r=365.25/YEAR_SECONDS;rateEl.textContent=r<1?Math.round(r*24)+(Math.round(r*24)===1?" hour":" hours")+" per second":Math.round(r)+(Math.round(r)===1?" day":" days")+" per second";}
+showRate();
+var eyes={},hideSM=false;
+function shown(b){return MODEL==="concentric"||(b.r?on[b.n]:!hideSM);}
+function initView(){}
+var vc=document.getElementById("view"),vx=vc?vc.getContext("2d"):null,VW=1,VH=1;
+function viewSize(){if(!vc) return;var r=vc.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);VW=Math.max(1,r.width);VH=Math.max(1,r.height);vc.width=VW*d;vc.height=VH*d;vx.setTransform(d,0,0,d,0,0);paintSky();}
+/* seen from Earth: angle around the sky runs across, east to the left */
+/* View from Earth: one true-scale strip of the sky per wanderer. A degree is the same size in every direction and the stars never move. */
+var VK=1,RH=1,L0=150,ROWS=B.filter(function(b){return b.r;}),TRAIL={Mercury:40,Venus:100,Mars:180,Jupiter:180,Saturn:180};
+var bgc=document.createElement("canvas"),bgx=bgc.getContext("2d");
+function wrap(a){a=(a+180)%360;if(a<0)a+=360;return a-180;}
+function mapX(lon){return VW/2-wrap(lon-L0)*VK;}
+function skyX(p){return mapX(Math.atan2(p.y,p.x)*180/Math.PI);}
+function skyLat(b,t){var ph=b.sup?SUN0+TAU*t/365.25-(b.a0+TAU*t/b.per):TAU*t/b.epi;return 2.5*Math.sin(ph);}
+/* the stars are drawn once and reused, which keeps Chromebooks smooth */
+function paintSky(){
+  var d=Math.min(2,window.devicePixelRatio||1);
+  bgc.width=VW*d;bgc.height=VH*d;bgx.setTransform(d,0,0,d,0,0);
+  VK=VW/360;RH=VH;
+  bgx.fillStyle="#000";bgx.fillRect(0,0,VW,VH);
+  ROWS.filter(function(b){return on[b.n];}).forEach(function(b){
+    var top=0,bh=RH,mid=bh/2;
+    ZSTARS.forEach(function(s){var y=mid-s[1]*VK;if(y<top-2||y>top+bh+2) return;
+      bgx.fillStyle="rgba(236,242,255,.85)";bgx.beginPath();bgx.arc(mapX(s[0]),y,Math.max(.7,1.7-.34*s[2]),0,TAU);bgx.fill();});
+    bgx.strokeStyle="rgba(150,195,235,.5)";bgx.lineWidth=1;
+    ZOD.forEach(function(L){bgx.beginPath();var px=null;L.forEach(function(p){var x=mapX(p[0]),y=mid-p[1]*VK;
+      if(px===null||Math.abs(x-px)>VW/2) bgx.moveTo(x,y); else bgx.lineTo(x,y);px=x;});bgx.stroke();});
+    bgx.font='400 11px Helvetica, Arial, sans-serif';bgx.fillStyle="rgba(190,216,240,.6)";bgx.textAlign="center";bgx.textBaseline="middle";
+    ZN.forEach(function(z,i){bgx.fillText(z[0],mapX(z[1]),top+bh-(i%2?7:19));});
+  });
+}
+/* the strip slides so the planet sits straight above its place in the model */
+function modelX(b,t){return Math.max(8,Math.min(VW-8,cv.offsetLeft-vc.offsetLeft+LO[0]+(place(b,t).x*Math.cos(ROT)+place(b,t).y*Math.sin(ROT))*fit*zoom));}
+function drawView(t){
+  if(!vx) return;
+  var b=ROWS.filter(function(x){return on[x.n];})[0];if(!b) return;
+  var mx=modelX(b,t),dx=mx-skyX(place(b,t)),x0=((dx%VW)+VW)%VW,mid=VH/2;
+  vx.drawImage(bgc,x0-VW,0,VW,VH);vx.drawImage(bgc,x0,0,VW,VH);
+  vx.strokeStyle=b.c;vx.lineWidth=1.2;var span=Math.min(t,TRAIL[b.n]),STEP=2,pw=function(x){return ((x+dx)%VW+VW)%VW;};
+  for(var d=span;d>=STEP;d-=STEP){
+    var a0=pw(skyX(place(b,t-d))),a1=pw(skyX(place(b,t-d+STEP)));
+    if(Math.abs(a1-a0)>VW/2) continue;
+    vx.globalAlpha=.4*(1-d/TRAIL[b.n]);vx.beginPath();vx.moveTo(a0,mid-skyLat(b,t-d)*VK);vx.lineTo(a1,mid-skyLat(b,t-d+STEP)*VK);vx.stroke();
+  }
+  vx.globalAlpha=1;
+  vx.fillStyle=b.c;vx.shadowColor=b.c;vx.shadowBlur=8;vx.beginPath();vx.arc(mx,mid-skyLat(b,t)*VK,3,0,TAU);vx.fill();vx.shadowBlur=0;
+  vx.font='600 13px Helvetica, Arial, sans-serif';vx.textAlign="left";vx.textBaseline="top";vx.lineWidth=3;vx.strokeStyle="#000";vx.fillStyle="#FFF";vx.strokeText(b.n,8,5);vx.fillText(b.n,8,5);
+  vx.strokeStyle="rgba(210,232,221,.4)";vx.lineWidth=1;vx.strokeRect(.5,.5,VW-1,VH-1);
+}
+document.querySelectorAll("[data-b]").forEach(function(btn){btn.addEventListener("click",function(){
+  pick(btn.dataset.b);});});
+function pick(n){on={};on[n]=true;zoom=zooms[n]||1;
+  document.querySelectorAll("[data-b]").forEach(function(o){o.setAttribute("aria-pressed",o.dataset.b===n?"true":"false");});paintSky();placeEyes();}
+document.querySelectorAll("[data-z]").forEach(function(btn){btn.addEventListener("click",function(){
+  var n=btn.dataset.n;if(!on[n]) pick(n);setZoom(+btn.dataset.z>0?fitOf():1);});});
+/* a faint dotted line ties the planet in the model to the same planet in the sky strip */
+function drawLink(t){
+  var lc=document.getElementById("link"),l=lc.getContext("2d");l.clearRect(0,0,LB[0],LB[1]);
+  var b=ROWS.filter(function(x){return on[x.n];})[0];if(!b) return;
+  var p=place(b,t),k=fit*zoom,mx=0,my=cv.offsetTop+LO[1]+(p.x*Math.sin(ROT)-p.y*Math.cos(ROT))*k,sx=vc.offsetLeft+modelX(b,t),sy=vc.offsetTop+RH/2-skyLat(b,t)*VK;
+  l.lineCap="round";l.lineWidth=1.4;l.setLineDash([.1,6]);l.strokeStyle="rgba(255,255,255,.38)";l.beginPath();l.moveTo(sx,my);l.lineTo(sx,sy);l.stroke();
+}
+document.getElementById("rotB").addEventListener("click",function(){spin=!spin;this.setAttribute("aria-pressed",spin?"true":"false");this.textContent=spin?"Stop daily rotation":"Show daily rotation";});
+var smEl=document.getElementById("sm"),eyeBtns=[];
+/* an eye button on each sky strip turns on that planet's line of sight */
+if(vc) ROWS.forEach(function(b){
+  var e=document.createElement("button");e.className="eyeb";e.setAttribute("aria-pressed","false");e.setAttribute("aria-label","Line of sight from Earth to "+b.n);e.title="Line of sight from Earth";
+  e.innerHTML='<svg width="18" height="12" viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 7s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="7" r="2.6"/></svg>';
+  e.onclick=function(){eyes[b.n]=!eyes[b.n];e.setAttribute("aria-pressed",eyes[b.n]?"true":"false");};
+  vc.parentNode.appendChild(e);eyeBtns.push([e,b]);
+});
+function placeEyes(){eyeBtns.forEach(function(x){x[0].hidden=!on[x[1].n];x[0].style.left=(vc.offsetLeft+VW-44)+"px";x[0].style.top=(vc.offsetTop+7)+"px";});}
+if(smEl) smEl.addEventListener("click",function(){hideSM=!hideSM;smEl.setAttribute("aria-pressed",hideSM?"true":"false");smEl.textContent=hideSM?"Show Sun and Moon":"Hide Sun and Moon";});
+var speedEl=document.getElementById("speed");
+if(speedEl) speedEl.addEventListener("input",function(){YEAR_SECONDS=365.25/((1/24)*Math.pow(1752,+speedEl.value/100));showRate();});
+/* zooming frames the selected planet's main circle and epicycle, centered on Earth, and never crops them */
+function fitOf(){var b=ROWS.filter(function(x){return on[x.n];})[0];return b?(STAR_R+1.1)*.72/b.r:1;}
+function setZoom(z){zoom=Math.max(1,Math.min(fitOf(),z));for(var n in on) zooms[n]=zoom;}
+cv.addEventListener("wheel",function(e){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.1:1/1.1));},{passive:false});
+function fitAll(){resize();viewSize();if(vc) placeEyes();}
+window.addEventListener("resize",fitAll);
+if(window.ResizeObserver) new ResizeObserver(fitAll).observe(document.querySelector(".ctl.wide"));
+if(window.ResizeObserver) new ResizeObserver(fitAll).observe(cv);
+resize();viewSize();if(vc) placeEyes();
+if(vc&&window.ResizeObserver) new ResizeObserver(function(){viewSize();placeEyes();}).observe(vc);
+var clock=0,last=0,dateEl=document.getElementById("date"),playing=true,MAXDAY=1461,tm=document.getElementById("time"),pb=document.getElementById("play");
+function setPlaying(on){playing=on;if(pb) pb.textContent=on?"Pause":"Play";}
+if(pb) pb.addEventListener("click",function(){setPlaying(!playing);});
+if(tm) tm.addEventListener("input",function(){setPlaying(false);clock=Math.floor(clock/MAXDAY)*MAXDAY+(+tm.value);});
+function loop(now){
+  var dt=Math.min(.05,(now-last)/1000);last=now;
+  if(playing) clock+=dt*365.25/YEAR_SECONDS;
+  if(tm&&document.activeElement!==tm||tm&&playing) tm.value=clock%MAXDAY;
+  if(MODEL==="ptolemaic"){
+
+  }
+  draw(clock);drawView(clock);drawLink(clock);var ds=fmtDate(clock);if(dateEl.textContent!==ds) dateEl.textContent=ds;
+  var hrEl=document.getElementById("hr"),hh=Math.floor((clock%1+1)%1*24);hrEl.textContent=365.25/YEAR_SECONDS<1?((hh%12||12)+" "+(hh<12?"AM":"PM")):"";requestAnimationFrame(loop);
+}
+window._m={place:place,B:B,draw:draw,set:function(t){clock=t;},zoom:function(z){setZoom(z);},yr:function(){return YEAR_SECONDS;}};
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){});
+requestAnimationFrame(function(n){last=n;loop(n);});
+})();
+</script>
+
+</body>
+</html>

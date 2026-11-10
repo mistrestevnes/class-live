@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>Retrograde</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Varela+Round&display=swap">
+<style>
+
+
+
+
+:root {
+  /* palette */
+  --aero-forest: #12291F;      /* page background, all body text */
+  --aero-emerald: #1E5E46;     /* primary actions, icons, links */
+  --aero-emerald-dark: #12432F;
+  --aero-jade: #5FA084;        /* fills, slider tracks, data series */
+  --aero-mint: #D2E8DD;        /* soft surfaces, highlights, selected rows */
+  --aero-gold: #E0B43C;        /* accent, vectors, warnings */
+  --aero-mist: #EEF5F1;        /* sim stage on light, panel tint */
+  --aero-muted: #3A5247;       /* secondary text on white */
+  --aero-line: #BFDCCD;        /* borders, table rules */
+  --aero-stage: #0B1C15;       /* behind videos / dark canvases */
+
+  /* type */
+  --aero-font-display: "Varela Round", "Lexend", sans-serif;
+  --aero-font-body: "Lexend", system-ui, sans-serif;
+  --aero-font-data: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* shape */
+  --aero-radius: 24px;
+  --aero-radius-sm: 12px;
+  --aero-shadow: 0 12px 32px rgba(0, 0, 0, .35), inset 0 1px 0 #FFFFFF;
+  --aero-focus: 0 0 0 3px #FFFFFF, 0 0 0 6px #12291F;
+
+  color-scheme: light;
+}
+
+/* ---------- page ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 17px; }
+body {
+  margin: 0;
+  color: var(--aero-forest);
+  font-family: var(--aero-font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: .03em;
+  word-spacing: .1em;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, .22) 0px, rgba(0, 0, 0, .22) 2px, transparent 2px, transparent 4px),
+    var(--aero-forest);
+  background-attachment: fixed;
+}
+
+h1, h2 { font-family: var(--aero-font-display); font-weight: 400; letter-spacing: .02em; text-transform: none; margin: 0 0 .4em; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 .3em; }
+p { margin: 0 0 .8em; }
+a { color: var(--aero-emerald); }
+a:hover { color: var(--aero-forest); }
+em, i { font-style: normal; font-weight: 600; } /* no italics, for readability */
+
+.aero-muted { color: var(--aero-muted); }
+.aero-data, code, pre, table, output, input[type=number] {
+  font-family: var(--aero-font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+
+/* ---------- surfaces ---------- */
+.aero-panel, dialog {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: var(--aero-radius);
+  box-shadow: var(--aero-shadow);
+  padding: 20px 24px;
+  color: var(--aero-forest);
+}
+.aero-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97) 0%, rgba(255, 255, 255, .9) 100%);
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 20px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+}
+.aero-stage {
+  background: var(--aero-stage);
+  border-radius: var(--aero-radius);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 32px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+
+/* ---------- buttons: light mint gel (default) ---------- */
+button, .aero-btn {
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid #A8CDB9;
+  color: var(--aero-forest);
+  background: linear-gradient(180deg, #F8FBF9 0%, #E3F0E9 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 3px 8px rgba(18, 41, 31, .12);
+  cursor: pointer;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+button:hover:not(:disabled), .aero-btn:hover:not(:disabled) {
+  border-color: #7FB59A;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EAF5EF 100%);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 5px 12px rgba(18, 41, 31, .18);
+}
+button:active:not(:disabled), .aero-btn:active:not(:disabled) {
+  border-color: #8FBFA6;
+  background: #E0EEE6;
+  box-shadow: inset 0 1px 2px rgba(18, 41, 31, .14), 0 2px 5px rgba(18, 41, 31, .1);
+}
+
+/* ---------- buttons: emerald gel (primary) ---------- */
+.aero-btn-primary, button.primary, button[aria-pressed="true"] {
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid var(--aero-emerald-dark);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+  background: linear-gradient(180deg, #2E7357 0%, #1E5E46 50%, #19533E 51%, #1E5E46 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 10px rgba(18, 67, 47, .3);
+}
+.aero-btn-primary:hover:not(:disabled), button.primary:hover:not(:disabled), button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--aero-emerald-dark);
+  background: linear-gradient(180deg, #3A8264 0%, #26694F 50%, #1F5D46 51%, #26694F 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 14px rgba(18, 67, 47, .38);
+}
+.aero-btn-primary:active:not(:disabled), button.primary:active:not(:disabled), button[aria-pressed="true"]:active:not(:disabled) {
+  background: linear-gradient(180deg, #1C5842 0%, #1E5E46 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .25), 0 2px 5px rgba(18, 67, 47, .25);
+}
+
+/* ---------- disabled ---------- */
+button:disabled, .aero-btn:disabled, .aero-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: #5E7068;
+  text-shadow: none;
+  background: #D3DED8;
+  border-color: #B3C4BB;
+  box-shadow: none;
+}
+
+/* ---------- keyboard focus ---------- */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--aero-focus) !important;
+  border-radius: 999px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-radius: var(--aero-radius-sm); }
+
+/* ---------- form controls ---------- */
+select, input[type=text], input[type=number], textarea {
+  font: inherit;
+  color: var(--aero-forest);
+  background: #FFFFFF;
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius-sm);
+  min-height: 40px;
+  padding: 6px 10px;
+}
+input[type=range], input[type=checkbox], input[type=radio], progress { accent-color: var(--aero-emerald); }
+input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+label { cursor: pointer; }
+
+/* ---------- chips & readouts ---------- */
+.aero-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid var(--aero-line);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aero-chip-warn { background: #F8EDCB; border-color: var(--aero-gold); }
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { text-align: right; font-weight: 600; color: var(--aero-muted); padding: 6px 10px; border-bottom: 1px solid var(--aero-line); background: #FFFFFF; }
+td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--aero-line); }
+tbody tr:hover td, tr.current td { background: var(--aero-mint); }
+
+/* ---------- details / explainers ---------- */
+details { border-top: 1px solid var(--aero-line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--aero-emerald); }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Layout: fixed stars and constellations fill the window, one control bar below. Single AeroLab look. */
+:root{color-scheme:light}
+html,body{height:100%}
+body{overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#stage{flex:1 1 auto;min-height:0;position:relative;border-radius:var(--aero-radius-sm)}
+#sky{position:absolute;inset:0;width:100%;height:100%;display:block}
+.aero-bar{flex:0 0 auto;padding:6px 10px;gap:6px 8px;flex-wrap:nowrap}
+.aero-bar button{padding:6px 11px}
+.group{display:flex;gap:4px}
+#time{flex:1 1 auto;min-width:0;height:44px;cursor:pointer}
+#dayn{min-width:112px;justify-content:center}
+.mid{justify-content:center}
+
+/* Layout: the sky fills the whole window and controls float over it.
+   Controls drop the AeroLab gel look for a compact dark panel that suits a night sky, keeping its emerald and mint. */
+html,body{background:#000}
+#app{position:relative;padding:0!important;gap:0!important;display:block!important;height:100%}
+#stage{position:relative;width:100%;height:100%!important;border-radius:0!important;box-shadow:none!important;background:#000!important}
+.ctl{position:absolute;z-index:5;top:10px;left:max(10px,env(safe-area-inset-left,0px));width:150px;max-height:calc(100% - 20px);display:flex;flex-direction:column;gap:5px;padding:7px!important;
+  background:rgba(12,24,19,.86)!important;border:1px solid rgba(210,232,221,.22)!important;border-radius:10px!important;box-shadow:none!important;color:#E6F1EB;
+  overflow-y:auto;letter-spacing:0;word-spacing:0;font-family:Helvetica,Arial,sans-serif;font-size:13px}
+.ctl button{width:100%;min-height:26px;padding:1px 6px;font:500 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;color:#E6F1EB;text-shadow:none;
+  background:rgba(255,255,255,.09);border:1px solid rgba(210,232,221,.2);border-radius:6px;box-shadow:none}
+.ctl button:hover:not(:disabled){background:rgba(255,255,255,.17);border-color:rgba(210,232,221,.4);box-shadow:none}
+.ctl button:active:not(:disabled){background:rgba(255,255,255,.05);box-shadow:none}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:#2E7357;border-color:#5FA084;color:#fff;box-shadow:none}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:#3A8264;border-color:#5FA084;box-shadow:none}
+.ctl button:disabled{background:transparent;border-color:rgba(210,232,221,.1);color:rgba(230,241,235,.32)}
+.ctl .aero-chip{justify-content:center;padding:1px 4px;font:600 13px Helvetica,Arial,sans-serif;letter-spacing:0;word-spacing:0;min-width:0!important;width:100%;white-space:nowrap;background:transparent;border:0;color:#fff}
+.ctl input[type=range]{flex:0 0 auto!important;width:100%;height:20px!important;margin:0;accent-color:#5FA084}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.lbl{font-size:12px;font-weight:400;color:#A9C6B7;margin-top:3px}
+.end{margin-top:5px}
+/* one-row panel for the page where a column would cover the map */
+.ctl.top{flex-direction:row;align-items:center;width:auto;flex-wrap:wrap;max-width:calc(100% - 20px);padding:5px 8px!important;gap:5px 8px}
+.ctl.top .tm{display:flex;align-items:center;gap:4px}
+.ctl.top .tm button{width:72px;min-height:32px}
+.ctl.top .aero-chip{width:262px;flex:0 0 auto;font-size:24px;line-height:1.2;padding:0 6px}
+.ctl.top .lbl{margin-top:0}
+.ctl.top .pair{flex:0 0 112px}
+.ctl.top .pl{display:flex;gap:3px}
+.ctl.top .pl button{width:82px}
+/* Ptolemaic pages */
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ctl.wide{width:auto;right:8px;top:8px;max-height:none;overflow:visible}
+.row{display:flex;gap:6px;align-items:center}
+.row>button{flex:1 1 0;min-width:0}
+.row>.aero-chip{width:auto;flex:0 0 auto;padding:1px 6px}
+.row>.lbl{margin-top:0}
+.row>input[type=range]{flex:1 1 0!important;width:auto;min-width:60px}
+.row>button[data-b]{padding:1px 2px}
+@media (max-width:760px){.ctl.wide{left:10px!important;top:auto;bottom:6px}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style id="notebook">
+/* Astronomer's Notebook panels over the black sky */
+:root{--paper:#F3EAD3;--sheet:#FFFBEF;--ink:#2A2118;--soft:#574832;--faint:#C9B98F;--accent:#8C3B22;--accent-dark:#6F2D19;--on-accent:#FFF8E8;--tint:#E7DABB;--nb-sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;--nb-serif:"Source Serif 4",Georgia,serif}
+.ctl,.ctl.aero-panel{background:var(--paper)!important;border:0!important;border-radius:14px!important;box-shadow:0 6px 18px rgba(0,0,0,.45)!important;color:var(--ink)!important;font-family:var(--nb-sans)!important;font-size:14px!important;padding:9px!important}
+.ctl.top{padding:6px 10px!important}
+.ctl button,.ctl button.primary{font:400 14px var(--nb-sans)!important;color:var(--ink)!important;background:transparent!important;border:1px solid var(--ink)!important;border-radius:8px!important;box-shadow:none!important;text-shadow:none!important}
+.ctl button:hover:not(:disabled){background:var(--tint)!important;border-color:var(--ink)!important}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--on-accent)!important;font-weight:600!important}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:var(--accent-dark)!important;border-color:var(--accent-dark)!important}
+.ctl button:disabled{background:transparent!important;border-color:var(--faint)!important;color:#8E7E62!important}
+.ctl .aero-chip,.ctl .chip{font-family:var(--nb-serif)!important;font-weight:600!important;color:var(--ink)!important;font-size:15px;background:transparent!important}
+.ctl.top .aero-chip{font-size:24px}
+.ctl input[type=range]{accent-color:var(--accent)!important}
+.ctl .lbl{color:var(--soft)!important;font-size:14px}
+.ctl button{white-space:nowrap;padding:1px 4px!important}
+.ctl.top .tm button{width:84px!important}
+#sm{flex:0 0 158px!important}
+#bigdate{position:absolute;z-index:4;top:6px;left:0;right:0;text-align:center;color:#fff;pointer-events:none;font:600 34px/1.1 "Source Serif 4",Georgia,serif;text-shadow:0 1px 4px #000}
+#bigdate small{display:inline;font:inherit;margin-left:.5em}
+.ctl.plbox{left:auto!important;right:10px}
+.ctl.top .tm button{width:84px!important}
+.ctl.top .pl button{width:70px!important}
+.ctl,.ctl.aero-panel{left:24px!important;top:24px!important}
+.ctl.plbox{left:auto!important;right:24px!important}
+.ctl,.ctl.aero-panel{top:auto!important;left:auto!important;right:24px!important;bottom:24px!important}
+.ctl.top:not(.plbox){bottom:78px!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bigdate"><span id="dayn"></span><small id="when"></small></div>
+  <div class="ctl top aero-panel"><div class="tm"><button id="dB">−5 days</button><button id="dF">+5 days</button><button id="pathB" aria-pressed="false">Show path</button></div></div>
+  <div class="ctl top aero-panel plbox"><div class="pl"><button data-p="Jupiter" aria-pressed="false">Jupiter</button><button data-p="Mercury" aria-pressed="false">Mercury</button><button data-p="Mars" aria-pressed="true">Mars</button><button data-p="Saturn" aria-pressed="false">Saturn</button><button data-p="Venus" aria-pressed="false">Venus</button></div></div>
+  <div id="stage" class="aero-stage"><canvas id="sky" aria-label="A map of the whole sky with one wanderer moving through the constellations."></canvas></div>
+</div>
+<script>
+(function(){
+"use strict";
+var MODE="planets",SKYVIEW=MODE!=="planets";
+/* lst: star time on the first night. az/alt: where the view points. half: half-width of the view. cy: height of the view's center. */
+var CFG={mars:{lst:72,start:0,len:65,az:125,alt:31,half:35,cy:.45},retro:{lst:71,start:30,len:166,az:180,alt:40,half:47.5,cy:.5},planets:{lst:0,start:0,len:0,az:0,alt:30,half:35,cy:.5}}[MODE];
+function fmtDate(d){return new Date(Date.UTC(2026,10,1)+Math.floor(d)*864e5).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});}
+var STARS=[[2.1,29.09,2.1],[2.29,59.15,2.3],[2.35,-45.75,3.9],[3.31,15.18,2.8],[4.86,-8.82,3.6],[6.44,-77.25,2.8],[6.55,-43.68,3.9],[6.57,-42.31,2.4],[9.24,53.9,3.7],[9.83,30.86,3.3],[10.13,56.54,2.2],[10.9,-17.99,2.0],[12.28,57.82,3.5],[14.18,60.72,2.1],[14.19,38.5,3.9],[16.52,-46.72,3.3],[17.1,-55.25,3.9],[17.15,-10.18,3.5],[17.43,35.62,2.1],[21.01,-8.18,3.6],[21.45,60.24,2.7],[22.09,-43.32,3.4],[22.81,-49.07,3.9],[22.87,15.35,3.6],[24.43,-57.24,0.5],[24.5,48.63,3.6],[26.02,-15.94,3.5],[27.87,-10.34,3.7],[28.27,29.58,3.4],[28.38,19.29,3.9],[28.6,63.67,3.4],[28.66,20.81,2.6],[28.99,-51.61,3.7],[29.69,-61.57,2.9],[30.0,-21.08,4.0],[30.51,2.76,3.8],[30.86,72.42,4.0],[30.97,42.33,2.1],[31.79,23.46,2.0],[32.39,34.99,3],[34.13,-51.51,3.6],[37.95,89.26,2.0],[40.83,3.24,3.5],[42.5,27.26,3.6],[42.67,55.9,3.8],[43.56,52.76,3.9],[44.11,-8.9,3.9],[44.57,-40.3,2.9],[45.57,4.09,2.5],[46.2,53.51,2.9],[46.29,38.84,3.3],[47.04,40.96,2.1],[47.37,44.86,3.8],[48.02,-28.99,3.8],[49.88,-21.76,3.7],[51.08,49.86,1.8],[51.2,9.03,3.6],[51.79,9.73,3.7],[53.23,-9.46,3.7],[55.73,47.79,3.0],[55.81,-9.76,3.5],[56.05,-64.81,3.8],[56.08,32.29,3.8],[56.22,24.11,3.7],[56.3,42.58,3.8],[56.46,24.37,3.9],[56.81,-74.24,3.3],[56.87,24.11,2.9],[57.29,24.05,3.6],[58.53,31.88,2.8],[59.46,40.01,2.9],[59.51,-13.51,3.0],[59.74,35.79,4.0],[60.17,12.49,3.4],[60.79,5.99,3.9],[62.17,47.71,4.0],[63.5,-42.29,3.9],[63.61,-62.47,3.3],[64.47,-33.8,3.5],[64.95,15.63,3.6],[65.73,17.54,3.8],[66.01,-34.02,4.0],[67.14,15.96,3.8],[67.15,19.18,3.5],[67.17,15.87,3.4],[68.5,-55.05,3.3],[68.89,-30.56,3.8],[68.98,16.51,0.9],[69.08,-3.35,3.9],[69.55,-14.3,3.9],[72.46,6.96,3.2],[72.8,5.61,3.7],[73.56,2.44,3.7],[74.25,33.17,2.7],[75.49,43.82,3.0],[75.62,41.08,3.7],[76.37,-22.37,3.2],[76.63,41.23,3.2],[76.96,-5.09,2.8],[78.23,-16.21,3.3],[78.63,-8.2,0.2],[79.17,46.0,0.1],[79.4,-6.84,3.6],[81.12,-2.4,3.4],[81.28,6.35,1.6],[81.57,28.61,1.6],[82.06,-20.76,2.8],[82.8,-35.47,3.9],[83.0,-0.3,2.2],[83.18,-17.82,2.6],[83.41,-62.49,3.8],[83.78,9.93,3.4],[83.86,-5.91,2.8],[84.05,-1.2,1.7],[84.41,21.14,3.0],[84.69,-2.6,3.8],[84.91,-34.07,2.6],[85.19,-1.94,1.7],[86.12,-22.45,3.6],[86.74,-14.82,3.5],[86.82,-51.07,3.9],[86.94,-9.67,2.1],[87.74,-35.77,3.1],[87.83,-20.88,3.8],[87.87,39.15,4.0],[88.79,7.41,0.5],[89.1,-14.17,3.7],[89.79,-42.82,4.0],[89.88,54.28,3.7],[89.88,44.95,1.9],[89.93,37.21,2.6],[93.71,-6.27,4.0],[93.72,22.51,3.3],[95.08,-30.06,3.0],[95.53,-33.44,3.9],[95.67,-17.96,2.0],[95.74,22.51,2.9],[95.99,-52.7,-0.6],[97.2,-7.03,3.8],[99.17,-19.26,4.0],[99.43,16.4,1.9],[99.44,-43.2,3.2],[100.98,25.13,3.1],[101.29,-16.72,-1.4],[101.32,12.9,3.4],[102.05,-61.94,3.2],[102.46,-32.51,3.5],[102.48,-50.61,2.9],[103.2,33.96,3.6],[103.53,-24.18,3.9],[104.66,-28.97,1.5],[105.43,-27.93,3.5],[105.76,-23.83,3.0],[107.1,-26.39,1.8],[107.19,-70.5,3.8],[109.21,-67.96,4.0],[109.29,-37.1,2.7],[109.52,16.54,3.6],[110.03,21.98,3.5],[111.02,-29.3,2.5],[111.43,27.8,3.8],[111.79,8.29,2.9],[112.31,-43.3,3.2],[113.65,31.89,1.6],[114.71,-26.8,3.8],[114.83,5.22,0.4],[115.31,-9.55,3.9],[115.46,-72.61,3.9],[115.95,-28.95,3.9],[116.11,24.4,3.6],[116.31,-37.97,3.6],[116.33,28.03,1.2],[117.32,-24.86,3.3],[118.05,-40.58,3.7],[119.19,-52.98,3.5],[120.9,-40.0,2.2],[121.89,-24.3,2.8],[122.38,-47.34,1.8],[124.13,9.19,3.5],[125.63,-59.51,1.9],[126.42,-3.91,3.9],[126.43,-66.14,3.8],[127.57,60.72,3.4],[130.03,-35.31,4.0],[130.07,-52.92,3.6],[130.16,-46.65,3.8],[130.9,-33.19,3.7],[131.17,18.15,3.9],[131.18,-54.71,1.9],[131.51,-46.04,3.9],[131.69,6.42,3.4],[133.76,-60.64,3.8],[133.85,5.95,3.1],[134.8,48.04,3.1],[135.16,41.78,4.0],[135.61,-66.4,4],[135.91,47.16,3.6],[136.04,-47.1,3.8],[137.0,-43.43,2.2],[137.74,-58.97,3.4],[137.82,-62.32,4.0],[138.3,-69.72,1.7],[138.59,2.31,3.9],[139.27,-59.28,2.2],[139.71,36.8,3.8],[140.26,34.39,3.1],[140.53,-55.01,2.5],[141.9,-8.66,2.0],[142.68,-40.47,3.6],[142.81,-57.03,3.2],[142.88,63.06,3.6],[143.21,51.68,3.2],[144.96,-1.14,3.9],[145.29,9.89,3.5],[146.31,-62.51,3.7],[146.46,23.77,3.0],[146.78,-65.07,2.9],[147.75,59.04,3.8],[148.19,26.01,3.9],[149.22,-54.57,3.5],[151.83,16.76,3.5],[152.09,11.97,1.4],[152.65,-12.35,3.6],[153.43,-70.04,3.3],[153.68,-42.12,3.9],[154.17,23.42,3.4],[154.27,-61.33,3.4],[154.27,42.91,3.5],[154.99,19.84,2.0],[155.58,41.5,3.1],[156.1,-74.03,4.0],[156.52,-16.84,3.8],[156.97,-58.74,3.8],[158.01,-61.69,3.3],[158.2,9.31,3.8],[159.33,-48.23,3.8],[160.74,-64.39,2.7],[161.69,-49.42,2.7],[162.41,-16.19,3.1],[163.33,34.21,3.8],[163.37,-58.85,3.8],[165.46,56.38,2.3],[165.93,61.75,1.8],[167.15,-58.98,3.9],[167.42,44.5,3],[168.53,20.52,2.6],[168.56,15.43,3.3],[169.55,31.53,3.8],[169.62,33.09,3.5],[169.84,-14.78,3.6],[170.25,-54.49,3.9],[170.98,10.53,4],[172.85,69.33,3.8],[173.25,-31.86,3.5],[173.95,-63.02,3.1],[176.4,-66.73,3.6],[176.51,47.78,3.7],[177.26,14.57,2.1],[177.67,1.76,3.6],[178.46,53.69,2.4],[182.09,-50.72,2.6],[182.53,-22.62,3.0],[182.91,-52.37,4.0],[183.79,-58.75,2.8],[183.86,57.03,3.3],[183.95,-17.54,2.6],[184.98,-0.67,3.9],[185.34,-60.4,3.6],[186.65,-63.1,0.8],[187.01,-50.23,3.9],[187.47,-16.52,2.9],[187.79,-57.11,1.6],[188.12,-72.13,3.8],[188.37,69.79,3.9],[188.6,-23.4,2.6],[189.3,-69.14,2.7],[189.43,-48.54,3.9],[190.38,-48.96,2.2],[190.42,-1.45,2.7],[191.57,-68.11,3.0],[191.93,-59.69,1.2],[193.51,55.96,1.8],[193.9,3.4,3.4],[194.01,38.32,2.9],[195.54,10.96,2.9],[195.57,-71.55,3.6],[199.73,-23.17,3.0],[200.15,-36.71,2.8],[200.98,54.93,2.2],[201.3,-11.16,1.0],[201.31,54.99,4.0],[202.76,-39.41,3.9],[203.67,-0.6,3.4],[204.97,-53.47,2.3],[206.89,49.31,1.9],[207.38,-41.69,3.4],[207.4,-42.47,3.5],[208.67,18.4,2.7],[208.88,-47.29,2.5],[209.57,-42.1,3.8],[209.67,-44.8,3.9],[210.96,-60.37,0.6],[211.1,64.38,3.7],[211.59,-26.68,3.2],[211.67,-36.37,2.1],[213.92,19.18,-0.1],[214.85,-46.06,3.5],[217.96,30.37,3.6],[218.02,38.31,3.0],[218.88,-42.16,2.3],[219.9,-60.84,1.4],[219.9,-60.83,-0.0],[220.29,13.73,3.8],[220.48,-47.39,2.3],[220.63,-64.98,3.2],[220.77,-5.66,3.9],[221.25,27.07,2.4],[221.56,1.89,3.7],[221.97,-79.04,3.8],[222.68,74.16,2.1],[222.72,-16.04,2.8],[224.63,-43.13,2.7],[224.79,-42.1,3.1],[225.49,40.39,3.5],[226.02,-25.28,3.2],[226.28,-47.05,3.9],[227.98,-48.74,3.9],[228.07,-52.1,3.4],[228.88,33.31,3.5],[229.25,-9.38,2.6],[229.73,-68.68,2.9],[230.18,71.83,3],[230.34,-40.65,3.2],[230.45,-36.26,3.6],[230.67,-44.69,3.4],[231.23,58.97,3.3],[231.96,29.11,3.7],[233.67,26.71,2.2],[233.7,10.54,3.8],[233.79,-41.17,2.8],[233.88,-14.79,3.9],[234.26,-28.14,3.6],[234.66,-29.78,3.7],[235.69,26.3,3.8],[236.07,6.43,2.6],[236.55,15.42,3.6],[237.41,-3.43,3.5],[237.7,4.48,3.7],[237.74,-33.63,4.0],[238.79,-63.43,2.8],[239.11,15.66,3.9],[239.22,-29.21,3.9],[239.71,-26.11,2.9],[240.03,-38.4,3.4],[240.08,-22.62,2.3],[241.36,-19.81,2.6],[241.7,-20.67,3.9],[243.0,-19.46,4],[243.59,-3.69,2.7],[243.86,-63.69,3.9],[244.58,-4.69,3.2],[244.94,46.31,3.9],[245.3,-25.59,2.9],[245.48,19.15,3.7],[246.0,61.51,2.7],[247.35,-26.43,1.1],[247.56,21.49,2.8],[247.73,1.98,3.8],[248.36,-78.9,3.9],[248.97,-28.22,2.8],[249.29,-10.57,2.5],[250.32,31.6,2.8],[250.72,38.92,3.5],[252.17,-69.03,1.9],[252.45,-59.04,3.8],[252.54,-34.29,2.3],[252.97,-38.05,3],[253.08,-38.02,3.6],[253.65,-42.36,3.6],[254.42,9.38,3.2],[254.66,-55.99,3.1],[255.07,30.93,3.9],[257.2,65.71,3.2],[257.59,-15.72,2.4],[258.04,-43.24,3.3],[258.66,14.39,2.8],[258.76,24.84,3.1],[258.76,36.81,3.2],[260.5,-25.0,3.3],[261.32,-55.53,2.8],[261.35,-56.38,3.3],[262.61,52.3,2.8],[262.69,-37.3,2.7],[262.77,-60.68,3.6],[262.96,-49.88,2.8],[263.4,-37.1,1.6],[263.73,12.56,2.1],[264.33,-43.0,1.9],[264.4,-15.4,3.5],[264.87,46.01,3.8],[265.62,-39.03,2.4],[265.87,4.57,2.8],[266.43,-64.72,3.6],[266.61,27.72,3.4],[266.9,-40.13,3.0],[266.97,2.71,3.8],[267.46,-37.04,3.2],[268.38,56.87,3.7],[269.06,37.25,3.9],[269.15,51.49,2.2],[269.44,29.25,3.7],[269.76,-9.77,3.3],[270.16,2.93,3.9],[271.45,-30.42,3.0],[271.66,-50.09,3.6],[271.84,9.56,3.7],[271.89,28.76,3.8],[273.44,-21.06,3.8],[274.41,-36.76,3.1],[275.25,-29.83,2.7],[275.26,72.73,3.5],[275.33,-2.9,3.2],[275.92,21.77,3.9],[276.04,-34.38,1.8],[276.74,-45.97,3.5],[276.99,-25.42,2.8],[278.8,-8.24,3.9],[279.23,38.78,0.0],[281.41,-26.99,3.2],[282.52,33.36,3.5],[283.82,-26.3,2.0],[284.43,-21.11,3.5],[284.74,32.69,3.2],[285.65,-29.88,2.6],[286.17,-21.74,3.8],[286.35,13.86,3.0],[286.56,-4.88,3.4],[286.74,-27.67,3.3],[287.44,-21.02,2.9],[288.14,67.66,3.1],[289.28,53.37,3.8],[290.42,-17.85,3.9],[290.66,-44.46,4.0],[290.97,-40.62,4.0],[291.37,3.11,3.4],[292.43,51.73,3.8],[292.68,27.96,3.0],[296.24,45.13,2.9],[296.56,10.61,2.7],[296.85,18.53,3.7],[297.04,70.27,3.8],[297.7,8.87,0.8],[298.12,1.01,3.9],[298.83,6.41,3.7],[299.08,35.08,3.9],[299.69,19.49,3.5],[300.15,-72.91,4.0],[302.18,-66.18,3.5],[302.83,-0.82,3.2],[303.41,46.74,3.8],[303.87,47.71,4.0],[304.51,-12.54,3.6],[305.25,-14.78,3.0],[305.56,40.26,2.2],[306.41,-56.74,1.9],[309.39,14.6,3.6],[309.39,-47.29,3.1],[309.91,15.91,3.8],[310.36,45.28,1.2],[311.24,-66.2,3.4],[311.32,61.84,3.4],[311.55,33.97,2.5],[311.92,-9.5,3.8],[313.7,-58.45,3.7],[314.29,41.17,3.9],[316.23,43.93,3.7],[318.23,30.23,3.2],[318.7,38.05,3.7],[318.96,5.25,3.9],[319.64,62.59,2.5],[321.67,-22.41,3.8],[322.17,70.56,3.2],[322.89,-5.57,2.9],[323.5,45.59,4.0],[325.02,-16.66,3.7],[325.37,-77.39,3.7],[326.05,9.88,2.4],[326.76,-16.13,2.9],[328.48,-37.36,3],[331.45,-0.32,3.0],[331.75,25.35,3.8],[332.06,-46.96,1.7],[332.55,6.2,3.5],[332.71,58.2,3.4],[334.63,-60.26,2.9],[335.41,-1.39,3.9],[337.21,-0.02,3.6],[337.32,-43.5,4.0],[337.82,50.28,3.8],[340.37,10.83,3.4],[340.67,-46.88,2.1],[340.75,30.22,2.9],[341.63,23.57,4.0],[342.14,-51.32,3.5],[342.42,66.2,3.5],[342.5,24.6,3.5],[343.15,-7.58,3.7],[343.66,-15.82,3.3],[344.41,-29.62,1.2],[345.48,42.33,3.6],[345.94,28.08,2.4],[346.19,15.21,2.5],[347.36,-21.17,3.7],[347.59,-45.25,3.9],[349.29,3.28,3.7],[349.36,-58.24,4.0],[350.74,-20.1,4.0],[354.39,46.46,3.8],[354.84,77.63,3.2]];
+var CON=[{"n":"Aquarius","p":[337.5,-5],"l":[[[311.92,-9.5],[313.16,-8.98],[322.89,-5.57],[331.45,-0.32],[335.41,-1.39],[337.21,-0.02],[338.84,-0.12],[343.15,-7.58],[349.48,-9.18],[347.36,-21.17]],[[322.89,-5.57],[331.61,-13.87]],[[331.45,-0.32],[334.21,-7.78]],[[337.21,-0.02],[336.32,1.38]],[[350.74,-20.1],[349.48,-9.18],[355.44,-17.82]]]},{"n":"Aries","p":[42,22],"l":[[[42.5,27.26],[31.79,23.46],[28.66,20.81],[28.38,19.29]]]},{"n":"Cancer","p":[128.2,27],"l":[[[134.62,11.86],[131.17,18.15],[130.82,21.47],[131.67,28.77]],[[131.17,18.15],[124.13,9.19]]]},{"n":"Capricornus","p":[315,-22],"l":[[[304.41,-12.51],[305.25,-14.78],[307.22,-17.81],[311.52,-25.27],[312.96,-26.92],[321.67,-22.41],[326.76,-16.13],[325.02,-16.66],[320.56,-16.83],[316.49,-17.23],[304.41,-12.51]]]},{"n":"Gemini","p":[107.2,23.5],"l":[[[93.72,22.51],[95.74,22.51],[100.98,25.13],[107.78,30.25],[113.65,31.89],[116.33,28.03],[113.98,26.9],[110.03,21.98],[106.03,20.57],[99.43,16.4],[101.32,12.9]],[[110.03,21.98],[109.52,16.54]]]},{"n":"Leo","p":[159,15],"l":[[[152.09,11.97],[151.83,16.76],[154.99,19.84],[168.53,20.52],[177.26,14.57],[168.56,15.43],[152.09,11.97]],[[154.99,19.84],[154.17,23.42],[148.19,26.01],[146.46,23.77]]]},{"n":"Libra","p":[231,-26],"l":[[[226.02,-25.28],[222.72,-16.04],[229.25,-9.38],[233.88,-14.79],[234.26,-28.14],[234.66,-29.78]],[[222.72,-16.04],[233.88,-14.79]]]},{"n":"Pisces","p":[19.5,15],"l":[[[18.44,24.58],[17.92,30.09],[19.87,27.26],[18.44,24.58],[17.86,21.03],[22.87,15.35],[26.35,9.16],[30.51,2.76],[28.39,3.19],[25.36,5.49],[22.55,6.14],[18.43,7.58],[15.74,7.89],[12.17,7.59],[359.83,6.86],[354.99,5.63],[351.99,6.38],[350.09,5.38],[349.29,3.28],[351.73,1.26],[355.51,1.78],[356.6,3.49],[354.99,5.63]],[[349.29,3.28],[345.97,3.82]]]},{"n":"Sagittarius","p":[292.5,-34],"l":[[[274.41,-36.76],[276.04,-34.38],[275.25,-29.83],[276.99,-25.42],[273.44,-21.06]],[[290.66,-44.46],[290.97,-40.62],[285.65,-29.88],[281.41,-26.99],[276.99,-25.42]],[[298.82,-41.87],[299.93,-35.28],[298.96,-26.3],[294.18,-24.88],[291.32,-24.51],[288.89,-25.26],[283.82,-26.3],[281.41,-26.99],[275.25,-29.83],[271.45,-30.42],[276.04,-34.38],[285.65,-29.88],[286.74,-27.67],[283.82,-26.3],[286.17,-21.74],[287.44,-21.02],[289.41,-18.95],[290.42,-17.85],[290.43,-15.96]],[[286.17,-21.74],[284.43,-21.11],[283.54,-22.74],[283.82,-26.3]]]},{"n":"Scorpius","p":[249,-38],"l":[[[239.71,-26.11],[240.08,-22.62],[241.36,-19.81]],[[240.08,-22.62],[245.3,-25.59],[247.35,-26.43],[248.97,-28.22],[252.54,-34.29],[252.97,-38.05],[253.65,-42.36],[258.04,-43.24],[264.33,-43.0],[266.9,-40.13],[265.62,-39.03],[263.4,-37.1]]]},{"n":"Taurus","p":[54,15],"l":[[[84.41,21.14],[68.98,16.51],[67.17,15.87],[64.95,15.63],[65.73,17.54],[67.15,19.18],[81.57,28.61]],[[64.95,15.63],[60.17,12.49],[51.79,9.73],[60.79,5.99]],[[51.79,9.73],[51.2,9.03],[54.22,0.4]]]},{"n":"Virgo","p":[199.5,-4],"l":[[[176.46,6.53],[177.67,1.76],[184.98,-0.67],[190.42,-1.45],[197.49,-5.54],[201.3,-11.16],[214.0,-6.0],[220.77,-5.66]],[[195.54,10.96],[193.9,3.4],[190.42,-1.45]],[[197.49,-5.54],[203.67,-0.6],[210.41,1.54],[221.56,1.89]]]}];
+var rad=Math.PI/180,OBL=23.4393*rad,START=9800.5+27/24;
+/* Standish orbital elements, 1800-2050: a,e,I,L,peri,node then rates per century */
+var EL={
+ Mercury:[0.38709927,0.20563593,7.00497902,252.2503235,77.45779628,48.33076593, 0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
+ Venus:[0.72333566,0.00677672,3.39467605,181.9790995,131.60246718,76.67984255, 0.0000039,-0.00004107,-0.0007889,58517.81538729,0.00268329,-0.27769418],
+ Earth:[1.00000261,0.01671123,-0.00001531,100.46457166,102.93768193,0, 0.00000562,-0.00004392,-0.01294668,35999.37244981,0.32327364,0],
+ Mars:[1.52371034,0.0933941,1.84969142,-4.55343205,-23.94362959,49.55953891, 0.00001847,0.00007882,-0.00813131,19140.30268499,0.44441088,-0.29257343],
+ Jupiter:[5.202887,0.04838624,1.30439695,34.39644051,14.72847983,100.47390909, -0.00011607,-0.00013253,-0.00183714,3034.74612775,0.21252668,0.20469106],
+ Saturn:[9.53667594,0.05386179,2.48599187,49.95424423,92.59887831,113.66242448, -0.0012506,-0.00050991,0.00193609,1222.49362201,-0.41897216,-0.28867794]
+};
+
+function helio(k,T){
+  var e=EL[k],a=e[0]+e[6]*T,ec=e[1]+e[7]*T,I=(e[2]+e[8]*T)*rad,L=e[3]+e[9]*T,p=e[4]+e[10]*T,O=e[5]+e[11]*T;
+  var M=(((L-p)%360)+540)%360-180; M*=rad;
+  var E=M+ec*Math.sin(M);
+  for(var i=0;i<6;i++) E-=(E-ec*Math.sin(E)-M)/(1-ec*Math.cos(E));
+  var x=a*(Math.cos(E)-ec), y=a*Math.sqrt(1-ec*ec)*Math.sin(E), w=(p-O)*rad; O*=rad;
+  var cw=Math.cos(w),sw=Math.sin(w),cO=Math.cos(O),sO=Math.sin(O),cI=Math.cos(I),sI=Math.sin(I);
+  return [(cw*cO-sw*sO*cI)*x+(-sw*cO-cw*sO*cI)*y,(cw*sO+sw*cO*cI)*x+(-sw*sO+cw*cO*cI)*y,(sw*sI)*x+(cw*sI)*y];
+}
+/* ecliptic vector to unit equatorial vector */
+function toEq(v){
+  var c=Math.cos(OBL),s=Math.sin(OBL),x=v[0],y=c*v[1]-s*v[2],z=s*v[1]+c*v[2],n=Math.hypot(x,y,z);
+  return [x/n,y/n,z/n];
+}
+
+function eq(key,D){
+  var T=D/36525,E=helio("Earth",T),h=helio(key,T);
+  return toEq([h[0]-E[0],h[1]-E[1],h[2]-E[2]]);
+}
+function wrap(a){a=(a+180)%360;if(a<0)a+=360;return a-180;}
+/* each mode turns RA and Dec into screen x and y */
+var cv=document.getElementById("sky"),ctx=cv.getContext("2d"),W=1,H=1,k=1;
+var c=Math.cos(OBL),sn=Math.sin(OBL);
+function resize(){
+  var r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);
+  W=Math.max(1,r.width);H=Math.max(1,r.height);cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0);
+  k=SKYVIEW?W/2/Math.tan(CFG.half*rad):Math.max(W/360,H/172);
+}
+var B0=0,CX=0,CY=0,RA0=152,DE0=15,L0=150;
+/* same stars, same place, every night: a fixed moment of star time, seen from Shreveport */
+var LST=CFG.lst,PHI=32.5*rad,sP=Math.sin(PHI),cP=Math.cos(PHI);
+function enu(ra,de){
+  var h=(LST-ra)*rad,d=de*rad;
+  return [-Math.cos(d)*Math.sin(h),cP*Math.sin(d)-sP*Math.cos(d)*Math.cos(h),sP*Math.sin(d)+cP*Math.cos(d)*Math.cos(h)];
+}
+var camA=CFG.az*rad,camH=CFG.alt*rad;
+var fx=Math.cos(camH)*Math.sin(camA),fy=Math.cos(camH)*Math.cos(camA),fz=Math.sin(camH);
+var rx=Math.cos(camA),ry=-Math.sin(camA);
+var ux=-Math.sin(camH)*Math.sin(camA),uy=-Math.sin(camH)*Math.cos(camA),uz=Math.cos(camH);
+function hz(e){
+  var X=e[0]*rx+e[1]*ry,Y=e[0]*ux+e[1]*uy+e[2]*uz,Z=e[0]*fx+e[1]*fy+e[2]*fz,f=k/(1+Z);
+  return [W/2+X*f,H*CFG.cy-Y*f,e[2],Z];
+}
+function xy(ra,de){
+  if(SKYVIEW) return hz(enu(ra,de));
+  var a=ra*rad,b=de*rad,x=Math.cos(b)*Math.cos(a),y=Math.cos(b)*Math.sin(a),z=Math.sin(b);
+  var y2=c*y+sn*z,z2=-sn*y+c*z,lon=Math.atan2(y2,x)/rad,lat=Math.asin(z2)/rad;
+  return [CX-wrap(lon-L0)*k,CY-(lat-B0)*k,lat];
+}
+function vec2rd(v){return [Math.atan2(v[1],v[0])/rad,Math.asin(v[2])/rad];}
+function name(t,x,y){
+  ctx.font='400 14px Helvetica, Arial, sans-serif';ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillStyle="rgba(190,216,240,.85)";ctx.fillText(t,x,y);
+}
+function back(){
+  ctx.fillStyle="#000000";ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(150,195,235,.5)";ctx.lineWidth=1.2;
+  CON.forEach(function(C){C.l.forEach(function(L){
+    ctx.beginPath();var px=null;
+    L.forEach(function(p){var q=xy(p[0],p[1]);
+      if(q[3]<-0.3){px=null;return;}
+      if(px===null||Math.abs(q[0]-px)>W/2) ctx.moveTo(q[0],q[1]); else ctx.lineTo(q[0],q[1]); px=q[0];});
+    ctx.stroke();
+  });});
+  STARS.forEach(function(a){
+    var q=xy(a[0],a[1]);if(q[3]<-0.3||q[0]<-4||q[0]>W+4||q[1]<-4||q[1]>H+4) return;
+    ctx.fillStyle="rgba(236,242,255,"+Math.min(1,.55+.18*(5.5-a[2]))+")";
+    ctx.beginPath();ctx.arc(q[0],q[1],Math.max(.6,(SKYVIEW?2.3:1.8)-.38*a[2]),0,6.3);ctx.fill();
+  });
+  if(MODE==="retro") return;
+  var drop=[-112,88,-74,126,-128,72,-92,112,-66,134,-104,80],seen=0;
+  CON.forEach(function(C){ if(!C.p) return; var q=xy(C.p[0],C.p[1]);
+        if(!(q[3]<-0.3)&&q[0]>40&&q[0]<W-40&&q[1]>14&&q[1]<H-14) name(C.n,q[0],q[1]);
+  });
+}
+function hill(az){return 1.1+0.7*Math.sin(az*3*rad+1)+0.5*Math.sin(az*7*rad+2)+0.3*Math.sin(az*17*rad);}
+function dir(az,alt){var a=alt*rad,A=az*rad;return [Math.cos(a)*Math.sin(A),Math.cos(a)*Math.cos(A),Math.sin(a)];}
+function ground(){
+  var Yf=-Math.tan(camH/2)*k,Yb=k/Math.tan(camH/2),yc=H*CFG.cy-(Yf+Yb)/2,rr=(Yb-Yf)/2;
+  ctx.fillStyle="#141F19";ctx.beginPath();ctx.rect(0,0,W,H);ctx.arc(W/2,yc,rr,0,6.2832,true);ctx.fill("evenodd");
+  var a0=camA/rad;ctx.fillStyle="#101913";ctx.beginPath();var q;
+  for(var az=a0-115,first=true;az<=a0+115;az+=1){q=hz(dir(az,hill(az)));if(first){ctx.moveTo(q[0],q[1]);first=false;}else ctx.lineTo(q[0],q[1]);}
+  for(az=a0+115;az>=a0-115;az-=3){q=hz(dir(az,-0.3));ctx.lineTo(q[0],q[1]);}
+  ctx.closePath();ctx.fill();
+  [["N",0],["NE",45],["E",90],["SE",135],["S",180],["SW",225],["W",270],["NW",315]].forEach(function(c){
+    var q=hz(dir(c[1],-1.5));if(q[3]>-0.3&&q[0]>20&&q[0]<W-20) pill(c[0],q[0],q[1]);
+  });
+}
+function pill(t,x,y){
+  ctx.font="400 14px Helvetica, Arial, sans-serif";ctx.textBaseline="middle";ctx.textAlign="center";ctx.fillStyle="#FFFFFF";ctx.fillText(t,x,y+15);
+}
+function body(v,color,r){
+  var rd=vec2rd(v),q=xy(rd[0],rd[1]);
+  ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(q[0],q[1],r,0,6.3);ctx.fill();ctx.shadowBlur=0;
+}
+var dayEl=document.getElementById("dayn"),draw;
+if(SKYVIEW){
+  var LAST=CFG.len,day=0,fw=document.getElementById("fw"),bk=document.getElementById("bk"),tm=document.getElementById("time");
+  draw=function(){LST=CFG.lst+0.9856*day;back();
+    if(MODE==="retro"){ /* faint trail, fixed to the stars */
+      ctx.strokeStyle="rgba(224,180,60,.45)";ctx.lineWidth=1.5;ctx.lineJoin="round";ctx.beginPath();var on=false;
+      for(var i=0;i<=day;i++){var r=vec2rd(eq("Mars",START+CFG.start+i)),q=xy(r[0],r[1]);if(q[3]<-0.3){on=false;continue;}if(on)ctx.lineTo(q[0],q[1]);else ctx.moveTo(q[0],q[1]);on=true;}
+      ctx.stroke();
+    }
+    body(eq("Mars",START+CFG.start+day),"#FFC9AE",2.6);ground();dayEl.textContent=fmtDate(CFG.start+day);tm.value=day;
+    if(bk){bk.disabled=day<=0;fw.disabled=day>=LAST;}};
+  if(fw) fw.addEventListener("click",function(){day=Math.min(LAST,day+1);draw();});
+  if(bk) bk.addEventListener("click",function(){day=Math.max(0,day-1);draw();});
+  tm.addEventListener("input",function(){day=+tm.value;draw();});
+  window._w={set:function(d){day=d;draw();},pos:function(d){return vec2rd(eq("Mars",START+d));},
+    mars:function(){var o=[];for(var d=0;d<=LAST;d+=10){LST=CFG.lst+0.9856*d;var r=vec2rd(eq("Mars",START+CFG.start+d)),q=hz(enu(r[0],r[1]));o.push([d,Math.round(q[0]),Math.round(q[1]),Math.round(q[2]*57.3)]);}return o;}};
+} else {
+  /* Each wanderer's range is its longest stretch of forward motion, so nothing ever turns back here. */
+  function eclLon(kk,D){var v=eq(kk,D);return Math.atan2(c*v[1]+sn*v[2],v[0])/rad;}
+  /* each planet's next backward loop, with some forward motion on both sides */
+  function loop(kk){
+    var prev=eclLon(kk,START),st=null,en=null;
+    for(var d=1;d<=1600;d++){var l=eclLon(kk,START+d),fwd=wrap(l-prev)>0;prev=l;
+      if(!fwd&&st===null&&d>60) st=d;
+      if(fwd&&st!==null){en=d;break;}}
+    var dur=en-st,step=Math.max(1,Math.round(dur*2.5/18)),len=step*25,s0=Math.round(st+dur/2-len/2),lo=1e9,hi=-1e9,ref=eclLon(kk,START+s0),bl=0;
+    for(var i=0;i<=len;i++){var w=wrap(eclLon(kk,START+s0+i)-ref);lo=Math.min(lo,w);hi=Math.max(hi,w);}
+    return {start:s0,len:len,l0:ref+(lo+hi)/2,span:Math.max(hi-lo,18),step:step};
+  }
+  function eclLat(kk,D){var v=eq(kk,D);return Math.asin(-sn*v[1]+c*v[2])/rad;}
+  var R={},key="Mars",day=0,showPath=false,bs=document.querySelectorAll("[data-p]"),dB=document.getElementById("dB"),dF=document.getElementById("dF"),pB=document.getElementById("pathB");
+  ["Mercury","Venus","Mars","Jupiter","Saturn"].forEach(function(n){R[n]=loop(n);var lo=1e9,hi=-1e9;for(var i=0;i<=R[n].len;i++){var q=eclLat(n,START+R[n].start+i);lo=Math.min(lo,q);hi=Math.max(hi,q);}R[n].b0=(lo+hi)/2;R[n].bs=Math.max(hi-lo,.1);});
+  function go(d){day=Math.max(0,Math.min(R[key].len,day+d));draw();}
+  function labels(){var n=R[key].step,u=n===1?" day":" days";dB.textContent="−"+n+u;dF.textContent="+"+n+u;}
+  draw=function(){
+    var r=R[key];
+    function scene(){
+      back();
+      if(showPath){ctx.strokeStyle="rgba(224,180,60,.65)";ctx.lineWidth=1.5;ctx.lineJoin="round";ctx.beginPath();var px=null;
+        for(var i=0;i<=day;i++){var d=vec2rd(eq(key,START+r.start+i)),q=xy(d[0],d[1]);if(px===null||Math.abs(q[0]-px)>W/2)ctx.moveTo(q[0],q[1]);else ctx.lineTo(q[0],q[1]);px=q[0];}ctx.stroke();}
+      body(eq(key,START+r.start+day),"#FFD76A",3.5);
+    }
+    /* the whole sky */
+    L0=r.l0;B0=0;CX=W/2;CY=H/2;k=Math.max(W/360,H/172);scene();
+    var bk=k,box=[W/2+wrap(0)*0,0];
+    /* inset: the same sky zoomed in on the loop */
+    var IW=Math.min(420,W*.32),IH=250,IX=24,IY=24,zk=Math.min(IW*.7/r.span,IH*.55/r.bs);
+    /* show on the big map where the inset is looking */
+    var bw=IW/zk*bk,bh=IH/zk*bk,mp=[W/2,H/2-r.b0*bk];
+    ctx.strokeStyle="rgba(240,205,120,.7)";ctx.lineWidth=1;ctx.strokeRect(mp[0]-bw/2,mp[1]-bh/2,bw,bh);
+    ctx.save();ctx.beginPath();ctx.roundRect(IX,IY,IW,IH,14);ctx.clip();
+    B0=r.b0;CX=IX+IW/2;CY=IY+IH/2;k=zk;scene();ctx.restore();
+    ctx.strokeStyle="#F3EAD3";ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(IX,IY,IW,IH,14);ctx.stroke();
+    ctx.font='400 14px Helvetica, Arial, sans-serif';ctx.textAlign="left";ctx.textBaseline="top";ctx.fillStyle="#fff";ctx.fillText("Zoomed in",IX+12,IY+10);
+    k=bk;B0=0;CX=W/2;CY=H/2;
+    ctx.font='700 16px Helvetica, Arial, sans-serif';ctx.textBaseline="middle";ctx.lineWidth=4;ctx.lineJoin="round";ctx.strokeStyle="#000";ctx.fillStyle="#FFFFFF";
+    [["East",24,H/2,"left"],["West",W-24,H/2,"right"]].forEach(function(d){ctx.textAlign=d[3];ctx.strokeText(d[0],d[1],d[2]);ctx.fillText(d[0],d[1],d[2]);});
+    dayEl.textContent=fmtDate(r.start+day);
+    document.getElementById("when").textContent=(key==="Mercury"||key==="Venus")?"seen near sunset or sunrise":"11 PM";
+    dB.disabled=day<=0;dF.disabled=day>=r.len;
+  };
+  bs.forEach(function(b){b.addEventListener("click",function(){key=b.dataset.p;day=0;bs.forEach(function(o){o.setAttribute("aria-pressed",o===b?"true":"false");});labels();draw();});});
+  dB.addEventListener("click",function(){go(-R[key].step);});dF.addEventListener("click",function(){go(R[key].step);});
+  pB.addEventListener("click",function(){showPath=!showPath;pB.setAttribute("aria-pressed",showPath?"true":"false");pB.textContent=showPath?"Hide path":"Show path";draw();});
+  labels();
+}
+function fit(){resize();draw();}
+window.addEventListener("resize",fit);
+if(window.ResizeObserver) new ResizeObserver(fit).observe(cv);
+fit();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+
+</body>
+</html>

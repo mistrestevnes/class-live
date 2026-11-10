@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Live</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="aerolab.css">
+</head>
+<body>
+  <header class="cl-top aero-bar">
+    <h1 class="cl-title" id="title">Class Live</h1>
+    <span class="cl-grow"></span>
+    <span class="aero-chip" id="pageNum" hidden></span>
+    <span class="aero-chip cl-status connecting" id="status">Connecting…</span>
+  </header>
+
+  <main class="cl-main">
+    <div class="cl-center">
+      <form class="aero-panel cl-message" id="login" hidden>
+        <h1>Sign in</h1>
+        <label class="cl-field"><span>Your code</span>
+          <input type="text" id="code" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="12" placeholder="like 504cloud"></label>
+        <button class="aero-btn-primary" id="signIn">Sign in</button>
+        <p id="loginErr" class="cl-login-err" role="alert"></p>
+      </form>
+      <section class="aero-panel cl-message" id="waiting" hidden>
+        <h1>Waiting for your teacher</h1>
+        <p class="aero-muted">Keep this page open. It will change on its own when class starts.</p>
+      </section>
+      <section class="aero-panel" id="pageBox" hidden></section>
+    </div>
+  </main>
+
+  <footer class="cl-bottom aero-bar" id="nav" hidden>
+    <button id="back">◀ Back</button>
+    <span id="navNote" class="aero-muted"></span>
+    <button id="next" class="aero-btn-primary">Next ▶</button>
+  </footer>
+
+<script src="common.js"></script>
+<script>
+let sid = store("cl_sid");
+if (!sid) { sid = randomId(12); store("cl_sid", sid); }
+
+let stoken = store("cl_stoken");
+const tok = () => (stoken ? "&stoken=" + encodeURIComponent(stoken) : "");
+let state = { live: false };
+let page = 0;              // which unlocked page this student is looking at
+let sessionId = null;
+let lastUnlocked = -1;
+let pulse = false;
+
+const $ = (id) => document.getElementById(id);
+
+const link = new Link({
+  wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=student&sid=" + sid + "&page=" + page + tok(),
+  poll: () => api("/api/s?sid=" + sid + "&page=" + page + tok()),
+  post: (msg) => api("/api/s", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid, stoken, msg: { ...msg, page } }) }),
+  pollMs: 3000,
+  onMessage: (m) => { if (m.t === "state") apply(m.state); else if (m.t !== "tstate" && "live" in m) apply(m); },
+  onMode: showMode,
+});
+
+function showMode(mode) {
+  const s = $("status");
+  s.className = "aero-chip cl-status " + mode + (mode === "offline" || mode === "connecting" ? " aero-chip-warn" : "");
+  s.textContent = { live: "Connected", polling: "Connected", connecting: "Connecting…", offline: "Reconnecting…" }[mode];
+}
+
+function apply(s) {
+  if (stoken && s.signedIn === false) return signOut(); // code removed or signed out by the teacher
+  const prevUnlocked = lastUnlocked;
+  state = s;
+  if (!s.live) {
+    sessionId = null; lastUnlocked = -1;
+    render();
+    return;
+  }
+  if (s.sessionId !== sessionId) {
+    // new class session: jump to the newest unlocked page
+    sessionId = s.sessionId;
+    page = s.unlocked;
+    pulse = false;
+    reportPage();
+  } else if (s.unlocked > prevUnlocked && prevUnlocked >= 0 && page === prevUnlocked) {
+    pulse = true; // teacher just unlocked the page after this one
+  }
+  lastUnlocked = s.unlocked;
+  if (page > s.unlocked) { page = s.unlocked; reportPage(); }
+  render();
+}
+
+function reportPage() {
+  if (link.ws && link.ws.readyState === 1) link.ws.send(JSON.stringify({ t: "page", page }));
+  // when polling, the page number rides along with each check
+}
+
+function go(delta) {
+  const n = page + delta;
+  if (n < 0 || n > state.unlocked) return;
+  page = n;
+  if (delta > 0) pulse = false;
+  reportPage();
+  render();
+  document.querySelector(".cl-main").scrollTop = 0;
+}
+$("back").onclick = () => go(-1);
+$("next").onclick = () => go(1);
+
+function render() {
+  $("login").hidden = true;
+  const live = state.live && state.pages && state.pages.length;
+  $("waiting").hidden = !!live;
+  $("pageBox").hidden = !live;
+  $("nav").hidden = !live;
+  $("pageNum").hidden = !live;
+  $("title").textContent = live ? state.title : "Class Live";
+  document.title = live ? state.title : "Class Live";
+  if (!live) return;
+
+  const pg = state.pages[page];
+  const box = $("pageBox");
+  const hasPoll = (pg.blocks || []).some((b) => b.type === "poll");
+  const closed = !!state.closed[pg.id];
+  const mine = state.myVotes[pg.id];
+  const opts = {
+    myChoice: mine,
+    closed,
+    onVote: (choice) => {
+      state.myVotes[pg.id] = choice; // show the choice right away
+      render();
+      link.send({ t: "vote", pageId: pg.id, choice });
+    },
+  };
+  mountPage(box, pg, opts, hasPoll ? (poll) => poll.append(el("p", {
+    class: "cl-note",
+    text: closed ? (mine === undefined ? "Voting is closed." : "Voting is closed. Your answer was " + LETTERS[mine] + ".")
+      : mine === undefined ? "Tap an answer." : "Your answer is saved. You can change it until your teacher closes voting.",
+  })) : null);
+  const onlySim = (pg.blocks || []).length === 1 && pg.blocks[0].type === "sim";
+  box.style.padding = onlySim ? "10px" : "";
+  // pages with a sim use the full screen width
+  box.parentElement.style.maxWidth = (pg.blocks || []).some((b) => b.type === "sim") ? "none" : "";
+
+  $("pageNum").textContent = "Page " + (page + 1);
+  $("back").disabled = page === 0;
+  const canNext = page < state.unlocked;
+  const atEnd = page >= state.total - 1;
+  $("next").disabled = !canNext;
+  $("next").classList.toggle("cl-pulse", canNext && pulse);
+  $("navNote").textContent = canNext ? "" : atEnd ? "This is the last page." : "Wait for your teacher to unlock the next page.";
+}
+
+// ---------- sign in: the student's code alone
+function signOut() { store("cl_stoken", null); location.reload(); }
+$("login").onsubmit = async (e) => {
+  e.preventDefault();
+  $("loginErr").textContent = "";
+  $("signIn").disabled = true;
+  try {
+    const r = await api("/api/slogin", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: $("code").value, sid }) });
+    stoken = r.token; store("cl_stoken", stoken);
+    $("code").value = "";
+    $("login").hidden = true; $("waiting").hidden = false;
+    link.start();
+  } catch (x) { $("loginErr").textContent = x.message; }
+  $("signIn").disabled = false;
+};
+if (stoken) { $("waiting").hidden = false; link.start(); }
+else { $("login").hidden = false; $("code").focus(); }
+</script>
+</body>
+</html>

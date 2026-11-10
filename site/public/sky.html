@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Lesson</title>
+<link rel="stylesheet" href="notebook.css">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+.float{position:fixed;background:var(--paper);color:var(--ink);border-radius:var(--r-box);box-shadow:0 8px 24px rgba(0,0,0,.45);font-family:var(--sans)}
+#login{left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:20px 24px;display:grid;gap:12px;font-size:18px}
+#login h1{font:600 28px var(--serif);margin:0;border-bottom:2px solid var(--ink);padding-bottom:8px}
+#login label{display:grid;gap:4px;font-weight:600}
+#login select,#login input{font-size:20px;padding:10px}
+#login button{font-size:20px;font-weight:600;min-height:48px;border:0;background:var(--accent);color:var(--on-accent)}
+#lerr{color:var(--bad);min-height:24px;font-weight:600}
+#fsgate{position:fixed;inset:0;z-index:20;background:rgba(10,8,5,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#F3EAD3;font:400 22px var(--serif);text-align:center;padding:24px}
+#fsgate[hidden]{display:none}
+#fsgate button{font:600 26px var(--sans);min-height:64px;padding:0 36px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);cursor:pointer}
+#qbox{z-index:5;width:min(460px,calc(100vw - 24px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;padding:12px 18px}
+#qhead{display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--ink);cursor:move;touch-action:none;user-select:none}
+#qhead b{flex:1;font:600 20px var(--serif)}
+#timer{font:600 30px var(--serif);color:var(--accent);font-variant-numeric:tabular-nums}
+#timer.low{color:var(--bad);text-decoration:underline}
+#qmin{padding:0 12px}
+#qbody{padding-top:12px;display:grid;gap:10px;overflow:auto}
+#qprompt{font:400 23px/1.35 var(--serif)}
+#qprompt p{margin:0 0 .4em}
+#qtext{font:400 20px var(--serif);min-height:140px;padding:10px;resize:vertical}
+#qtext:disabled{background:var(--tint)}
+#qopts,#qrank{display:grid;gap:6px}
+.rk{display:flex;gap:10px;align-items:center;min-height:46px;padding:6px 12px;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r-ctl);font:400 20px var(--serif);cursor:grab;touch-action:none;user-select:none}
+.rk b{width:26px;font:600 18px var(--sans);color:var(--accent)}
+.rk.drag{border:2px solid var(--accent);background:var(--tint);cursor:grabbing}
+#qrank.off .rk{cursor:default;background:var(--tint)}
+.opt{display:flex;gap:10px;align-items:center;min-height:50px;text-align:left;font:400 20px var(--serif);padding:8px 12px;border:1px solid var(--rule);background:var(--sheet)}
+.opt b{flex:none;width:32px;height:32px;border-radius:50%;background:var(--tint);display:grid;place-items:center;font:600 18px var(--sans)}
+.opt[aria-pressed=true],.opt[aria-pressed=true]:hover:not(:disabled){border:2px solid var(--accent);background:var(--tint)}
+.opt[aria-pressed=true] b{background:var(--accent);color:var(--on-accent)}
+.opt:disabled{cursor:default;opacity:1}
+#qstat{font-size:18px;color:var(--soft);min-height:26px}
+#qfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:18px;color:var(--soft)}
+#qout,#qout:hover:not(:disabled){font-size:18px;min-height:0;border:0;background:none;color:var(--accent);text-decoration:underline;padding:0}
+</style>
+</head>
+<body>
+<iframe id="f" title="Lesson page"></iframe>
+<div id="fsgate" hidden><p id="fsmsg">This lesson runs in full screen.</p><button id="fsgo">Enter full screen</button></div>
+<form id="login" class="float" hidden>
+  <h1>Sign in</h1>
+  <label>Your code <input id="lpin" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="12" placeholder="like 504cloud"></label>
+  <button>Sign in</button>
+  <div id="lerr" role="alert"></div>
+</form>
+<div id="qbox" class="float" hidden role="dialog" aria-label="Question">
+  <div id="qhead"><b>Observation question</b><span id="timer"></span><button id="qmin" type="button">Hide</button></div>
+  <div id="qbody">
+    <div id="qprompt"></div>
+    <textarea id="qtext" aria-label="Your answer" maxlength="3000"></textarea>
+    <div id="qopts"></div>
+    <div id="qrank"></div>
+    <div id="qstat" aria-live="polite"></div>
+    <div id="qfoot"><span id="qme"></span><button id="qout" type="button">Not you? Sign out</button></div>
+  </div>
+</div>
+<script src="common.js"></script>
+<script>
+// Students stay on this page. It shows whichever sky page the teacher has chosen,
+// and a movable window when a question is running.
+const $ = (id) => document.getElementById(id);
+let sid = store("cl_sid");
+if (!sid) { sid = randomId(12); store("cl_sid", sid); }
+let stoken = store("cl_stoken"), shown = 0, link = null;
+function showPage(n) {
+  if (!n || n === shown) return;
+  shown = n; qSpot = null; qBottom = null;
+  $("f").src = "sky" + n + ".html";
+}
+
+// ---------- question window
+let q = null, runId = null, endAt = null, closed = false, dirty = false, sentN = 0, saveTimer = null, minimized = false, pendingChoice = null;
+const fmt = (ms) => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function answerMsg() {
+  sentN++;
+  return q.type === "mc"
+    ? { t: "answer", qid: q.id, choice: pendingChoice, n: sentN }
+    : q.type === "rank" ? { t: "answer", qid: q.id, order: rankOrder, n: sentN }
+    : { t: "answer", qid: q.id, text: $("qtext").value, n: sentN };
+}
+function saveNow() {
+  clearTimeout(saveTimer); saveTimer = null;
+  if (!q || !dirty) return;
+  link.send(answerMsg());
+}
+function changed() {
+  dirty = true;
+  $("qstat").textContent = "Saving...";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 1200);
+}
+function onSaved(n) {
+  if (n === sentN) { dirty = false; if (!closed) $("qstat").textContent = "Saved"; }
+}
+setInterval(() => { if (q && dirty && !saveTimer) saveNow(); }, 3000); // retries after a dropped connection
+function lock() {
+  closed = true;
+  saveNow();
+  $("qtext").disabled = true;
+  document.querySelectorAll(".opt").forEach((b) => (b.disabled = true));
+  if (q.type === "rank") drawRank();
+  $("qstat").textContent = "Time is up. Your answer was saved.";
+  $("timer").textContent = "0:00";
+  if (minimized) setMin(false);
+}
+function setMin(v) {
+  minimized = v;
+  $("qbody").hidden = v;
+  $("qmin").textContent = v ? "Show" : "Hide";
+  keepOnScreen();
+}
+function drawOptions() {
+  $("qopts").replaceChildren(...q.options.map((o, i) =>
+    el("button", { type: "button", class: "opt", "aria-pressed": pendingChoice === i ? "true" : "false", disabled: closed,
+      onclick: () => { if (closed) return; pendingChoice = i; dirty = true; drawOptions(); $("qstat").textContent = "Saving..."; saveNow(); } },
+      el("b", { text: LETTERS[i] }), el("span", {}, inline(o)))));
+}
+// Ranking: drag a row up or down. Works with mouse and touch.
+let rankOrder = [];
+function drawRank() {
+  const box = $("qrank");
+  box.classList.toggle("off", closed);
+  box.replaceChildren(...rankOrder.map((opt, i) => el("div", { class: "rk", "data-i": i }, el("b", { text: i + 1 }), el("span", {}, inline(q.options[opt])))));
+}
+$("qrank").addEventListener("pointerdown", (e) => {
+  const row = e.target.closest(".rk");
+  if (!row || closed) return;
+  e.preventDefault();
+  let from = +row.dataset.i;
+  const box = $("qrank");
+  row.classList.add("drag");
+  const move = (m) => {
+    const rows = [...box.children];
+    const to = rows.findIndex((r) => { const b = r.getBoundingClientRect(); return m.clientY < b.bottom; });
+    const t = to < 0 ? rows.length - 1 : to;
+    if (t === from) return;
+    rankOrder.splice(t, 0, rankOrder.splice(from, 1)[0]);
+    from = t;
+    drawRank();
+    box.children[from].classList.add("drag");
+  };
+  const up = () => {
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+    drawRank();
+    dirty = true; $("qstat").textContent = "Saving..."; saveNow();
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+function showQuestion(nq) {
+  if (!nq) {
+    if (q) { q = null; runId = null; $("qbox").hidden = true; }
+    return;
+  }
+  if (nq.runId !== runId) { // a new question
+    q = nq; runId = nq.runId; closed = false; dirty = false; sentN = 0;
+    $("qbox").hidden = false;
+    $("qprompt").replaceChildren(formatText(nq.prompt));
+    $("qtext").hidden = nq.type !== "written";
+    $("qrank").hidden = nq.type !== "rank";
+    $("qopts").hidden = nq.type !== "mc";
+    $("qtext").disabled = false;
+    $("qtext").value = (nq.mine && nq.mine.text) || "";
+    pendingChoice = nq.mine && nq.mine.choice !== undefined ? nq.mine.choice : null;
+    if (nq.type === "mc") drawOptions();
+    if (nq.type === "rank") { rankOrder = nq.mine && nq.mine.order ? nq.mine.order.slice() : nq.options.map((_, i) => i); drawRank(); }
+    $("qstat").textContent = "";
+    $("timer").classList.remove("low");
+    setMin(false);
+    placeBox();
+    if (nq.type === "written" && !nq.closed) $("qtext").focus();
+    endAt = null;
+  }
+  q = nq;
+  if (nq.remainingMs === null) { endAt = null; $("timer").textContent = ""; }
+  else {
+    const e = performance.now() + nq.remainingMs;
+    if (endAt === null || Math.abs(e - endAt) > 1500) endAt = e; // keeps the clock steady between updates
+  }
+  if (nq.closed && !closed) lock();
+  else if (!nq.closed && closed) { // the teacher added time
+    closed = false;
+    $("qtext").disabled = false;
+    if (nq.type === "mc") drawOptions();
+    if (nq.type === "rank") drawRank();
+    $("qstat").textContent = "";
+  }
+}
+setInterval(() => {
+  if (!q || closed || endAt === null) return;
+  const left = endAt - performance.now();
+  if (left <= 0) return lock();
+  $("timer").textContent = fmt(left);
+  $("timer").classList.toggle("low", left <= 10000);
+}, 200);
+$("qtext").addEventListener("input", changed);
+$("qmin").onclick = () => setMin(!minimized);
+
+// The window can be dragged out of the way of the sim.
+const box = $("qbox");
+function keepOnScreen() {
+  const r = box.getBoundingClientRect();
+  box.style.left = Math.max(24, Math.min(innerWidth - r.width - 24, r.left)) + "px";
+  box.style.top = Math.max(24, Math.min(innerHeight - r.height - 24, r.top)) + "px";
+}
+// On the first two pages the window sits at the bottom right, beside the controls.
+let qSpot = null, qBottom = null;
+window.addEventListener("message", (e) => { if (e.data && e.data.type === "work" && e.source === $("f").contentWindow && link && shown) { link.send({ t: "work", page: shown, data: e.data.data }); return; } if (e.data && e.data.type === "qspot") { qSpot = e.data.top; qBottom = typeof e.data.bottom === "number" ? e.data.bottom : null; if (q) placeBox(); } });
+function placeBox() {
+  if (qSpot !== null) {
+    box.style.width = "320px"; box.style.left = Math.max(0, innerWidth - 344) + "px"; box.style.top = qSpot + "px";
+    const room = (qBottom !== null ? qBottom : innerHeight - 24) - qSpot; box.style.maxHeight = room + "px"; $("qtext").style.minHeight = Math.max(70, room - 226) + "px";
+    return;
+  }
+  box.style.width = ""; box.style.maxHeight = ""; $("qtext").style.minHeight = "";
+  box.style.left = "24px";   // controls are at the bottom right, so the question sits bottom left
+  box.style.top = (true ? Math.max(24, innerHeight - box.offsetHeight - 24) : 24) + "px";
+}
+placeBox();
+addEventListener("resize", keepOnScreen);
+$("qhead").addEventListener("pointerdown", (e) => {
+  if (e.target.id === "qmin") return;
+  const r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+  $("qhead").setPointerCapture(e.pointerId);
+  $("f").style.pointerEvents = "none";
+  const move = (m) => { box.style.left = m.clientX - dx + "px"; box.style.top = m.clientY - dy + "px"; keepOnScreen(); };
+  const up = () => {
+    $("qhead").removeEventListener("pointermove", move);
+    $("qhead").removeEventListener("pointerup", up);
+    $("f").style.pointerEvents = "";
+  };
+  $("qhead").addEventListener("pointermove", move);
+  $("qhead").addEventListener("pointerup", up);
+});
+
+// ---------- connection
+function onMessage(m) {
+  if (m.t === "saved") return onSaved(m.n);
+  const s = m.state || m;
+  if (stoken && s.signedIn === false) return signOut();
+  showPage(s.sky);
+  if (s.zodiac) { zod = s.zodiac; tellSim(); }
+  $("qme").textContent = s.me || "";
+  link.pollMs = s.q && !s.q.closed ? 2000 : 5000;
+  showQuestion(s.q);
+}
+let zod = null;
+function tellSim() { try { if (zod) $("f").contentWindow.postMessage({ type: "zodiac", on: zod.on, free: zod.free, points: zod.points }, location.origin); } catch {} }
+$("f").addEventListener("load", tellSim);
+// ---------- full screen, and telling the teacher when a student leaves
+const canFS = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen);
+let awaySent = null, wasAway = false, everFull = false;
+function isFull() { return !!document.fullscreenElement; }
+function gate() {
+  const show = canFS && !!stoken && $("login").hidden && !isFull();
+  $("fsgate").hidden = !show;
+  if (show) $("fsmsg").textContent = wasAway ? "You left full screen. Your teacher can see that." : "This lesson runs in full screen.";
+}
+$("fsgo").onclick = () => { document.documentElement.requestFullscreen().catch(() => {}); };
+document.addEventListener("fullscreenchange", () => { if (isFull()) everFull = true; gate(); checkAway(); });
+function checkAway() {
+  if (!stoken || !link) return;
+  const why = document.hidden ? "switched tabs" : !document.hasFocus() ? "another window" : canFS && everFull && !isFull() ? "left full screen" : "";
+  const key = why || "back";
+  if (key === awaySent) return;
+  awaySent = key;
+  if (why) wasAway = true;
+  link.send({ t: "away", away: !!why, why });
+}
+document.addEventListener("visibilitychange", checkAway);
+window.addEventListener("blur", () => setTimeout(checkAway, 300));
+window.addEventListener("focus", checkAway);
+setInterval(checkAway, 2000);
+
+function connect() {
+  if (link) return;
+  const tok = () => (stoken ? "&stoken=" + encodeURIComponent(stoken) : "");
+  link = new Link({
+    wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=student&sid=" + sid + "&page=0" + tok(),
+    poll: () => api("/api/s?sid=" + sid + "&page=0" + tok()),
+    post: async (msg) => {
+      const s = await api("/api/s", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid, stoken, msg }) });
+      if (msg.t === "answer") onSaved(msg.n);
+      return s;
+    },
+    pollMs: 5000,
+    onMessage,
+  });
+  link.start();
+  gate(); setTimeout(checkAway, 1500);
+}
+
+// ---------- sign in: the student's code alone
+function showLogin() { $("login").hidden = false; $("lpin").focus(); }
+$("login").onsubmit = async (e) => {
+  e.preventDefault();
+  $("lerr").textContent = "";
+  try {
+    const r = await api("/api/slogin", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: $("lpin").value, sid }) });
+    stoken = r.token; store("cl_stoken", stoken);
+    $("login").hidden = true; $("lpin").value = "";
+    connect();
+  } catch (x) { $("lerr").textContent = x.message; }
+};
+function signOut() {
+  store("cl_stoken", null);
+  location.reload();
+}
+$("qout").onclick = signOut;
+stoken ? connect() : showLogin();
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Elements</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: cutaway of the cosmos on the black sky at left, a notebook panel of information at right, controls at the bottom right. */
+:root{--paper:#F3EAD3;--sheet:#FFFBEF;--ink:#2A2118;--soft:#574832;--faint:#C9B98F;--accent:#8C3B22;--accent-dark:#6F2D19;--on-accent:#FFF8E8;--tint:#E7DABB;
+  --serif:"Source Serif 4",Georgia,serif;--sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+.info{position:fixed;z-index:4;top:24px;right:24px;width:400px;background:var(--paper);color:var(--ink);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.45);
+  padding:16px 20px;font:17px/1.4 var(--sans);overflow:auto}
+.info h1{font:600 26px/1.2 var(--serif);margin:0 0 8px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.info p{margin:0 0 10px}
+.info p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:2px 0 12px;font-size:16px}
+th{font:600 14px var(--sans);color:var(--soft);text-align:left;padding:2px 6px 4px 0;border-bottom:1px solid var(--faint)}
+td{padding:5px 6px 5px 0;border-bottom:1px solid var(--faint);vertical-align:top}
+td:first-child{font:600 17px var(--serif);white-space:nowrap}
+td:nth-child(2){white-space:nowrap}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.ctl{position:fixed;z-index:5;right:24px;bottom:24px;display:flex;align-items:center;gap:8px;background:var(--paper);color:var(--ink);border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);padding:9px 12px;font:15px var(--sans)}
+.ctl .lbl{color:var(--soft);font-size:15px;margin-right:2px}
+.ctl button{font:400 15px var(--sans);color:var(--ink);background:transparent;border:1px solid var(--ink);border-radius:8px;min-height:34px;padding:2px 12px;cursor:pointer;white-space:nowrap}
+.ctl button:hover{background:var(--tint)}
+.ctl button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.ctl button:focus-visible{outline:3px solid #E0B43C;outline-offset:2px}
+.ctl .sep{width:1px;align-self:stretch;background:var(--faint);margin:0 4px}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="A cutaway of the cosmos: earth at the center, then water, air and fire, with the Moon circling in the heavens above. Click to release an object."></canvas>
+
+<section class="info" id="info">
+  <h1>The Four Elements</h1>
+  <p>For about 2,000 years, people believed everything below the Moon was made of four elements, each a mix of two qualities.</p>
+  <table>
+    <thead><tr><th>Element</th><th>Qualities</th><th>Natural place</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:#8A6440"></span>Earth</td><td>cold and dry</td><td>lowest, at the center</td></tr>
+      <tr><td><span class="sw" style="background:#3C7FB8"></span>Water</td><td>cold and wet</td><td>on top of earth</td></tr>
+      <tr><td><span class="sw" style="background:#BFD9E8"></span>Air</td><td>hot and wet</td><td>on top of water</td></tr>
+      <tr><td><span class="sw" style="background:#E8833A"></span>Fire</td><td>hot and dry</td><td>highest, just below the Moon</td></tr>
+    </tbody>
+  </table>
+  <p>Each element moves in a straight line toward its natural place, then stops. Earth and water move down, toward the center. Air and fire move up, away from it.</p>
+  <p>Above the Moon, the heavens are made of a fifth element. It never changes and moves in circles forever.</p>
+  <p><b>Choose something to release, then click anywhere in the picture.</b></p>
+</section>
+
+<div class="ctl" role="toolbar" aria-label="Release controls">
+  <span class="lbl">Release</span>
+  <button data-k="stone" aria-pressed="true">Stone</button>
+  <button data-k="water" aria-pressed="false">Water</button>
+  <button data-k="air" aria-pressed="false">Air bubble</button>
+  <button data-k="fire" aria-pressed="false">Flame</button>
+  <span class="sep"></span>
+  <button id="clear">Clear</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d"),info=document.getElementById("info");
+var W=1,H=1,cx=0,cy=0,R=1,dpr=1,kind="stone",objs=[],moonA=-0.6,last=0;
+var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* layer edges as fractions of the outer radius */
+var F={earth:.24,water:.40,air:.62,fire:.80,moon:.92};
+var stars=[];for(var i=0;i<220;i++)stars.push([Math.random(),Math.random(),Math.random()*1.2+.3,Math.random()*.6+.25]);
+
+function size(){
+  dpr=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  var ctlH=document.querySelector(".ctl").offsetHeight;
+  info.style.maxHeight=(H-24-24-ctlH-16)+"px";
+  var left=W-info.offsetWidth-48;            /* space left of the panel */
+  var oR=R,ocx=cx,ocy=cy;
+  R=Math.max(60,Math.min(H/2-24,left/2-16));cx=Math.max(R+24,left/2+8);cy=H/2;
+  if(oR>1)objs.forEach(function(o){o.x=cx+(o.x-ocx)*R/oR;o.y=cy+(o.y-ocy)*R/oR;});
+}
+addEventListener("resize",size);size();
+
+function r(k){return F[k]*R;}
+/* where each kind of thing belongs: inner and outer edge of its natural place */
+function band(k){return k==="stone"?[0,r("earth")]:k==="water"?[r("earth"),r("water")]:k==="air"?[r("water"),r("air")]:[r("air"),r("fire")];}
+/* how fast each moves through each layer, in pixels per second at R=300 */
+function speed(o,d){
+  var m=d<r("earth")?.5:d<r("water")?.45:d<r("air")?1:d<r("fire")?1.1:1.1;   /* water is thick and slows things down */
+  var base={stone:110,water:95,air:75,fire:90}[o.k];
+  return base*m*R/300;
+}
+function add(x,y){
+  if(objs.length>=60)objs.shift();
+  var d=Math.hypot(x-cx,y-cy),b=band(kind);
+  objs.push({k:kind,x:x,y:y,a:1,state:(d>=b[0]&&d<=b[1]&&kind!=="stone")?"merge":"move",t:Math.random()*6,sz:kind==="stone"?(.75+Math.random()*.5):1,
+    pts:[1,.9,1.05,.92,1.08,.95,1,.88],rot:Math.random()*6.28});
+}
+cv.addEventListener("pointerdown",function(e){add(e.clientX,e.clientY);});
+var bs=document.querySelectorAll("[data-k]");
+bs.forEach(function(b){b.addEventListener("click",function(){kind=b.dataset.k;bs.forEach(function(o){o.setAttribute("aria-pressed",o===b?"true":"false");});});});
+document.getElementById("clear").addEventListener("click",function(){objs=[];});
+
+function step(dt){
+  if(!reduce)moonA+=dt*0.25;
+  objs.forEach(function(o){
+    o.t+=dt;
+    var dx=o.x-cx,dy=o.y-cy,d=Math.hypot(dx,dy)||0.001,ux=dx/d,uy=dy/d,b=band(o.k);
+    if(o.state==="move"){
+      var s=speed(o,d)*dt,stoneR=7*o.sz*R/300;
+      if(o.k==="stone"){
+        var stop=r("earth")+stoneR*.6;
+        if(d<=stop){o.state="rest";return;}
+        d=Math.max(stop,d-s);
+      } else if(d<b[0]){                     /* below its place: rise */
+        d=Math.min(b[0]+4,d+s);if(d>=b[0])o.state="merge";
+      } else if(d>b[1]){                     /* above its place: fall */
+        d=Math.max(b[1]-4,d-s);if(d<=b[1])o.state="merge";
+      } else o.state="merge";
+      o.x=cx+ux*d;o.y=cy+uy*d;
+    } else if(o.state==="merge"){            /* blend into its own layer */
+      var mid=(b[0]+b[1])/2,dir=mid>d?1:-1;
+      d+=dir*speed(o,d)*dt*.4;o.x=cx+ux*d;o.y=cy+uy*d;o.a-=dt*1.4;
+    }
+  });
+  objs=objs.filter(function(o){return o.a>0;});
+}
+
+function ring(ro,ri,fill){ctx.beginPath();ctx.arc(cx,cy,ro,0,6.2832);if(ri>0){ctx.moveTo(cx+ri,cy);ctx.arc(cx,cy,ri,0,6.2832,true);}ctx.fillStyle=fill;ctx.fill("evenodd");}
+function drawCosmos(){
+  ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
+  stars.forEach(function(s){var x=s[0]*W,y=s[1]*H;if(Math.hypot(x-cx,y-cy)<r("fire")+6)return;ctx.fillStyle="rgba(236,242,255,"+s[3]+")";ctx.beginPath();ctx.arc(x,y,s[2],0,6.3);ctx.fill();});
+  /* the Moon's circle marks where the heavens begin */
+  ctx.setLineDash([2,6]);ctx.strokeStyle="rgba(230,224,205,.55)";ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(cx,cy,r("moon"),0,6.2832);ctx.stroke();ctx.setLineDash([]);
+  var g;
+  g=ctx.createRadialGradient(cx,cy,r("air"),cx,cy,r("fire"));g.addColorStop(0,"#C9561E");g.addColorStop(1,"#F2A03D");ring(r("fire"),r("air"),g);
+  g=ctx.createRadialGradient(cx,cy,r("water"),cx,cy,r("air"));g.addColorStop(0,"#A9CCE0");g.addColorStop(1,"#D7E8F1");ring(r("air"),r("water"),g);
+  g=ctx.createRadialGradient(cx,cy,r("earth"),cx,cy,r("water"));g.addColorStop(0,"#2C5F8E");g.addColorStop(1,"#3C7FB8");ring(r("water"),r("earth"),g);
+  g=ctx.createRadialGradient(cx-r("earth")*.3,cy-r("earth")*.3,2,cx,cy,r("earth"));g.addColorStop(0,"#A27A50");g.addColorStop(1,"#6E4E30");ring(r("earth"),0,g);
+  /* gentle flicker at the top of the fire layer */
+  ctx.strokeStyle="rgba(255,214,140,.55)";ctx.lineWidth=1.5;ctx.beginPath();
+  for(var a=0;a<=6.2832;a+=0.04){var w=r("fire")+1.2*Math.sin(a*23+(reduce?0:last/240))+0.8*Math.sin(a*37-(reduce?0:last/170));
+    var x=cx+Math.cos(a)*w,y=cy+Math.sin(a)*w;if(a===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.stroke();
+  /* layer names along a ray to the lower left */
+  var lab=[["Earth",(0+F.earth)/2,"#FFF3E0"],["Water",(F.earth+F.water)/2,"#FFFFFF"],["Air",(F.water+F.air)/2,"#1C2B36"],["Fire",(F.air+F.fire)/2,"#3A1A06"],["Heavens",(F.fire+F.moon)/2+.03,"#E6E0CD"]];
+  ctx.font="600 "+Math.max(13,Math.round(R/19))+"px 'Source Sans 3',Helvetica,Arial,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  lab.forEach(function(l,i){var ang=i===0?Math.PI/2:2.35,d=i===0?0:l[1]*R;var x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    ctx.fillStyle=l[2];ctx.fillText(l[0],x,y);});
+  /* the Moon, circling forever */
+  var mx=cx+Math.cos(moonA)*r("moon"),my=cy+Math.sin(moonA)*r("moon"),mr=Math.max(7,R*.035);
+  ctx.fillStyle="#E9E4D4";ctx.shadowColor="rgba(255,250,230,.6)";ctx.shadowBlur=10;ctx.beginPath();ctx.arc(mx,my,mr,0,6.3);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle="#E6E0CD";ctx.font="600 "+Math.max(13,Math.round(R/22))+"px 'Source Sans 3',Helvetica,Arial,sans-serif";
+  ctx.fillText("Moon",mx+Math.cos(moonA)*(mr+22),my+Math.sin(moonA)*(mr+14));
+}
+function drawObj(o){
+  var s=R/300,dx=o.x-cx,dy=o.y-cy,up=Math.atan2(dy,dx);
+  ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,o.a));ctx.translate(o.x,o.y);
+  if(o.k==="stone"){
+    var rr=7*o.sz*s;ctx.rotate(o.rot);ctx.fillStyle="#9C9890";ctx.strokeStyle="#4A463F";ctx.lineWidth=1.2;ctx.beginPath();
+    o.pts.forEach(function(p,i){var a=i/o.pts.length*6.2832;if(i)ctx.lineTo(Math.cos(a)*rr*p,Math.sin(a)*rr*p);else ctx.moveTo(Math.cos(a)*rr*p,Math.sin(a)*rr*p);});
+    ctx.closePath();ctx.fill();ctx.stroke();
+  } else if(o.k==="water"){
+    var q=7*s;ctx.rotate(up+Math.PI/2);  /* point the tip away from the center */
+    ctx.fillStyle="#6FB3EA";ctx.strokeStyle="#DFF1FF";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,-q*1.9);
+    ctx.bezierCurveTo(q*.9,-q*.6,q,q*.2,0,q);ctx.bezierCurveTo(-q,q*.2,-q*.9,-q*.6,0,-q*1.9);ctx.fill();ctx.stroke();
+  } else if(o.k==="air"){
+    var b=7*s*(1+.06*Math.sin(o.t*9));ctx.strokeStyle="#F2FAFF";ctx.lineWidth=1.6;ctx.fillStyle="rgba(220,240,255,.18)";
+    ctx.beginPath();ctx.arc(0,0,b,0,6.3);ctx.fill();ctx.stroke();ctx.beginPath();ctx.arc(-b*.35,-b*.35,b*.25,0,6.3);ctx.fillStyle="rgba(255,255,255,.8)";ctx.fill();
+  } else {
+    var f=9*s*(1+.12*Math.sin(o.t*14));ctx.rotate(up+Math.PI/2);
+    var gr=ctx.createLinearGradient(0,-f*2,0,f);gr.addColorStop(0,"#FFF1A8");gr.addColorStop(.5,"#FFB347");gr.addColorStop(1,"#E2531F");
+    ctx.fillStyle=gr;ctx.shadowColor="rgba(255,160,60,.8)";ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(0,-f*2.1);
+    ctx.bezierCurveTo(f*.9,-f*.8,f*.85,f*.5,0,f);ctx.bezierCurveTo(-f*.85,f*.5,-f*.9,-f*.8,0,-f*2.1);ctx.fill();
+  }
+  ctx.restore();
+}
+function frame(t){
+  var dt=last?Math.min(.05,(t-last)/1000):0;last=t;
+  step(dt);drawCosmos();objs.forEach(drawObj);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(size);
+window._t={objs:function(){return objs;},R:function(){return [cx,cy,R];},add:add,setKind:function(k){kind=k;}};
+})();
+</script>
+</body>
+</html>

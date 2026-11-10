@@ -1,0 +1,88 @@
+/* Class Live — layout. Colors, fonts and buttons come from aerolab.css (linked after this file). */
+
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; }
+[hidden] { display: none !important; }
+
+.cl-top, .cl-bottom { margin: 10px 12px; flex: none; }
+.cl-top { justify-content: space-between; }
+.cl-top .cl-title { font-family: var(--aero-font-display); font-size: 1.35rem; margin: 0; }
+.cl-grow { flex: 1; }
+.cl-main { flex: 1; min-height: 0; overflow: auto; padding: 4px 12px 4px; }
+.cl-center { max-width: 1100px; margin: 0 auto; }
+.cl-bottom { justify-content: space-between; }
+.cl-bottom button { min-height: 56px; padding: 10px 30px; font-size: 1.15rem; }
+
+/* status chip */
+.cl-status.live::before, .cl-status.polling::before, .cl-status.offline::before, .cl-status.connecting::before {
+  content: ""; width: 12px; height: 12px; border-radius: 50%; display: inline-block;
+}
+.cl-status.live::before { background: var(--aero-jade); }
+.cl-status.polling::before { background: var(--aero-jade); }
+.cl-status.connecting::before { background: var(--aero-gold); }
+.cl-status.offline::before { background: var(--aero-gold); }
+
+/* rendered lesson page */
+.cl-page { font-size: 22px; line-height: 1.55; }
+.cl-page > * + * { margin-top: 18px; }
+.cl-heading { font-size: 1.6em; margin: 0; }
+.cl-text p { margin: 0 0 .7em; }
+.cl-text p:last-child { margin-bottom: 0; }
+.cl-text ul { margin: 0 0 .7em; padding-left: 1.3em; }
+.cl-figure { margin: 0; text-align: center; }
+.cl-figure img { max-width: 100%; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); }
+.cl-figure.size-small img { max-height: 30vh; }
+.cl-figure.size-medium img { max-height: 48vh; }
+.cl-figure.size-large img { max-height: 72vh; }
+.cl-figure figcaption { color: var(--aero-muted); margin-top: 6px; font-size: .9em; }
+.cl-sim { width: 100%; }
+.cl-sim iframe { display: block; width: 100%; height: 100%; border: 0; background: #FFFFFF; }
+.cl-sim.height-medium { height: 55vh; }
+.cl-sim.height-tall { height: calc(100vh - 210px); min-height: 420px; }
+
+/* polls */
+.cl-question { font-weight: 600; }
+.cl-options { display: grid; gap: 12px; margin-top: 12px; }
+.cl-option {
+  display: flex; align-items: center; gap: 16px; text-align: left;
+  border-radius: var(--aero-radius-sm); padding: 12px 18px; min-height: 64px; font-size: 1em; font-weight: 500;
+}
+.cl-option[aria-pressed="true"] .cl-letter { background: #FFFFFF; color: var(--aero-emerald); }
+.cl-letter {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; background: var(--aero-mint); color: var(--aero-forest); border: 1px solid var(--aero-line); text-shadow: none;
+}
+.cl-result { display: flex; align-items: center; gap: 16px; padding: 6px 0; }
+.cl-result-main { flex: 1; min-width: 0; }
+.cl-result-text { margin-bottom: 6px; }
+.cl-bar-track { height: 26px; border-radius: 13px; background: var(--aero-mist); border: 1px solid var(--aero-line); overflow: hidden; }
+.cl-bar { height: 100%; background: var(--aero-jade); border-radius: 13px; transition: width 400ms ease; }
+.cl-result-num { flex: none; min-width: 110px; text-align: right; font-weight: 700; font-size: 1.05em; }
+.cl-note { margin-top: 14px; color: var(--aero-muted); }
+
+/* "next page unlocked" glow */
+@keyframes cl-pulse {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 0 rgba(224,180,60,.0); }
+  50% { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 8px rgba(224,180,60,.75); }
+}
+.cl-pulse { animation: cl-pulse 1.4s ease-in-out infinite; }
+
+/* waiting / message cards */
+.cl-message { max-width: 720px; margin: 12vh auto 0; text-align: center; font-size: 1.3rem; }
+.cl-message h1 { font-size: 2rem; }
+
+/* forms */
+.cl-field { display: grid; gap: 6px; margin-bottom: 14px; }
+.cl-field > span { font-weight: 600; }
+.cl-field input[type=text], .cl-field input[type=password], .cl-field textarea, .cl-field select { width: 100%; }
+input[type=password] {
+  font: inherit; color: var(--aero-forest); background: #FFFFFF; border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius-sm); min-height: 44px; padding: 6px 12px;
+}
+textarea { resize: vertical; line-height: 1.45; }
+.cl-error:empty { display: none; }
+
+/* student sign-in */
+#login .cl-field { text-align: left; }
+#code { font-size: 1.6rem; letter-spacing: 0.04em; }
+.cl-login-err { color: #ffb4a8; font-weight: 600; min-height: 1.5em; }

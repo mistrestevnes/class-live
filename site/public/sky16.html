@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slope</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+
+  :root {
+    --sky-top: #F3EAD3;
+    --sky-bot: #E7DABB;
+    --ink: #1F1A12;
+    --ink-soft: rgba(60, 40, 20, 0.75);
+    --accent: #8C3B22;
+    --accent-2: #7A4A1F;
+    --panel: #F3EAD3;
+    --panel-border: #6B5835;
+    --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--sky-top); }
+  body {
+    font-family: var(--serif);
+    font-feature-settings: "lnum" 1, "kern" 1;
+    font-variant-numeric: lining-nums;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    display: flex;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- Sidebar ---------- */
+  .side {
+    width: 280px; flex: none; height: 100%; overflow-y: auto;
+    background: var(--panel);
+    border-right: 1px solid var(--panel-border);
+    padding: 16px 16px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    z-index: 2;
+  }
+  h1 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 400; font-size: 31px; line-height: 1.1; letter-spacing: 0.01em; }
+  .sub { margin-top: 3px; font-family: 'Source Serif 4', Georgia, serif; font-style: normal; font-size: 18px; color: var(--accent-2); }
+  .divider { height: 1px; background: rgba(107, 88, 53, 0.25); }
+
+  .control-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+  .control label, .fric-card label, .group-label { font-size: 19px; font-weight: 700; color: var(--ink); }
+  .value { font-size: 21px; color: var(--accent); }
+  .ends { display: flex; justify-content: space-between; font-style: normal; font-size: 17px; color: var(--ink-soft); margin-top: 1px; }
+  .note { font-style: normal; font-size: 17px; color: var(--ink-soft); margin-top: 7px; line-height: 1.3; }
+
+  input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; background: transparent; height: 18px; cursor: pointer; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--ink); border: none; }
+  input[type="range"]::-moz-range-track { height: 2px; background: var(--ink); border: none; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--ink); margin-top: -6.5px;
+  }
+  input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2px solid var(--ink); }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn-row { display: flex; gap: 6px; }
+  .btn {
+    flex: 1; padding: 8px 10px;
+    border: 1px solid var(--ink); background: var(--ink); color: var(--sky-top);
+    font-family: var(--serif); font-size: 19px; font-weight: 700; cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .btn:hover { background: var(--accent); border-color: var(--accent); }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.ghost:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn:disabled:hover { background: var(--ink); border-color: var(--ink); }
+  .btn.ghost:disabled:hover { background: transparent; color: var(--ink); border-color: var(--ink); }
+  .btn.small { flex: none; padding: 5px 12px; font-size: 18px; }
+  .btn:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .toggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+  .toggle {
+    padding: 6px 8px; border: 1px solid var(--ink); background: transparent;
+    font-family: var(--serif); font-size: 15px; font-weight: 700; cursor: pointer; color: var(--ink);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .toggle.wide { width: 100%; }
+  .toggle[aria-pressed="true"] { background: var(--ink); color: var(--sky-top); }
+  .toggle:hover:not([aria-pressed="true"]) { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- Main area ---------- */
+  .main { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+  .stage-wrap { position: relative; flex: none; min-height: 0; }
+  canvas#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .readout {
+    position: absolute; top: 12px; right: 12px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    box-shadow: 4px 4px 0 rgba(31, 26, 18, 0.08);
+    padding: 7px 12px; font-size: 15px; line-height: 1.55;
+    pointer-events: none; min-width: 226px;
+  }
+  .readout div { display: flex; justify-content: space-between; gap: 14px; }
+  .readout b { font-weight: 700; color: var(--accent); }
+
+  .prompt {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    font-family: 'Source Serif 4', Georgia, serif; font-style: normal; font-size: 23px;
+    color: var(--accent-2); pointer-events: none; white-space: nowrap;
+  }
+
+  /* ---------- Controls + data ---------- */
+  .ctl { position: absolute; display: flex; gap: 8px; }
+  .ctl .btn { background: var(--panel); padding: 4px 14px; }
+  .ctl .btn:hover { background: var(--panel); }
+  .panel {
+    flex: 1; min-height: 0; overflow: auto;
+    background: var(--panel); border-top: 1px solid var(--panel-border);
+    padding: 8px 14px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .fric { width: 360px; max-width: 100%; }
+  .panel table { align-self: flex-start; }
+  .panel th[scope=row] { text-align: left; padding-right: 10px; white-space: nowrap; }
+  .panel thead th { text-align: center; color: var(--ink-soft); }
+  .fric label { font-size: 16px; font-weight: 700; }
+  .fric .value { font-size: 17px; }
+  .panel .btn.small { align-self: flex-start; margin-top: 8px; }
+  .tablehead .btn.small { margin-top: 0; }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+  .tablehead { display: flex; align-items: center; gap: 16px; }
+  .view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .view[hidden] { display: none; }
+  .yiBody { overflow-y: auto; min-height: 0; font-size: 18px; line-height: 1.45; margin-top: 4px; }
+  .yiBody p { margin: 4px 0 8px; }
+  .yiBody input { width: 5.5em; font-family: var(--serif); font-size: 19px; font-weight: 700; color: var(--ink);
+    background: rgba(255,255,255,0.6); border: 1px solid rgba(107,88,53,0.5); padding: 0 6px; user-select: text; }
+  .yiBody input:focus-visible { outline: 2px solid var(--accent); }
+  .yiBody .btn.small { padding: 2px 10px; font-size: 17px; }
+  .fb { font-style: normal; color: var(--accent-2); }
+  .ask { padding-top: 12px; border-top: 1px solid rgba(107, 88, 53, 0.3); font-size: 18px; }
+  .ask .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .ask input { width: 6em; font-family: var(--serif); font-size: 19px; font-weight: 700; color: var(--ink);
+    background: rgba(255,255,255,0.6); border: 1px solid rgba(107,88,53,0.5); padding: 3px 6px; user-select: text; }
+  .ask input:focus-visible { outline: 2px solid var(--accent); }
+  .ask .fb { font-style: normal; color: var(--accent-2); }
+  td.fixed { font-weight: 700; padding-left: 10px; }
+  .tablescroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 2px; }
+  table { border-collapse: collapse; font-size: 18px; }
+  th {
+    text-align: left; font-weight: 700; padding: 3px 5px; font-size: 16px; line-height: 1.15; vertical-align: bottom;
+    border-bottom: 1px solid var(--panel-border);
+    position: sticky; top: 0; background: #F8F1DA; z-index: 1;
+  }
+  td { padding: 1px 5px; border-bottom: 1px solid rgba(107, 88, 53, 0.2); }
+  td.num { width: auto; color: var(--ink-soft); font-weight: 700; }
+  td.del { width: 2em; text-align: center; }
+  td input {
+    width: 4.2em;
+    font-family: var(--serif); font-size: 19px; font-weight: 700; color: var(--ink);
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(107, 88, 53, 0.5);
+    padding: 0 6px; user-select: text;
+  }
+  td input:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+  .x {
+    border: none; background: transparent; cursor: pointer;
+    font-family: var(--serif); font-size: 22px; line-height: 1; color: var(--ink-soft); padding: 2px 4px;
+  }
+  .x:hover { color: var(--accent); }
+  .x:focus-visible { outline: 2px solid var(--accent); }
+  .dgraph { flex: none; width: clamp(340px, 70vh, 560px); height: 100%; border-width: 0 0 0 1px !important; position: relative; background: var(--panel); border: 1px solid var(--panel-border); }
+  .dgraph canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  @media (max-width: 760px) {
+    body { flex-direction: column; }
+    .dgraph { width: 100%; height: 300px; }
+    .side { width: 100%; height: auto; max-height: 40%; border-right: none; border-bottom: 1px solid var(--panel-border); padding: 10px 12px; gap: 10px; }
+    .main { height: auto; flex: 1; min-height: 0; }
+    .readout { font-size: 13.5px; min-width: 0; padding: 5px 8px; }
+    .prompt { font-size: 15px; top: auto; bottom: 10px; }
+    table { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ---- layout: ramps across the top, data + graph along the bottom ---- */
+  body { flex-direction: column; }
+  .main { width: 100%; }
+  .bottom { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--panel-border); }
+  .panel { flex: none; width: 290px; border-top: none; border-right: 1px solid var(--panel-border); padding: 6px 12px; gap: 4px; }
+  .fric { width: 100%; }
+  .dgraph { flex: 1; width: auto; height: auto; border: none !important; }
+  .tablescroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .panel table { font-size: 15px; }
+  .panel th { font-size: 14px; padding: 2px 6px; }
+  .panel td { padding: 1px 6px; }
+  .panel td input { font-size: 16px; width: 3.8em; }
+  .fric label, .group-label, .control label { font-size: 15px !important; }
+  .fric .value { font-size: 16px; }
+  .btn.small { font-size: 15px; padding: 2px 10px; }
+  .ctl .btn { font-size: 16px; padding: 3px 12px; }
+  .prompt { font-size: 19px; }
+  .steps { overflow-y: auto; font-size: 15px; line-height: 1.35; display: flex; flex-direction: column; gap: 6px; }
+  .steps p { margin: 0 0 4px; }
+  .steps input, .steps textarea { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--ink);
+    background: rgba(255,255,255,0.6); border: 1px solid rgba(107,88,53,0.5); padding: 1px 6px; user-select: text; }
+  .steps input { width: 4.5em; }
+  .steps textarea { width: 100%; resize: none; display: block; margin-bottom: 4px; }
+  .steps .fb { font-style: normal; color: var(--accent-2); margin-top: 2px; }
+  .steps .btn.small { align-self: flex-start; margin-top: 0; }
+  .steps #backData { margin-top: 4px; }
+  .panel td input { width: 3.4em; }
+  /* this version: only the ramps, with the angle control beside Pause and Reset */
+  .bottom { display: none !important; }
+  .ctl { align-items: center; background: var(--panel, #F3EAD3); border-radius: 10px; padding: 6px 10px; }
+  .ctl .angl { font: 600 15px 'Source Sans 3', Helvetica, Arial, sans-serif; color: var(--ink); white-space: nowrap; }
+  .ctl #fric { width: 150px; }
+  .ctl .angv { font: 600 16px 'Source Sans 3', Helvetica, Arial, sans-serif; min-width: 5.2em; }
+</style>
+<style id="notebook">
+.btn{border-radius:8px}
+.panel td input,.steps input,.steps textarea,textarea{border-radius:8px}
+.btn,.ctl .btn{font-family:'Source Sans 3',Helvetica,Arial,sans-serif;font-weight:600}
+input[type="range"]::-webkit-slider-thumb{background:#8C3B22}
+.panel table,.panel th,.panel td{font-family:'Source Sans 3',Helvetica,Arial,sans-serif}
+.panel th,.panel thead th{font-weight:600}
+#ctl{margin:16px 12px 0 0}
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div class="stage-wrap" id="stageWrap">
+    <canvas id="stage"></canvas>
+    <div class="prompt" id="prompt">Drag the ball up the ramp and let go.</div>
+    <div class="ctl" id="ctl">
+      <label class="angl" for="fric">Ramp 2 angle</label>
+      <input type="range" id="fric" min="0" max="5" step="1" value="0" aria-label="angle of ramp 2">
+      <span class="value angv" id="fricVal"></span>
+      <button class="btn ghost" id="pause" disabled>Pause</button>
+      <button class="btn ghost" id="reset">Reset</button>
+    </div>
+  </div>
+  <div class="bottom">
+  <div class="panel">
+    <div class="tablehead">
+      <span class="group-label">Your data</span>
+      <button class="btn ghost small" id="clearRows">Clear</button>
+      <button class="btn small" id="nextBtn" hidden>Next</button>
+    </div>
+    <div class="tablescroll" id="tableScroll">
+      <table>
+        <thead><tr><th>Trial</th><th>Angle (°)</th><th>Highest point (m)</th><th>Distance (m)</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="steps" id="steps" hidden>
+      <div id="q1">
+        <p>Look at your highest-point column. What do you notice?</p>
+        <textarea id="q1In" rows="2" aria-label="your answer"></textarea>
+        <button class="btn small" id="q1Btn">Submit</button>
+      </div>
+      <div id="q2" hidden>
+        <p>Each time the angle was cut in half, what happened to the distance? If you kept cutting the angle in half, would the distance ever stop growing?</p>
+        <textarea id="q2In" rows="3" aria-label="your answer"></textarea>
+        <button class="btn small" id="q2Btn">Submit</button>
+      </div>
+      <div id="q3" hidden>
+        <p>If ramp 2 were completely flat, could the ball ever get back up to 1 m? What would the ball do?</p>
+        <textarea id="q3In" rows="2" aria-label="your prediction"></textarea>
+        <button class="btn small" id="q3Btn">Submit</button>
+      </div>
+      <div id="q4" hidden>
+        <p>Click here to find out.</p>
+        <button class="btn small" id="removeBtn">Remove ramp</button>
+      </div>
+      <button class="btn ghost small" id="backData">Show data</button>
+    </div>
+  </div>
+  <div class="dgraph" id="dgBox"><canvas id="dgraph"></canvas></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ===================== Physics constants =====================
+// World units are meters and seconds. y is up. x = 0 is the back of ramp 1.
+const g   = 9.81;
+const RB  = 0.06;          // ball radius (m)
+const H1  = 1.5;           // height of ramp 1 (fixed)
+const H2  = 1.5;           // height of ramp 2 (fixed)
+const ANGLES = [16, 8, 4, 2, 1, 0];   // ramp 2 angle choices (degrees); 0 = flat
+const runFor = (deg) => 1.5 / Math.tan(deg * Math.PI / 180);
+let R1  = runFor(30);       // ramp 1 is fixed at 30°
+let R2  = runFor(16);       // ramp 2: set by the angle slider
+let angle = 16;
+const GAP = 1.0;           // floor between the ramps (fixed)
+const FILLET = 0.25;        // radius of the rounded joins at the foot of each ramp (surface)
+// Solid sphere rolling without slipping: translational acceleration is
+// 5/7 of what a frictionless sliding object would have (I = 2/5 m r²).
+const ROLL = 5 / 7;
+const E_REST = 0.5, MU_IMPACT = 0.35, SETTLE_VY = 0.3;   // only used if the ball ever flies off ramp 2
+const DROP = 0.8;          // metres of height lost per unit of friction setting (makes h = 3 − 0.8·F)
+const SNAP = 0.05;         // release heights snap to 5 cm so a height can be repeated exactly
+const FAST = 8;            // fast-forward multiplier
+
+// ===================== State =====================
+let setup = 'ramp';        // 'ramp' = two ramps, 'flat' = ramp 2 removed
+let gap = GAP, h2 = H2;
+let fric = 0;   // no friction in this version            // friction setting (0.3 to 1.8, never zero)
+let path = null, outer = null, xD = 0;
+
+const ball = { mode: 'placed', trackRef: null, s: 0, v: 0, E: 0, x: 0, y: 0, vx: 0, vy: 0, w: 0, rot: 0 };
+let releaseS = 1.0;
+let releaseH = null;       // height of the ball's bottom when let go (m); also shown while held
+let running = true, started = false, speedMult = 1;
+let t = 0, speed = 0;
+let peakTrack = 0, peakH = null, peakDone = false;   // two-ramp setup: highest point on ramp 2
+let stopX = null;
+let peakX = null;   // how far past the foot of ramp 2 the ball turned around                                    // flat setup: where the ball came to rest
+
+// ===================== Track geometry =====================
+function lineEl(p, ang, len) { return { type: 'line', p, ang, len, d: [Math.cos(ang), Math.sin(ang)] }; }
+function arcEl(c, R, a0, dir, len) { return { type: 'arc', c, R, a0, dir, len }; }
+function makePath(elements) {
+  let s0 = 0;
+  for (const e of elements) { e.s0 = s0; s0 += e.len; }
+  return { els: elements, L: s0, hint: 0 };
+}
+function at(P, s) {
+  const els = P.els;
+  let i = Math.min(P.hint, els.length - 1);
+  while (i > 0 && s < els[i].s0) i--;
+  while (i < els.length - 1 && s > els[i].s0 + els[i].len) i++;
+  P.hint = i;
+  const e = els[i];
+  const u = s - e.s0;
+  if (e.type === 'line') return { x: e.p[0] + e.d[0] * u, y: e.p[1] + e.d[1] * u, th: e.ang, k: 0 };
+  const a = e.a0 + e.dir * u / e.R;
+  return { x: e.c[0] + e.R * Math.cos(a), y: e.c[1] + e.R * Math.sin(a), th: a + e.dir * Math.PI / 2, k: e.dir / e.R };
+}
+function lineIntersect(p, d, q, e) {
+  const den = d[0] * e[1] - d[1] * e[0];
+  const tt = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den;
+  return [p[0] + d[0] * tt, p[1] + d[1] * tt];
+}
+
+function buildTrack() {
+  h2 = setup === 'ramp' ? H2 : 0;
+  const P = [[0, H1], [R1, 0]];
+  if (h2 > 0) {
+    if (gap > 0) P.push([R1 + gap, 0]);
+    P.push([R1 + gap + R2, h2]);
+  } else {
+    P.push([1e6, 0]);   // flat: the floor just keeps going
+  }
+  xD = P[P.length - 1][0];
+
+  const segs = [];
+  for (let i = 0; i < P.length - 1; i++) {
+    const dx = P[i + 1][0] - P[i][0], dy = P[i + 1][1] - P[i][1];
+    const len = Math.hypot(dx, dy);
+    const d = [dx / len, dy / len];
+    const n = [-d[1], d[0]];
+    segs.push({ d, n, ang: Math.atan2(d[1], d[0]), o: [P[i][0] + RB * n[0], P[i][1] + RB * n[1]] });
+  }
+  const Q = [segs[0].o];
+  for (let i = 1; i < segs.length; i++) Q.push(lineIntersect(segs[i - 1].o, segs[i - 1].d, segs[i].o, segs[i].d));
+  const last = segs[segs.length - 1];
+  const Pl = P[P.length - 1];
+  Q.push([Pl[0] + RB * last.n[0], Pl[1] + RB * last.n[1]]);
+
+  const els = [];
+  let cur = Q[0];
+  const Rc = FILLET - RB;
+  for (let i = 1; i < Q.length - 1; i++) {
+    const din = segs[i - 1], dout = segs[i];
+    let phi = dout.ang - din.ang;
+    while (phi > Math.PI) phi -= 2 * Math.PI;
+    while (phi < -Math.PI) phi += 2 * Math.PI;
+    if (Math.abs(phi) < 1e-6) continue;
+    const tanh = Math.tan(Math.abs(phi) / 2);
+    let tlen = Rc * tanh;
+    const lim = 0.45 * Math.min(Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]),
+                                Math.hypot(Q[i + 1][0] - Q[i][0], Q[i + 1][1] - Q[i][1]));
+    tlen = Math.min(tlen, lim);
+    const R = tlen / tanh;
+    const T1 = [Q[i][0] - tlen * din.d[0], Q[i][1] - tlen * din.d[1]];
+    const dir = Math.sign(phi);
+    const nIn = [-din.d[1] * dir, din.d[0] * dir];
+    const c = [T1[0] + R * nIn[0], T1[1] + R * nIn[1]];
+    const a0 = Math.atan2(T1[1] - c[1], T1[0] - c[0]);
+    els.push(lineEl(cur, din.ang, Math.hypot(T1[0] - cur[0], T1[1] - cur[1])));
+    els.push(arcEl(c, R, a0, dir, R * Math.abs(phi)));
+    cur = [Q[i][0] + tlen * dout.d[0], Q[i][1] + tlen * dout.d[1]];
+  }
+  const endQ = Q[Q.length - 1];
+  els.push(lineEl(cur, last.ang, Math.hypot(endQ[0] - cur[0], endQ[1] - cur[1])));
+  if (h2 > 0) {
+    const a0 = last.ang + Math.PI / 2;
+    els.push(arcEl([Pl[0], Pl[1]], RB, a0, -1, RB * a0));
+  }
+  path = makePath(els);
+  outer = makePath([lineEl([xD, RB], 0, 1e6)]);
+}
+
+function ramp1Range() {
+  const e = path.els[0];
+  return { sMin: 0.35, sMax: Math.max(0.4, e.len - 0.02) };
+}
+// Length of the straight flat floor between the ramps (where friction acts).
+function floorLen() {
+  for (const e of path.els) if (e.type === 'line' && Math.abs(e.ang) < 1e-9) return e.len;
+  return 1;
+}
+const defaultS = () => path.els[0].len * 0.45;
+// Where the camera starts following the ball.
+const followStart = () => R1 + GAP;
+
+// ===================== Ball control =====================
+function placeAt(s) {
+  const r = ramp1Range();
+  s = Math.max(r.sMin, Math.min(r.sMax, s));
+  ball.trackRef = path;
+  ball.s = s; ball.v = 0;
+  const q = at(path, s);
+  ball.x = q.x; ball.y = q.y;
+  return s;
+}
+
+// Put the ball on ramp 1 nearest the pointer, at a height on a 5 cm grid.
+function placeFromPointer(p) {
+  const e = path.els[0];
+  const r = ramp1Range();
+  let u = (p[0] - e.p[0]) * e.d[0] + (p[1] - e.p[1]) * e.d[1];
+  u = Math.max(r.sMin, Math.min(r.sMax, u));
+  const hAt = (s) => e.p[1] + e.d[1] * s - RB;
+  const hHi = Math.floor(hAt(r.sMin) / SNAP + 1e-9) * SNAP;
+  const hLo = Math.ceil(hAt(r.sMax) / SNAP - 1e-9) * SNAP;
+  const hb = 1.0;   // release height is always 1.0 m
+  placeAt((hb + RB - e.p[1]) / e.d[1]);
+  releaseH = ball.y - RB;
+}
+
+function resetRecord() {
+  t = 0; speed = 0;
+  peakTrack = 0; peakH = null; peakDone = false; peakX = null;
+  stopX = null;
+}
+
+// Pick the resistance coefficient so the first highest point on ramp 2 is exactly
+// 3.0 − DROP·F (a straight-line graph), with the same steady resistance on every surface.
+// Energy: g·(y_release − y_peak) = mu·g·(path length from release to peak).
+function muFor(F, sRel, yRel) {
+  if (F <= 0 || setup !== 'ramp') return 0;
+  let e2 = null;
+  for (const e of path.els) if (e.type === 'line' && e.ang > 1e-6) e2 = e;   // ramp 2's straight face
+  if (!e2) return 0;
+  const yPeak = (yRel - RB) - DROP * F + RB;            // ball-centre height at the peak
+  const sPeak = e2.s0 + (yPeak - e2.p[1]) / Math.sin(e2.ang);
+  return Math.max(0, (yRel - yPeak) / (sPeak - sRel));
+}
+
+function release() {
+  releaseS = ball.s;
+  releaseH = ball.y - RB;
+  ball.mode = 'track';
+  ball.trackRef = path;
+  ball.v = 0;
+  ball.E = g * ball.y;
+  ball.mu = muFor(fric, ball.s, ball.y);
+  resetRecord();
+  running = true;
+  started = true;
+  document.getElementById('prompt').hidden = true;
+  syncButtons();
+}
+
+function placeOnFloor() {
+  const target = R1 + GAP / 2;
+  let s = 0;
+  while (s < path.L && at(path, s).x < target) s += 0.005;
+  path.hint = 0;
+  const q = at(path, s);
+  ball.mode = 'placed'; ball.trackRef = path;
+  ball.s = s; ball.v = 0; ball.x = q.x; ball.y = q.y; ball.rot = 0;
+  resetRecord();
+  running = true;
+  syncButtons();
+}
+
+// Ball back to its starting spot on ramp 1. The release line stays unless asked.
+function resetRun(keepLine) {
+  ball.mode = 'placed';
+  if (!keepLine) releaseH = null;
+  placeAt(defaultS());
+  ball.rot = 0;
+  resetRecord();
+  running = true;
+  fitCamera(true);
+  cam.x = cam.home;
+  syncButtons();
+}
+
+// ===================== Integration =====================
+const DT = 1 / 1200;
+
+function stepTrack(dt) {
+  const P = ball.trackRef;
+  const q = at(P, ball.s);
+  const sn = Math.sin(q.th), cs = Math.cos(q.th);
+  const N = g * cs + q.k * ball.v * ball.v;      // normal force per unit mass
+  if (q.k < 0 && N < 0) { launch(q); return; }   // leaves the edge
+  const f = ball.mu * g;                          // steady rolling resistance everywhere (per unit mass)
+  const ag = -g * sn;
+
+  if (ball.v === 0) {
+    if (Math.abs(ag) <= f + 1e-12) {             // resistance holds it: it has stopped
+      ball.mode = 'stopped'; ball.E = g * q.y; return;
+    }
+    ball.v = ROLL * (ag - Math.sign(ag) * f) * dt;
+  } else {
+    const vn = ball.v + ROLL * (ag - Math.sign(ball.v) * f) * dt;
+    if (vn * ball.v < 0) ball.v = 0;             // turning point (or stop), decided next step
+    else ball.v = vn;
+  }
+  const ds = ball.v * dt;
+  ball.s += ds;
+  ball.E -= f * Math.abs(ds);
+  ball.rot += ds / RB;
+
+  if (ball.s >= P.L) { launch(at(P, P.L)); return; }
+  if (ball.s < 0) { ball.s = 0; ball.v = 0; }
+
+  const q2 = at(P, ball.s);
+  ball.x = q2.x; ball.y = q2.y;
+  // Keep energy exact (KE of a rolling sphere = 7/10 m v²), so heights reached
+  // depend only on the energy friction has actually removed.
+  if (ball.v !== 0) {
+    const ke = ball.E - g * q2.y;
+    if (ke > 1e-4) ball.v = Math.sign(ball.v) * Math.sqrt((10 / 7) * ke);
+  }
+  speed = Math.abs(ball.v);
+
+  // Highest point on ramp 2: the first time the ball turns around there.
+  if (setup === 'ramp' && P === path && !peakDone && ball.x > R1 + gap * 0.5) {
+    peakTrack = Math.max(peakTrack, ball.y - RB);
+    if (ball.v <= 0 && ball.x > R1 + gap) { peakDone = true; peakH = peakTrack; peakX = ball.x + RB * Math.sin(q2.th) - (R1 + gap); }
+  }
+}
+
+function launch(q) {
+  ball.mode = 'air';
+  ball.x = q.x; ball.y = q.y;
+  ball.vx = ball.v * Math.cos(q.th);
+  ball.vy = ball.v * Math.sin(q.th);
+  ball.w = ball.v;
+}
+
+function stepAir(dt) {
+  ball.vy -= g * dt;
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+  ball.rot += ball.w * dt / RB;
+  speed = Math.hypot(ball.vx, ball.vy);
+  if (ball.y <= RB && ball.vy < 0 && ball.x > xD) {
+    ball.y = RB;
+    const vin = -ball.vy;
+    const Jn = (1 + E_REST) * vin;
+    const slip = ball.vx - ball.w;
+    const need = (2 / 7) * Math.abs(slip);
+    if (MU_IMPACT * Jn >= need) { ball.vx -= (2 / 7) * slip; ball.w = ball.vx; }
+    else { const sg = Math.sign(slip); ball.vx -= sg * MU_IMPACT * Jn; ball.w += sg * 2.5 * MU_IMPACT * Jn; }
+    ball.vy = E_REST * vin;
+    if (ball.vy < SETTLE_VY) {
+      const v = (5 * ball.vx + 2 * ball.w) / 7;
+      ball.mode = 'track';
+      ball.trackRef = outer; outer.hint = 0;
+      ball.s = ball.x - xD; ball.v = v;
+      ball.E = 0.7 * v * v + g * RB;
+      ball.y = RB;
+    }
+  }
+}
+
+function physics(dtFrame) {
+  const n = Math.round(dtFrame * speedMult / DT);
+  for (let i = 0; i < n; i++) {
+    if (ball.mode === 'track') stepTrack(DT);
+    else if (ball.mode === 'air') stepAir(DT);
+    else break;
+    t += DT;
+  }
+  if (ball.mode === 'stopped') {
+    speed = 0;
+    if (stopX === null) stopX = ball.x;
+    if (setup === 'ramp' && !peakDone && peakTrack > 0) { peakDone = true; peakH = peakTrack; }
+  }
+}
+
+// ===================== Rendering =====================
+const stage = document.getElementById('stage');
+const ctx = stage.getContext('2d');
+const wrap = document.getElementById('stageWrap');
+let W = 0, H = 0, dpr = 1;
+const GROUND_PX = 56;
+const cam = { x: -0.7, home: -0.7, scale: 100, target: 100 };
+const LEFT_PX = 70, RIGHT_PX = 14;   // room for the height scale; ramp 2 always ends inside the window
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const mainH = document.querySelector('.main').clientHeight;
+  W = wrap.clientWidth;
+  const strip = document.getElementById('ctl').offsetHeight + 16;   // controls sit in a strip under the ramps, never on top of them
+  H = Math.round(Math.max(220, mainH - strip));
+  wrap.style.height = (H + strip) + 'px'; stage.style.height = H + 'px';
+  stage.width = Math.round(W * dpr); stage.height = Math.round(H * dpr);
+  fitCamera();
+  placeOverlays();
+  sizeDataGraph();
+  drawDataGraph();
+}
+
+// Every run starts at the same close view. updateCamera zooms out only when the ball nears the right edge.
+function fitCamera(smooth) {
+  const run = R1 + GAP + runFor(16);
+  const top = 1.7;                      // view reaches just above the ramps
+  const availH = H - GROUND_PX - 4;
+  cam.target = Math.min((W - LEFT_PX - RIGHT_PX) / run, availH / top);
+  if (!smooth) {
+    cam.scale = cam.target;
+    cam.home = -LEFT_PX / cam.scale;
+    if (ball.mode !== 'track' && ball.mode !== 'air' && ball.mode !== 'stopped') cam.x = cam.home;
+  }
+}
+const viewW = () => W / cam.scale;
+function placeOverlays() {
+  // Pause / Reset stay in the bottom right corner at every zoom.
+  const ctl = document.getElementById('ctl');
+  ctl.style.margin = '0'; ctl.style.left = (W - ctl.offsetWidth - 12) + 'px'; ctl.style.top = (H + 8) + 'px';
+}
+const groundY = () => H - GROUND_PX;
+const X = (x) => (x - cam.x) * cam.scale;
+const Y = (y) => groundY() - y * cam.scale;
+
+function updateCamera() {
+  const moving = ball.mode === 'track' || ball.mode === 'air';
+  if (setup === 'ramp' && moving && ball.x > 0) {
+    // Keep the ball inside the window: once it reaches 80% of the width, zoom out with it.
+    // The view stays out for the rest of the run so the marks remain on screen.
+    cam.target = Math.min(cam.target, (0.8 * W - LEFT_PX) / ball.x);
+    if (cam.scale > cam.target) cam.scale = cam.target;
+  }
+  if (cam.scale !== cam.target) {
+    cam.scale += (cam.target - cam.scale) * 0.14;
+    if (Math.abs(cam.scale - cam.target) < 0.02) cam.scale = cam.target;
+  }
+  cam.home = -LEFT_PX / cam.scale;
+  if (setup === 'ramp') { cam.x = cam.home; return; }   // the whole track is in view
+  const vw = viewW();
+  if (ball.mode === 'track' || ball.mode === 'air' || ball.mode === 'stopped') {
+    const F = Math.max(0.75 * vw, followStart() + 0.4 - cam.home);
+    let target = cam.x;
+    if (ball.x > cam.x + F) target = ball.x - F;
+    if (ball.x < cam.x + 0.3 * vw) target = ball.x - 0.3 * vw;
+    cam.x = Math.max(cam.home, target);
+  } else {
+    cam.x += (cam.home - cam.x) * 0.18;
+    if (Math.abs(cam.x - cam.home) < 1e-3) cam.x = cam.home;
+  }
+}
+
+function surfacePoints() {
+  const pts = [];
+  const xMax = cam.x + viewW() + 2;
+  for (const e of path.els) {
+    const n = e.type === 'line' ? 2 : 28;
+    for (let i = 0; i <= n; i++) {
+      const s = e.s0 + e.len * i / n;
+      const q = at(path, s);
+      let px = q.x + RB * Math.sin(q.th);
+      const py = q.y - RB * Math.cos(q.th);
+      if (px > xMax) {                       // ramp runs past the window: cut it at the true height there
+        const l = pts[pts.length - 1];
+        pts.push([xMax, l ? l[1] + (py - l[1]) * (xMax - l[0]) / (px - l[0]) : py]);
+        return pts;
+      }
+      pts.push([px, py]);
+      if (px >= xMax) return pts;
+    }
+  }
+  return pts;
+}
+
+function hatchClip(drawShape, color, lineColor) {
+  ctx.save();
+  ctx.beginPath(); drawShape(); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.clip();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const step = 14;
+  const off = ((cam.x * cam.scale) % step + step) % step;
+  for (let x = -H - off; x < W + H; x += step) { ctx.moveTo(x, H); ctx.lineTo(x + H, 0); }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// A label in a small paper box.
+function tag(text, x, y, color, align) {
+  ctx.font = '400 18px "Source Serif 4", Georgia, serif';
+  ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(text).width;
+  let lx = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
+  lx = Math.max(6, Math.min(W - tw - 6, lx));
+  ctx.fillStyle = 'rgba(248, 241, 218, 0.94)';
+  ctx.beginPath(); ctx.roundRect(lx - 5, y - 12, tw + 10, 24, 7); ctx.fill();
+  ctx.strokeStyle = color; ctx.globalAlpha = 0.7; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(lx - 5 + 0.5, y - 12 + 0.5, tw + 10, 24, 7); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color; ctx.textAlign = 'left';
+  ctx.fillText(text, lx, y + 1);
+}
+
+// Smallest round number of metres that is at least minPx wide on screen.
+function meterStep(minPx) {
+  for (const n of [0.5, 1, 2, 5, 10, 20, 50]) if (n * cam.scale >= minPx) return n;
+  return 100;
+}
+
+function draw() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#F3EAD3'); sky.addColorStop(0.7, '#EFE5CB'); sky.addColorStop(1, '#E7DABB');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+  // Faint meter grid
+  ctx.strokeStyle = 'rgba(130, 100, 55, 0.13)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const gridStep = meterStep(26);
+  const m0 = Math.floor(cam.x / gridStep) * gridStep, m1 = Math.ceil(cam.x + viewW());
+  for (let m = m0; m <= m1; m += gridStep) { const px = Math.round(X(m)) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, groundY()); }
+  for (let m = gridStep; Y(m) > 0; m += gridStep) { const py = Math.round(Y(m)) + 0.5; ctx.moveTo(0, py); ctx.lineTo(W, py); }
+  ctx.stroke();
+
+  // Floor
+  const gy = groundY();
+  hatchClip(() => { ctx.rect(0, gy, W, GROUND_PX); }, '#2F2518', 'rgba(245, 222, 179, 0.13)');
+
+  // Ramps
+  const pts = surfacePoints();
+  const lastPt = pts[pts.length - 1];
+  hatchClip(() => {
+    ctx.moveTo(X(0), Y(0));
+    for (const p of pts) ctx.lineTo(X(p[0]), Y(p[1]));
+    ctx.lineTo(X(lastPt[0]), Y(0));
+  }, '#7A5A34', 'rgba(40, 26, 10, 0.22)');
+  ctx.strokeStyle = '#1A1308';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(0), Y(H1));
+  for (const p of pts) ctx.lineTo(X(p[0]), Y(p[1]));
+  if (h2 > 0) ctx.lineTo(X(lastPt[0]), Y(0));
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, gy + 0.5); ctx.lineTo(W, gy + 0.5); ctx.stroke();
+
+  // Floor ticks, measured from the foot of ramp 2
+  ctx.fillStyle = 'rgba(245, 232, 196, 0.9)';
+  ctx.font = '600 15px "Source Sans 3", Helvetica, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const labelEvery = Math.max(1, meterStep(50));
+  const tickEvery = labelEvery === 1 ? 0.5 : labelEvery === 2 ? 1 : labelEvery / 5;
+  const O = setup === 'ramp' ? R1 + gap : R1;
+  const k0 = Math.max(0, Math.floor((cam.x - O) / tickEvery)), k1 = Math.ceil((cam.x + viewW() - O) / tickEvery);
+  for (let k = k0; k <= k1; k++) {
+    const m = k * tickEvery;
+    const px = Math.round(X(O + m));
+    const major = Math.abs(m % labelEvery) < 1e-9;
+    ctx.fillRect(px, gy + 1, major ? 2 : 1, major ? 11 : 6);
+    if (major) ctx.fillText(m + ' m', px, gy + 15);
+  }
+
+  // Height scale on the back of ramp 1
+  if (X(0) > -40) {
+    ctx.fillStyle = 'rgba(60, 40, 20, 0.85)';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = '600 15px "Source Sans 3", Helvetica, sans-serif';
+    const zoomedOut = cam.scale < 44;
+    const yTick = zoomedOut ? 0.5 : 0.25, yLabel = zoomedOut ? 1 : 0.5;
+    for (let m = yTick; Y(m) > 8 && m <= (cam.scale < 20 ? 1 : 2); m += yTick) {
+      const py = Math.round(Y(m));
+      const major = Math.abs(m / yLabel - Math.round(m / yLabel)) < 1e-9;
+      ctx.fillRect(X(0) - (major ? 10 : 6), py, major ? 10 : 6, 1);
+      if (major) ctx.fillText(m + ' m', X(0) - 13, py);
+    }
+  }
+
+  // Release-height line: follows the ball while it's held, then stays put
+  if (releaseH !== null) {
+    const py = Math.round(Y(releaseH)) + 0.5;
+    ctx.save();
+    ctx.strokeStyle = '#8C3B22';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([9, 6]);
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+    ctx.setLineDash([]);
+    tag('release height ' + releaseH.toFixed(2) + ' m', Math.max(X(R1 + GAP / 2), LEFT_PX + 110), py - 18, '#8C3B22', 'center');
+    ctx.restore();
+  }
+
+  // Highest point reached on ramp 2
+  if (setup === 'ramp' && peakH !== null) {
+    const py = Math.round(Y(peakH)) + 0.5;
+    const x0 = X(R1 + 0.2), x1 = X(xD - 0.2);
+    ctx.save();
+    ctx.strokeStyle = '#7A4A1F';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(x1, py); ctx.stroke();
+    ctx.setLineDash([]);
+    tag('highest point ' + peakH.toFixed(2) + ' m', Math.max(x0 + 5, LEFT_PX + 200), cam.scale < 44 ? py - 18 : py + 20, '#7A4A1F', 'left');
+    ctx.restore();
+  }
+
+  // Where the ball turned around on ramp 2
+  if (setup === 'ramp' && peakX !== null) {
+    const px = Math.round(X(R1 + gap + peakX)) + 0.5;
+    ctx.save();
+    ctx.strokeStyle = '#7A4A1F'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, Y(peakH)); ctx.stroke();
+    ctx.setLineDash([]);
+    tag('rolled ' + peakX.toFixed(1) + ' m', px, gy + 42, '#7A4A1F', 'center');
+    ctx.restore();
+  }
+
+  // Where the ball stopped on the flat floor
+  if (setup === 'flat' && stopX !== null) {
+    const px = Math.round(X(stopX)) + 0.5;
+    ctx.save();
+    ctx.strokeStyle = '#7A4A1F';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, Y(1.0)); ctx.stroke();
+    ctx.setLineDash([]);
+    tag('stopped ' + (stopX - R1).toFixed(2) + ' m from the ramp', px, Y(1.0) - 14, '#7A4A1F', 'center');
+    ctx.restore();
+  }
+
+  drawBall();
+
+  // Live height of the ball (measured from the floor to the bottom of the ball)
+  if (ball.mode === 'track' || ball.mode === 'air' || ball.mode === 'dragging') {
+    const bh = Math.max(0, ball.y - RB);
+    const r = Math.max(6, RB * cam.scale);
+    tag('height ' + bh.toFixed(2) + ' m', X(ball.x), Y(ball.y) - (r - RB * cam.scale) - r - 20, '#1F1A12', 'center');
+  }
+}
+
+function drawBall() {
+  const r = Math.max(6, RB * cam.scale);              // stays easy to see when zoomed out
+  const px = X(ball.x), py = Y(ball.y) - (r - RB * cam.scale);
+  if (ball.mode === 'air') {
+    const hAbove = Math.max(0, ball.y - RB);
+    ctx.fillStyle = `rgba(31, 26, 18, ${Math.max(0.05, 0.22 - hAbove * 0.05)})`;
+    ctx.beginPath();
+    ctx.ellipse(px, groundY() - 1, r / (1 + hAbove * 0.4), r * 0.22 / (1 + hAbove * 0.4), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(px, py);
+  const grad = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+  grad.addColorStop(0, '#E8C27E'); grad.addColorStop(0.55, '#A8702E'); grad.addColorStop(1, '#55320F');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#2A1606'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.rotate(ball.rot);
+  ctx.strokeStyle = 'rgba(31, 20, 8, 0.85)';
+  ctx.lineWidth = Math.max(1.5, r * 0.16);
+  ctx.beginPath(); ctx.moveTo(-r * 0.92, 0); ctx.lineTo(r * 0.92, 0); ctx.stroke();
+  ctx.fillStyle = '#F6E2B0';
+  ctx.beginPath(); ctx.arc(0, -r * 0.55, Math.max(2, r * 0.17), 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  if (ball.mode === 'placed' && !started) {
+    ctx.strokeStyle = '#8C3B22'; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(px, py, r + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ===================== Data table =====================
+const STORE = 'galileo-ramps-slope-v2';
+const blankRows = () => Array.from({ length: 5 }, () => ({ a: '', h: '', d: '' }));
+let tables = { ramp: blankRows(), flat: blankRows() };
+let fit = null;
+try {
+  const s = JSON.parse(localStorage.getItem(STORE));
+  if (s && Array.isArray(s.ramp) && s.ramp.length === 5) tables = Object.assign(tables, s);
+} catch (_) {}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(tables)); } catch (_) {} }
+
+const tbody = document.getElementById('tbody');
+const COLS = [['a', 'Angle'], ['h', 'Highest point'], ['d', 'Distance']];
+
+function renderTable() {
+  const rows = tables[setup];
+  tbody.innerHTML = '';
+  rows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    const num = document.createElement('td');
+    num.className = 'num'; num.textContent = i + 1;
+    tr.appendChild(num);
+    for (const [k, name] of COLS) {
+      const td = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.step = 'any'; inp.min = '0'; inp.inputMode = 'decimal';
+      inp.value = row[k];
+      inp.setAttribute('aria-label', `Trial ${i + 1} ${name}`);
+      inp.addEventListener('input', () => { row[k] = inp.value; save(); drawDataGraph(); updateAsk(); });
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('clearRows').addEventListener('click', () => {
+  const what = setup === 'ramp' ? 'two-ramp' : 'flat-floor';
+  if (!confirm(`Clear all ${what} trials?`)) return;
+  tables[setup] = blankRows(); fit = null;
+  save(); renderTable(); drawDataGraph(); updateAsk();
+});
+
+const num = (v) => parseFloat(v);
+const complete = () => tables.ramp.every((row) => COLS.every(([k]) => Number.isFinite(num(row[k]))));
+const $ = (id) => document.getElementById(id);
+let step = 'data';   // data -> q1 -> zero -> predict -> remove -> done
+function updateAsk() {
+  const done = complete();
+  $('nextBtn').hidden = !done || !$('steps').hidden;
+}
+function showSteps(on) {
+  $('tableScroll').hidden = on; $('steps').hidden = !on;
+  document.querySelector('.panel .tablehead').hidden = on;
+  updateAsk();
+}
+$('nextBtn').addEventListener('click', () => showSteps(true));
+$('backData').addEventListener('click', () => showSteps(false));
+$('q1Btn').addEventListener('click', () => {
+  if (!$('q1In').value.trim()) { $('q1In').focus(); return; }
+  $('q1In').readOnly = true; $('q1Btn').hidden = true;
+  $('q2').hidden = false; $('q2').scrollIntoView({ block: 'nearest' });
+});
+$('q2Btn').addEventListener('click', () => {
+  if (!$('q2In').value.trim()) { $('q2In').focus(); return; }
+  $('q2In').readOnly = true; $('q2Btn').hidden = true;
+  $('q3').hidden = false; $('q3').scrollIntoView({ block: 'nearest' });
+});
+// Students must watch the ball at each angle before the next angle unlocks.
+let maxIdx = 0;
+function checkStage() {
+  const i = +fricEl.value;
+  if (setup === 'ramp' && peakDone && i === maxIdx && maxIdx < ANGLES.length - 1) {
+    maxIdx = i + 1;
+    const pr = document.getElementById('prompt');
+    pr.textContent = 'Now try the next angle.'; pr.hidden = false;
+  }
+}
+$('q3Btn').addEventListener('click', () => {
+  if (!$('q3In').value.trim()) { $('q3In').focus(); return; }
+  $('q3In').readOnly = true; $('q3Btn').hidden = true;
+  $('q4').hidden = false; $('q4').scrollIntoView({ block: 'nearest' }); step = 'remove';
+});
+$('removeBtn').addEventListener('click', () => {
+  step = 'done';
+  $('removeBtn').disabled = true;
+  fricEl.disabled = true;
+  document.getElementById('fricVal').textContent = '0° (flat)';
+  setup = 'flat';
+  buildTrack();
+  ball.mode = 'placed'; ball.rot = 0;
+  cam.x = cam.home;
+  placeFromPointer([1, 1]);   // snaps to the 3.0 m release height
+  release();
+});
+
+// ===================== Data graph =====================
+const dgBox = document.getElementById('dgBox');
+const dgCanvas = document.getElementById('dgraph');
+let dgW = 0, dgH = 0;
+
+function sizeDataGraph() {
+  dgW = dgBox.clientWidth; dgH = dgBox.clientHeight;
+  dgCanvas.width = Math.round(dgW * dpr); dgCanvas.height = Math.round(dgH * dpr);
+}
+function niceStep(range, target) {
+  const raw = range / target;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const m = raw / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+
+function drawDataGraph() {
+  const c = dgCanvas.getContext('2d');
+  const w = dgW, h = dgH;
+  if (!w || !h) return;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const L = 44, Rm = 22, T = 28, B = 40;
+  const pw = w - L - Rm, ph = h - T - B;
+  const pts = [];
+  for (const row of tables.ramp) {
+    const ax = parseFloat(row.a), dy = parseFloat(row.d);
+    if (Number.isFinite(ax) && Number.isFinite(dy)) pts.push([ax, dy]);
+  }
+  let xmax = 18, ymaxRaw = 60;
+  for (const [ax, dy] of pts) { xmax = Math.max(xmax, Math.ceil(ax / 5) * 5); ymaxRaw = Math.max(ymaxRaw, dy * 1.08); }
+  const ystep = niceStep(ymaxRaw, 5);
+  const ymax = Math.ceil(ymaxRaw / ystep - 1e-9) * ystep;
+  const gx = (v) => L + v / xmax * pw;
+  const gy = (v) => T + (1 - v / ymax) * ph;
+  c.font = '600 15px "Source Sans 3", Helvetica, sans-serif';
+  c.strokeStyle = 'rgba(130, 100, 55, 0.18)'; c.lineWidth = 1;
+  c.fillStyle = '#3A2810';
+  c.beginPath();
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let v = 0; v <= ymax + 1e-6; v += ystep) {
+    const y = Math.round(gy(v)) + 0.5;
+    c.moveTo(L, y); c.lineTo(L + pw, y);
+    c.fillText(+v.toFixed(6) + '', L - 5, y);
+  }
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  for (let v = 0; v <= xmax + 1e-6; v += 2) {
+    const x = Math.round(gx(v)) + 0.5;
+    c.moveTo(x, T); c.lineTo(x, T + ph);
+    c.fillText(v + '°', x, T + ph + 4);
+  }
+  c.stroke();
+  c.strokeStyle = '#1F1A12'; c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(L + 0.5, T); c.lineTo(L + 0.5, T + ph); c.lineTo(L + pw, T + ph);
+  c.stroke();
+  c.fillStyle = '#1F1A12';
+  c.font = '600 16px "Source Serif 4", Georgia, serif';
+  c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('Distance rolled up ramp 2 (m)', L, 7);
+  c.font = '400 15px "Source Sans 3", Helvetica, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'bottom';
+  c.fillStyle = 'rgba(60, 40, 20, 0.75)';
+  c.fillText('angle of ramp 2', L + pw / 2, h - 3);
+  for (const [ax, dy] of pts) {
+    c.beginPath(); c.arc(gx(ax), gy(dy), 4.5, 0, Math.PI * 2);
+    c.fillStyle = '#8C3B22'; c.fill();
+    c.strokeStyle = '#1F1A12'; c.lineWidth = 1.2; c.stroke();
+  }
+}
+
+// ===================== Input =====================
+function toWorld(ev) {
+  const r = stage.getBoundingClientRect();
+  const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+  return [sx / cam.scale + cam.x, (groundY() - sy) / cam.scale];
+}
+stage.addEventListener('pointerdown', (ev) => {
+  const p = toWorld(ev);
+  const hit = Math.hypot((p[0] - ball.x) * cam.scale, (p[1] - ball.y) * cam.scale) <= RB * cam.scale + 16;
+  if (!hit) return;
+  stage.setPointerCapture(ev.pointerId);
+  ball.mode = 'dragging';
+  ball.rot = 0;
+  fitCamera(true);
+  resetRecord();
+  placeFromPointer(p);
+  syncButtons();
+  ev.preventDefault();
+});
+stage.addEventListener('pointermove', (ev) => {
+  const p = toWorld(ev);
+  if (ball.mode === 'dragging') {
+    placeFromPointer(p);
+  } else {
+    const near = Math.hypot((p[0] - ball.x) * cam.scale, (p[1] - ball.y) * cam.scale) <= RB * cam.scale + 16;
+    stage.style.cursor = near ? 'grab' : 'default';
+  }
+});
+function endDrag(ev) {
+  if (ball.mode !== 'dragging') return;
+  try { stage.releasePointerCapture(ev.pointerId); } catch (_) {}
+  release();
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+// Controls
+const fricEl = document.getElementById('fric');
+const pauseBtn = document.getElementById('pause');
+
+function showFric() { document.getElementById('fricVal').textContent = angle === 0 ? '0° (flat)' : angle + '°'; }
+fricEl.addEventListener('input', () => {
+  if (+fricEl.value > maxIdx) fricEl.value = maxIdx;
+  document.getElementById('prompt').textContent = 'Drag the ball up the ramp and let go.';
+  angle = ANGLES[+fricEl.value]; if (angle === undefined) angle = 16;
+  setup = angle === 0 ? 'flat' : 'ramp';
+  if (angle) R2 = runFor(angle);
+  showFric();
+  buildTrack();
+  fitCamera(true);
+  resetRun(true);
+  placeOnFloor();
+});
+
+function setSetup(which) {
+  setup = which;
+  document.querySelectorAll('[data-setup]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.setup === which));
+  buildTrack();
+  resetRun(false);
+  fitCamera();
+  renderTable();
+  drawDataGraph();
+  updateAsk();
+}
+document.querySelectorAll('[data-setup]').forEach((b) => {
+  b.addEventListener('click', () => { if (b.dataset.setup !== setup) setSetup(b.dataset.setup); });
+});
+
+pauseBtn.addEventListener('click', () => { running = !running; syncButtons(); });
+document.getElementById('reset').addEventListener('click', () => resetRun(false));
+
+
+function syncButtons() {
+  const moving = ball.mode === 'track' || ball.mode === 'air';
+  pauseBtn.disabled = !moving && running;
+  pauseBtn.textContent = running ? 'Pause' : 'Play';
+}
+
+// Readouts
+function updateReadout() {}
+
+// ===================== Main loop =====================
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (running && (ball.mode === 'track' || ball.mode === 'air')) {
+    physics(dt);
+    if (ball.mode === 'stopped') syncButtons();
+  }
+  checkStage();
+  updateCamera();
+  draw();
+  updateReadout();
+  requestAnimationFrame(frame);
+}
+
+// Test hook (harmless for students): lets automated checks drive the sim.
+window._sim = {
+  ball, physics, release, placeAt, placeFromPointer, setSetup,
+  get releaseH() { return releaseH; }, get peakH() { return peakH; }, get stopX() { return stopX; },
+  get t() { return t; }, get path() { return path; },
+  toScreen: () => [X(ball.x), Y(ball.y)],
+  setFric: (f) => { fric = f; fricEl.value = f; showFric(); },
+};
+
+fricEl.value = fric;
+showFric();
+window.addEventListener('resize', resize);
+setSetup('ramp');
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

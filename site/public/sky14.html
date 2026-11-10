@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aristotle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Varela+Round&display=swap">
+<style>
+/* Layout: intro panel above a dark stage holding the cosmos canvas, toolbar below. AeroLab theme, single dark look. */
+:root {
+  --forest:#12291F; --emerald:#1E5E46; --jade:#5FA084; --mint:#D2E8DD;
+  --gold:#E0B43C; --muted:#3A5247; --line:#BFDCCD; --stage:#0B1C15;
+  --display:"Varela Round","Lexend",sans-serif; --body:"Lexend",system-ui,sans-serif;
+  color-scheme: light;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;color:var(--forest);font-family:var(--body);font-size:18px;line-height:1.5;letter-spacing:.03em;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px),var(--forest);background-attachment:fixed}
+.wrap{max-width:960px;margin:0 auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(255,255,255,.9));border-radius:24px;
+  box-shadow:0 12px 32px rgba(0,0,0,.35),inset 0 1px 0 #fff;padding:20px 24px}
+h1{font-family:var(--display);font-weight:400;font-size:2rem;margin:0 0 .4em;text-wrap:balance}
+p{margin:0 0 .8em;max-width:65ch} p:last-child{margin-bottom:0}
+em{font-style:normal;font-weight:600}
+.stage{background:var(--stage);border-radius:24px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 12px 32px rgba(0,0,0,.35)}
+canvas{display:block;width:100%;aspect-ratio:16/10;cursor:crosshair;touch-action:none}
+.bar{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(255,255,255,.9));border-radius:20px;padding:10px 16px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;box-shadow:0 8px 22px rgba(0,0,0,.3)}
+button{font:inherit;font-weight:600;min-height:44px;padding:8px 20px;border-radius:999px;border:1px solid #A8CDB9;color:var(--forest);
+  background:linear-gradient(180deg,#F8FBF9,#E3F0E9);box-shadow:inset 0 1px 0 #fff,0 3px 8px rgba(18,41,31,.12);cursor:pointer}
+button:hover{border-color:#7FB59A;background:linear-gradient(180deg,#fff,#EAF5EF)}
+button:focus-visible{outline:none;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--forest)}
+.chip{display:inline-flex;padding:6px 14px;border-radius:18px;border:1px solid var(--line);font-weight:600;font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;letter-spacing:0}
+.muted{color:var(--muted)}
+/* full-window sky with a small floating panel, matching the other sky pages */
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+.stage{position:fixed;inset:0;background:#000;border-radius:0;box-shadow:none}
+canvas{width:100%;height:100%;aspect-ratio:auto}
+.ctl{position:fixed;z-index:5;top:10px;left:10px;width:150px;display:flex;flex-direction:column;gap:5px;padding:7px;background:rgba(12,24,19,.86);border:1px solid rgba(210,232,221,.22);border-radius:10px;color:#E6F1EB;font:13px Helvetica,Arial,sans-serif}
+.ctl button{width:100%;min-height:26px;padding:1px 6px;font:500 13px Helvetica,Arial,sans-serif;letter-spacing:0;color:#E6F1EB;background:rgba(255,255,255,.09);border:1px solid rgba(210,232,221,.2);border-radius:6px;box-shadow:none}
+.ctl button:hover{background:rgba(255,255,255,.17);border-color:rgba(210,232,221,.4)}
+.ctl .chip{justify-content:center;border:0;padding:1px 4px;font:600 13px Helvetica,Arial,sans-serif;letter-spacing:0;color:#fff}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style id="notebook">
+/* Astronomer's Notebook panels over the black sky */
+:root{--paper:#F3EAD3;--sheet:#FFFBEF;--ink:#2A2118;--soft:#574832;--faint:#C9B98F;--accent:#8C3B22;--accent-dark:#6F2D19;--on-accent:#FFF8E8;--tint:#E7DABB;--nb-sans:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;--nb-serif:"Source Serif 4",Georgia,serif}
+.ctl,.ctl.aero-panel{background:var(--paper)!important;border:0!important;border-radius:14px!important;box-shadow:0 6px 18px rgba(0,0,0,.45)!important;color:var(--ink)!important;font-family:var(--nb-sans)!important;font-size:14px!important;padding:9px!important}
+.ctl.top{padding:6px 10px!important}
+.ctl button,.ctl button.primary{font:400 14px var(--nb-sans)!important;color:var(--ink)!important;background:transparent!important;border:1px solid var(--ink)!important;border-radius:8px!important;box-shadow:none!important;text-shadow:none!important}
+.ctl button:hover:not(:disabled){background:var(--tint)!important;border-color:var(--ink)!important}
+.ctl button[aria-pressed="true"],.ctl button.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--on-accent)!important;font-weight:600!important}
+.ctl button[aria-pressed="true"]:hover:not(:disabled),.ctl button.primary:hover:not(:disabled){background:var(--accent-dark)!important;border-color:var(--accent-dark)!important}
+.ctl button:disabled{background:transparent!important;border-color:var(--faint)!important;color:#8E7E62!important}
+.ctl .aero-chip,.ctl .chip{font-family:var(--nb-serif)!important;font-weight:600!important;color:var(--ink)!important;font-size:15px;background:transparent!important}
+.ctl.top .aero-chip{font-size:24px}
+.ctl input[type=range]{accent-color:var(--accent)!important}
+.ctl .lbl{color:var(--soft)!important;font-size:14px}
+.ctl button{white-space:nowrap;padding:1px 4px!important}
+.ctl.top .tm button{width:84px!important}
+#sm{flex:0 0 158px!important}
+.ctl{left:24px!important;top:24px!important}
+.ctl,.ctl.aero-panel{top:auto!important;left:auto!important;right:24px!important;bottom:24px!important}
+</style>
+
+<div class="stage"><canvas id="cv" aria-label="Click or tap around the center of the universe to add clumps of earth"></canvas></div>
+<div class="ctl">
+  <span class="chip" id="count">Clumps: 0</span>
+  <button id="sprinkle">Add 20 at random</button>
+  <button id="reset">Clear</button>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const countEl=document.getElementById('count');
+let W,H,cx,cy,R,dpr;
+let parts=[];
+const stars=Array.from({length:140},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.3,a:Math.random()*.6+.2}));
+window._parts=()=>parts;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function size(){
+  dpr=window.devicePixelRatio||1;
+  const r=cv.getBoundingClientRect();
+  const oldCx=cx,oldCy=cy,oldR=R;
+  W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  cx=W/2;cy=H/2;R=Math.max(10,Math.min(W,H)/28);
+  if(oldR){const s=R/oldR;parts.forEach(p=>{p.x=cx+(p.x-oldCx)*s;p.y=cy+(p.y-oldCy)*s;});}
+}
+window.addEventListener('resize',size);size();
+
+const MAX_CLUMPS=60;
+function add(x,y){
+  if(parts.length>=MAX_CLUMPS) return;
+  // size runs from today's size up to twice it; bigger clumps fall faster
+  const big=Math.random();
+  parts.push({x,y,v:0,locked:false,s:0.69*(1+big),pull:0.6*(1+big)*(1+big),shade:Math.random(),rot:Math.random()*6.28,
+    pts:Array.from({length:9},()=>.9+Math.random()*.18)});
+  countEl.textContent='Clumps: '+parts.length;
+}
+cv.addEventListener('pointerdown',e=>{
+  const r=cv.getBoundingClientRect();add(e.clientX-r.left,e.clientY-r.top);
+});
+document.getElementById('sprinkle').onclick=()=>{
+  for(let i=0;i<20;i++){
+    const a=Math.random()*6.28,d=Math.min(W,H)*(.3+Math.random()*.18);
+    add(cx+Math.cos(a)*d,cy+Math.sin(a)*d);
+  }
+};
+document.getElementById('reset').onclick=()=>{parts=[];countEl.textContent='Clumps: 0';};
+
+// Constant acceleration toward the center: speed grows linearly with time.
+// A clump stops falling when it reaches the center or touches a landed clump.
+// Landed clumps keep pressing toward the center and push each other apart,
+// so the pile packs tightly into a round ball.
+let settleCount=0;
+function step(){
+  const g=R*0.0025, gap=R*0.55;
+  const minD=(a,b)=>gap*(a.s+b.s);
+  // landed clumps: press toward center, then resolve overlaps.
+  // A landed clump that has stopped shifting is frozen and never moves again
+  // unless a new clump lands right next to it.
+  const landed=parts.filter(p=>p.locked);
+  const moving=landed.filter(p=>!p.frozen);
+  if(moving.length){
+    for(const p of moving){
+      p.ox=p.x;p.oy=p.y;
+      const dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy);
+      if(d>0.5){const s=Math.min(d,R*0.1);p.x+=dx/d*s;p.y+=dy/d*s;}
+    }
+    for(let k=0;k<6;k++){
+      for(let i=0;i<landed.length;i++){const a=landed[i];
+        for(let j=i+1;j<landed.length;j++){const b=landed[j];
+          if(a.frozen&&b.frozen) continue;
+          let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+          const m=minD(a,b);
+          if(d<m){ if(d<0.01){dx=Math.random()-.5;dy=Math.random()-.5;d=Math.hypot(dx,dy);}
+            const o=(m-d)*0.6,ux=dx/d,uy=dy/d;
+            const fa=a.frozen?0:b.frozen?1:.5, fb=1-fa;
+            a.x-=ux*o*fa;a.y-=uy*o*fa;b.x+=ux*o*fb;b.y+=uy*o*fb;}
+        }}
+    }
+    // freeze the whole settling group together once nothing is shifting much,
+    // so the outer clumps can't lock in early and leave the planet lopsided
+    let mx=0;for(const p of moving)mx=Math.max(mx,Math.hypot(p.x-p.ox,p.y-p.oy));
+    settleCount=mx<R*0.04?settleCount+1:0;
+    if(settleCount>20){for(const p of moving)p.frozen=true;settleCount=0;}
+  }
+  for(const p of parts){
+    if(p.locked) continue;
+    const dx0=cx-p.x,dy0=cy-p.y,d0=Math.hypot(dx0,dy0)||1;
+    p.v+=g*p.pull;
+    // move in small sub-steps so fast clumps can't pass through the pile
+    let move=p.v;
+    while(move>0){
+      const s=Math.min(move,R*0.4); move-=s;
+      const dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy);
+      if(d<=s){p.x=cx;p.y=cy;p.locked=true;break;}
+      p.x+=dx/d*s; p.y+=dy/d*s;
+      for(const q of parts){
+        if(!q.locked||q===p) continue;
+        const ex=p.x-q.x,ey=p.y-q.y,e=Math.hypot(ex,ey);
+        const m=minD(p,q);if(e<m){const u=e||1;p.x=q.x+ex/u*m;p.y=q.y+ey/u*m;p.locked=true;break;}
+      }
+      if(p.locked) break;
+    }
+    if(p.locked){
+      for(const q of landed){
+        if(Math.hypot(q.x-p.x,q.y-p.y)<minD(p,q)*2.5){q.frozen=false;q.still=0;}
+      }
+    }
+  }
+}
+
+function bodyColor(p,dl=0){return `hsl(28,${30+p.shade*15}%,${40+p.shade*14+dl}%)`;}
+
+function drawArms(p,time){
+  const r=R*1.12*p.s, a=Math.atan2(cy-p.y,cx-p.x);
+  const lw=Math.max(3,r*.2);
+  for(const side of[-1,1]){
+    const wig=Math.sin(time*.012+side*1.7+p.rot)*.22;
+    // shoulder just inside the body, on the side facing the center
+    const sa=a+side*.95, sx=p.x+Math.cos(sa)*r*.7, sy=p.y+Math.sin(sa)*r*.7;
+    // elbow bows outward, hand reaches past the body toward the center
+    const ea=a+side*.7, ex=sx+Math.cos(ea)*r*.55, ey=sy+Math.sin(ea)*r*.55;
+    const ha=a+side*(.12+wig), hx=ex+Math.cos(ha)*r*.6, hy=ey+Math.sin(ha)*r*.6;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle='rgba(42,26,14,.55)';ctx.lineWidth=lw+2.5;
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(ex,ey,hx,hy);ctx.stroke();
+    ctx.strokeStyle=bodyColor(p,-4);ctx.lineWidth=lw;
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(ex,ey,hx,hy);ctx.stroke();
+    // little mitten hand with a thumb, open toward the center
+    const hr=r*.2;
+    ctx.fillStyle=bodyColor(p,4);ctx.strokeStyle='rgba(42,26,14,.55)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(hx+Math.cos(ha)*hr*.4,hy+Math.sin(ha)*hr*.4,hr,0,6.283);ctx.fill();ctx.stroke();
+    const ta=ha-side*1.3;
+    ctx.beginPath();ctx.arc(hx+Math.cos(ta)*hr*.95,hy+Math.sin(ta)*hr*.95,hr*.45,0,6.283);ctx.fill();ctx.stroke();
+  }
+}
+
+function drawBody(p){
+  ctx.fillStyle=bodyColor(p);
+  ctx.strokeStyle='rgba(42,26,14,.45)';ctx.lineWidth=1.5;ctx.lineJoin='round';
+  ctx.beginPath();
+  p.pts.forEach((s,i)=>{const a=p.rot+i/p.pts.length*6.283,r=R*1.12*p.s*s;
+    const x=p.x+Math.cos(a)*r,y=p.y+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.closePath();ctx.fill();ctx.stroke();
+  // soft highlight on the upper left
+  const r=R*1.12*p.s;
+  ctx.fillStyle='rgba(255,240,220,.12)';
+  ctx.beginPath();ctx.ellipse(p.x-r*.3,p.y-r*.4,r*.35,r*.22,-.5,0,6.283);ctx.fill();
+}
+
+function drawFace(p){
+  const r=R*1.12*p.s, ink='#2A1A0E';
+  ctx.strokeStyle=ink;ctx.fillStyle=ink;ctx.lineCap='round';ctx.lineWidth=Math.max(1.5,r*.09);
+  const ex=r*.32, ey=p.y-r*.12;
+  if(p.locked){
+    // content: closed, curved eyes, rosy cheeks, gentle smile
+    ctx.fillStyle='rgba(230,120,110,.35)';
+    for(const s of[-1,1]){ctx.beginPath();ctx.ellipse(p.x+s*r*.5,p.y+r*.15,r*.13,r*.08,0,0,6.283);ctx.fill();}
+    for(const s of[-1,1]){ctx.beginPath();ctx.arc(p.x+s*ex,ey+r*.08,r*.13,Math.PI*1.15,Math.PI*1.85);ctx.stroke();}
+    ctx.beginPath();ctx.arc(p.x,p.y+r*.02,r*.24,Math.PI*.22,Math.PI*.78);ctx.stroke();
+  }else{
+    // eager: wide eyes with a sparkle, raised brows, open mouth, all aimed at the center
+    const a=Math.atan2(cy-p.y,cx-p.x), lx=Math.cos(a)*r*.07, ly=Math.sin(a)*r*.07;
+    for(const s of[-1,1]){
+      ctx.fillStyle='#FFF8EE';ctx.beginPath();ctx.ellipse(p.x+s*ex,ey,r*.18,r*.21,0,0,6.283);ctx.fill();
+      ctx.fillStyle=ink;ctx.beginPath();ctx.arc(p.x+s*ex+lx,ey+ly,r*.1,0,6.283);ctx.fill();
+      ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.arc(p.x+s*ex+lx-r*.035,ey+ly-r*.04,r*.035,0,6.283);ctx.fill();
+      ctx.lineWidth=Math.max(1.2,r*.06);
+      ctx.beginPath();ctx.arc(p.x+s*ex,ey-r*.05,r*.24,Math.PI*(s<0?1.3:1.45),Math.PI*(s<0?1.55:1.7));ctx.stroke();
+    }
+    ctx.fillStyle=ink;
+    ctx.beginPath();ctx.ellipse(p.x+lx*.6,p.y+r*.3+ly*.6,r*.1,r*.13,0,0,6.283);ctx.fill();
+    ctx.fillStyle='#C25B4E';
+    ctx.beginPath();ctx.ellipse(p.x+lx*.6,p.y+r*.36+ly*.6,r*.06,r*.05,0,0,6.283);ctx.fill();
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  for(const s of stars){ctx.fillStyle=`rgba(238,245,241,${s.a})`;ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,6.283);ctx.fill();}
+  const now=performance.now();
+  // landed clumps: inner ones first so the outer ring's faces stay on top
+  const landed=parts.filter(p=>p.locked).sort((a,b)=>Math.hypot(a.x-cx,a.y-cy)-Math.hypot(b.x-cx,b.y-cy));
+  for(const p of landed){drawBody(p);drawFace(p);}
+  for(const p of parts){if(p.locked)continue;drawArms(p,now);drawBody(p);drawFace(p);}
+  // the X marking the center, drawn on top
+  const xs=Math.max(10,R*1.2);
+  ctx.strokeStyle='#E0B43C';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-xs,cy-xs);ctx.lineTo(cx+xs,cy+xs);ctx.moveTo(cx+xs,cy-xs);ctx.lineTo(cx-xs,cy+xs);ctx.stroke();
+  // arrow + label, upper right
+  const fs=Math.max(13,Math.min(22,W/38));
+  const tx=cx+W*.2,ty=cy-H*.32;
+  const ex=cx+xs*1.6,ey=cy-xs*1.6;
+  ctx.strokeStyle='#EEF5F1';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(tx-8,ty+fs*.6);ctx.lineTo(ex,ey);ctx.stroke();
+  const ang=Math.atan2(ey-(ty+fs*.6),ex-(tx-8)),h=12;
+  ctx.fillStyle='#EEF5F1';ctx.beginPath();ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-h*Math.cos(ang-.45),ey-h*Math.sin(ang-.45));ctx.lineTo(ex-h*Math.cos(ang+.45),ey-h*Math.sin(ang+.45));ctx.fill();
+  ctx.font=`400 14px Helvetica, Arial, sans-serif`;ctx.textBaseline='middle';
+  const label='CENTER OF THE UNIVERSE',tw=ctx.measureText(label).width;
+  const lx=Math.min(tx-8,W-tw-12);
+  ctx.fillStyle='#EEF5F1';ctx.fillText(label,lx,ty);
+}
+
+function loop(){step();draw();requestAnimationFrame(loop);}
+loop();
+</script>
+
+</html>

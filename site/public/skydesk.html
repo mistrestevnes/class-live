@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Lesson Laptop</title>
+<link rel="stylesheet" href="notebook.css">
+<style>
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;overflow:hidden;background:var(--paper);color:var(--ink);font:18px/1.4 var(--sans)}
+h2{font:600 22px var(--serif);margin:0}
+button.on,button.on:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+header{flex:none;display:flex;gap:12px;align-items:center;padding:10px 18px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+header select{width:auto;font:600 20px var(--serif);background:transparent}
+#pname{font:400 20px var(--serif);min-width:250px;text-align:center}
+#online{color:var(--soft)}
+.tabs{display:flex;gap:4px;margin-left:auto}
+main{flex:1;min-height:0;display:flex}
+.pane{min-height:0;overflow:auto}
+#left{flex:0 0 360px;padding:14px 18px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:12px}
+#right{flex:1;min-width:0;display:flex;flex-direction:column}
+.q{padding:10px 12px;border-radius:var(--r-ctl);border:1px solid var(--faint);display:grid;gap:6px;cursor:pointer;font:400 20px/1.3 var(--serif)}
+.q.sel{border:2px solid var(--accent);background:var(--tint)}
+.q .meta{color:var(--soft);font:18px var(--sans)}
+.q .btns{display:flex;gap:6px}
+#ctlpane{padding:12px 20px;border-bottom:1px solid var(--rule)}
+/* a live copy of the page students are on, scaled down */
+#pv{flex:none;padding:12px 20px 0;display:flex;gap:14px;align-items:flex-end}
+#pv .pvc{display:flex;flex-direction:column;gap:3px;min-width:0}
+#pv .pvc.side{flex:0 0 22%;opacity:.85}
+#pv .pvc.now{flex:0 1 50%}
+#pv .pvl{font:600 14px var(--sans);color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pv .pvc.now .pvl{color:var(--ink)}
+.pvbox{position:relative;width:100%;aspect-ratio:1366/768;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:#000}
+.pvbox.none{background:transparent;border-style:dashed}
+.pvbox iframe{position:absolute;left:0;top:0;width:1366px;height:768px;border:0;transform-origin:0 0;pointer-events:none}
+#status{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#clock{font:600 40px var(--serif);color:var(--accent);font-variant-numeric:tabular-nums}
+#clock.low{color:var(--bad);text-decoration:underline}
+#count{font-weight:600}
+#status .sp{flex:1}
+#fprompt{font:400 22px/1.3 var(--serif);margin:6px 0 0}
+#list{padding:0 20px 14px}
+.resp{display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--faint);padding:12px 0}
+.resp .who{flex:0 0 110px;font-weight:600}
+.resp .txt{flex:1;min-width:0;font:400 20px/1.35 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere}
+.resp button{flex:none;width:96px;padding:0;border-color:var(--accent);color:var(--accent);font-weight:600}
+.resp button.on{color:var(--on-accent)}
+.miss{color:var(--soft);margin-top:12px}
+#away{flex:none;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 20px 0}
+#away:empty{display:none}
+#away .lab{font-weight:600;margin-right:4px}
+#away .chip{border:1px solid var(--faint);border-radius:999px;padding:2px 10px;font-size:16px;background:var(--sheet)}
+#away .chip.now{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:600}
+#away button{font-size:15px;padding:2px 10px;min-height:0}
+#workbox{padding:8px 20px;border-bottom:1px solid var(--rule)}
+#workbox h2{font-size:19px;margin:4px 0 6px}
+.wrow{display:grid;grid-template-columns:110px 1fr minmax(160px,34%);gap:12px;padding:6px 0;border-bottom:1px solid var(--faint);font-size:16px}
+.wrow .who{font-weight:600}
+.wrow .wflag{color:var(--soft)}
+.wrow.flag .wflag{color:var(--accent);font-style:italic}
+.bar{display:grid;grid-template-columns:36px 1fr 96px;gap:12px;align-items:center;margin:12px 0}
+.bar b{width:36px;height:36px;border-radius:50%;background:var(--tint);display:grid;place-items:center}
+.track{background:var(--tint);height:20px;border-radius:6px;overflow:hidden;margin-top:3px}
+.fill{height:100%;background:var(--accent)}
+.names{color:var(--soft)}
+form.edit{display:grid;gap:8px}
+form.edit label{display:grid;gap:3px;font-weight:600}
+.err{color:var(--bad);font-weight:600}
+.full{flex:1;min-width:0;padding:14px 20px}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--faint);padding:8px 10px;text-align:left;vertical-align:top;white-space:pre-wrap;min-width:170px}
+th{font:600 18px var(--serif)}
+td{font:400 18px var(--serif)}
+th:first-child,td:first-child{min-width:120px;position:sticky;left:0;background:var(--paper);font:600 18px var(--sans)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.pcard{background:var(--sheet);border:1px solid var(--faint);border-radius:var(--r-box);padding:12px;display:grid;gap:8px}
+#login{margin:10vh auto;width:360px;display:grid;gap:10px;background:var(--sheet);border:1px solid var(--faint);border-radius:var(--r-box);padding:20px 24px}
+#login strong{font:600 26px var(--serif)}
+#pins{display:none}
+@media print{
+  body{overflow:visible;display:block;background:#fff}
+  header,main{display:none!important}
+  #pins{display:block;color:#000;font-size:18px}
+  #pins section{break-after:page}
+  #pins table{width:60%}
+}
+
+/* ---- compact laptop layout: smaller everything; student responses in their own column on the right ---- */
+body{font-size:15px}
+button{min-height:32px;padding:0 10px;font-size:15px}
+input,select,textarea{font-size:15px;padding:5px 8px}
+h2{font-size:17px}
+header{padding:6px 14px;gap:8px}
+header select{font-size:16px}
+#pname{font-size:16px;min-width:190px}
+#left{flex:0 0 250px;padding:10px 12px;gap:8px}
+.q{padding:7px 9px;gap:4px;font-size:15px}
+.q .meta{font-size:13px}
+#right{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);grid-template-rows:auto auto auto minmax(0,1fr);min-height:0}
+#right>#away,#right>#pv,#right>#ctlpane,#right>#workbox{grid-column:1}
+#right>#workbox{grid-row:4;overflow:auto;max-height:none!important}
+#right>#list{grid-column:2;grid-row:1/-1;border-left:1px solid var(--rule);overflow:auto;padding:8px 14px}
+#pv{padding:8px 14px 0;gap:8px}
+#pv .pvl{font-size:12px}
+#ctlpane{padding:8px 14px}
+#clock{font-size:28px}
+#fprompt{font-size:16px;margin-top:4px}
+#away{padding:6px 14px 0}
+#away .chip{font-size:13px}
+#workbox{padding:6px 14px}
+#workbox h2{font-size:15px}
+.wrow{grid-template-columns:80px 1fr;font-size:13px;gap:2px 8px;padding:4px 0}
+.wrow .wflag{grid-column:2}
+.resp{gap:8px;padding:6px 0}
+.resp .who{flex:0 0 72px;font-size:13px}
+.resp .txt{font-size:15px;line-height:1.3}
+.resp button{width:70px;min-height:28px;font-size:13px}
+.miss{font-size:13px;margin-top:8px}
+.bar{grid-template-columns:28px 1fr 80px;gap:8px;margin:6px 0}
+.bar b{width:28px;height:28px}
+.track{height:14px}
+th,td{font-size:15px;padding:5px 7px;min-width:140px}
+th:first-child,td:first-child{font-size:15px;min-width:90px}
+</style>
+</head>
+<body>
+<form id="login" hidden>
+  <strong>Teacher sign in</strong>
+  <input id="user" placeholder="Username" autocomplete="username" autocapitalize="off">
+  <input id="pass" type="password" placeholder="Passcode" autocomplete="current-password">
+  <button class="pri">Sign in</button>
+  <div id="err" class="err"></div>
+</form>
+<header id="head" hidden>
+  <select id="period" aria-label="Class period"></select>
+  <button id="bk">Back</button><span id="pname"></span><button id="fw" class="pri">Forward</button>
+  <span id="online"></span>
+  <button id="zOn">Show the zodiac</button>
+  <button id="pNext">Next point</button>
+  <button id="zFree">Students can switch it: off</button>
+  <div class="tabs">
+    <button data-tab="class" class="pri">Class</button>
+    <button data-tab="results">Results</button>
+    <button data-tab="roster">Roster</button>
+  </div>
+</header>
+<main id="vclass" hidden>
+  <div id="left" class="pane"></div>
+  <div id="right">
+    <div id="away"></div>
+    <div id="pv">
+      <div class="pvc side"><div class="pvl" id="pvlP"></div><div class="pvbox" id="pvbP"><iframe id="pvP" title="Previous page" tabindex="-1"></iframe></div></div>
+      <div class="pvc now"><div class="pvl" id="pvlN"></div><div class="pvbox" id="pvbox"><iframe id="pvf" title="The page students are on" tabindex="-1"></iframe></div></div>
+      <div class="pvc side"><div class="pvl" id="pvlX"></div><div class="pvbox" id="pvbX"><iframe id="pvX" title="Next page" tabindex="-1"></iframe></div></div>
+    </div>
+    <div class="pane" style="flex:none" id="ctlpane">
+      <div id="status"></div>
+      <p id="fprompt"></p>
+    </div>
+    <div class="pane" style="flex:none;max-height:45%" id="workbox"></div>
+    <div class="pane" style="flex:1" id="list"></div>
+  </div>
+</main>
+<main id="vresults" hidden><div class="pane full" id="resbox"></div></main>
+<main id="vroster" hidden><div class="pane full" id="rosbox"></div></main>
+<div id="pins"></div>
+<script src="common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+// ---------- names: kept only in this browser on this computer, never sent to the server
+const CODE_RE = /^\d{3}[a-z]{4,5}$/;
+let names = {};
+try { names = JSON.parse(localStorage.getItem("cl_names") || "{}") || {}; } catch { names = {}; }
+const nm = (code) => names[code] || code;
+function readNameFile(text) {
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const cells = line.split(",").map((c) => c.replace(/^\s*"|"\s*$/g, "").trim());
+    const i = cells.findIndex((c) => CODE_RE.test(c.toLowerCase()));
+    if (i < 0) continue;
+    const who = cells.slice(i + 1).filter(Boolean).join(" ");
+    if (who) out[cells[i].toLowerCase()] = who;
+  }
+  return out;
+}
+function openNameFile() {
+  const inp = el("input", { type: "file", accept: ".csv,text/csv" });
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    const got = readNameFile(await f.text());
+    const n = Object.keys(got).length;
+    if (!n) return drawRoster("No codes with names were found in that file. It should have the code, then the first name, then the last name.");
+    names = got;
+    try { localStorage.setItem("cl_names", JSON.stringify(names)); } catch {}
+    drawRoster(n + " names loaded on this computer.");
+    if (sky) render(sky);
+  };
+  inp.click();
+}
+function forgetNames() {
+  names = {}; try { localStorage.removeItem("cl_names"); } catch {}
+  drawRoster("Names removed from this computer."); if (sky) render(sky);
+}
+const PAGES = ["", "Turning Sky", "Constellations", "Zodiac", "Mars by Night", "Planets", "Circles", "Mars Path", "Retrograde", "Epicycles", "Epicycles and Sky", "Better Epicycles", "Two Realms", "Four Elements", "Aristotle", "Friction", "Slope", "Galileo's Ship", "Below Decks"];
+let token = store("cl_token"), sky = null, link = null, tab = "class", edit = null, endAt = null, confirmClear = false, leftKey = "", rosterDraft = null;
+const hdr = () => ({ "x-token": token || "", "content-type": "application/json" });
+const post = (u, b) => api(u, { method: "POST", headers: hdr(), body: JSON.stringify(b) });
+const fmt = (ms) => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const secText = (s) => (s ? (s >= 60 ? Math.floor(s / 60) + " min" + (s % 60 ? " " + (s % 60) + " s" : "") : s + " s") : "No limit");
+function needLogin() { token = null; store("cl_token", null); $("head").hidden = true; ["vclass", "vresults", "vroster"].forEach((v) => ($(v).hidden = true)); $("login").hidden = false; }
+function report(e) { if (e.status === 401) needLogin(); else alertBox(e.message); }
+function alertBox(msg) { const b = $("status"); b.replaceChildren(el("span", { class: "err", text: msg })); setTimeout(() => sky && render(sky, true), 3500); }
+async function ctl(body) { try { const s = await post("/api/skyctl", body); render(s.sky, true); } catch (e) { report(e); } }
+async function saveQs(qs) { await api("/api/skyq", { method: "PUT", headers: hdr(), body: JSON.stringify({ qs }) }); }
+
+// ---------- class view
+function renderLeft() {
+  const key = edit ? "edit" : JSON.stringify([sky.n, sky.qs[sky.n] || [], sky.focus && sky.focus.id, sky.run && !sky.run.closed]);
+  if (key === leftKey && !edit) return;
+  if (edit) return; // never redraw over a form being typed in
+  leftKey = key;
+  const list = sky.qs[sky.n] || [];
+  const running = sky.run && !sky.run.closed;
+  const box = $("left");
+  box.replaceChildren(
+    el("h2", { style: "margin:0", text: "Questions on this page" }),
+    ...list.map((q) => el("div", { class: "q" + (sky.focus && sky.focus.id === q.id ? " sel" : ""), onclick: () => ctl({ t: "focus", qid: q.id }) },
+      el("div", {}, inline(q.prompt)),
+      el("div", { class: "meta", text: (q.type === "mc" ? "Multiple choice" : q.type === "rank" ? "Ranking" : "Written") + ", " + secText(q.seconds) }),
+      el("div", { class: "btns" },
+        el("button", { class: "pri", disabled: running, text: "Start", onclick: (e) => { e.stopPropagation(); ctl({ t: "start", qid: q.id }); } }),
+        el("button", { text: "Edit", disabled: running, onclick: (e) => { e.stopPropagation(); editForm(q); } })))),
+    el("button", { text: "Add a question", onclick: () => editForm(null) }));
+}
+function editForm(q) {
+  edit = q || { type: "written", prompt: "", options: [], seconds: 120 };
+  const f = el("form", { class: "edit" });
+  const type = el("select", {}, el("option", { value: "written", text: "Written" }), el("option", { value: "mc", text: "Multiple choice" }), el("option", { value: "rank", text: "Rank by dragging" }));
+  type.value = edit.type;
+  const prompt = el("textarea", { rows: 4, value: edit.prompt });
+  const opts = el("textarea", { rows: 4, value: (edit.options || []).join("\n") });
+  const optl = el("label", {}, "Choices or items, one per line", opts);
+  const mins = el("input", { type: "number", min: 0, max: 60, value: Math.floor(edit.seconds / 60) });
+  const secs = el("input", { type: "number", min: 0, max: 59, value: edit.seconds % 60 });
+  const msg = el("div", { class: "err" });
+  const syncT = () => (optl.hidden = type.value === "written");
+  type.onchange = syncT; syncT();
+  const close = () => { edit = null; leftKey = ""; renderLeft(); };
+  const commit = async (list) => {
+    const qs = { ...sky.qs, [sky.n]: list };
+    try { await saveQs(qs); sky.qs = qs; close(); } catch (e) { msg.textContent = e.message; }
+  };
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const nq = { id: q ? q.id : randomId(8), type: type.value, prompt: prompt.value, options: opts.value.split("\n"), seconds: (Number(mins.value) || 0) * 60 + (Number(secs.value) || 0) };
+    const list = [...(sky.qs[sky.n] || [])];
+    if (q) list[list.findIndex((x) => x.id === q.id)] = nq; else list.push(nq);
+    commit(list);
+  };
+  f.append(el("label", {}, "Type", type), el("label", {}, "Prompt", prompt), optl,
+    el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:8px" }, el("label", {}, "Minutes", mins), el("label", {}, "Seconds", secs)),
+    el("div", { class: "meta", text: "Set both to 0 for no time limit." }),
+    msg,
+    el("div", { class: "btns", style: "display:flex;gap:6px" },
+      el("button", { class: "pri", text: "Save" }),
+      el("button", { type: "button", text: "Cancel", onclick: close }),
+      q ? el("button", { type: "button", text: "Delete", onclick: () => commit((sky.qs[sky.n] || []).filter((x) => x.id !== q.id)) }) : null));
+  $("left").replaceChildren(el("h2", { style: "margin:0", text: q ? "Edit question" : "New question" }), f);
+  prompt.focus();
+}
+function renderStatus() {
+  const s = sky, b = $("status"), q = s.focus;
+  const kids = [];
+  const running = s.run && !s.run.closed;
+  const mine = s.run && q && s.run.qid === q.id;
+  kids.push(el("span", { id: "clock" }));
+  kids.push(el("span", { id: "count", text: q ? s.answered + " of " + s.total + " answered" : "" }));
+  kids.push(el("span", { class: "sp" }));
+  if (mine && running) {
+    if (s.run.remainingMs !== null) kids.push(el("button", { text: "Add 30 s", onclick: () => ctl({ t: "extend", s: 30 }) }));
+    kids.push(el("button", { class: "pri", text: "End now", onclick: () => ctl({ t: "end" }) }));
+  } else if (s.run) {
+    if (s.run.remainingMs !== null) kids.push(el("button", { text: "Add 30 s", onclick: () => ctl({ t: "extend", s: 30 }) }));
+    kids.push(el("button", { text: "Close question", onclick: () => ctl({ t: "dismiss" }) }));
+  }
+  if (q && q.type === "mc") kids.push(el("button", { class: s.chart ? "on" : "", text: s.chart ? "Results on iPad" : "Show results on iPad", onclick: () => ctl({ t: "chart", on: !s.chart }) }));
+  if (s.present.items.length) kids.push(el("button", { text: "Clear iPad", onclick: () => ctl({ t: "clearShown" }) }));
+  if (q && s.answered && !running) kids.push(el("button", { text: confirmClear ? "Yes, erase them" : "Erase responses", onclick: () => {
+    if (!confirmClear) { confirmClear = true; renderStatus(); setTimeout(() => { confirmClear = false; if (sky) renderStatus(); }, 4000); }
+    else { confirmClear = false; ctl({ t: "clearResponses", qid: q.id }); }
+  } }));
+  b.replaceChildren(...kids);
+  $("fprompt").replaceChildren(q ? inline(q.prompt) : "Add a question on the left, or move to a page that has one.");
+  tick();
+}
+function renderList() {
+  const s = sky, box = $("list"), q = s.focus;
+  if (!q) return box.replaceChildren();
+  const miss = s.missing.length ? el("div", { class: "miss", text: "No response yet: " + s.missing.map(nm).join(", ") }) : null;
+  if (q.type === "rank") {
+    box.replaceChildren(
+      el("h2", { style: "margin:12px 0 4px", text: "Class average, top rank first" }),
+      ...s.rankAvg.map((r, i) => el("div", { class: "resp" }, el("div", { class: "who", text: String(i + 1) + ". " + r.name }), el("div", { class: "txt", text: s.answered ? "average rank " + r.avg.toFixed(1) : "" }))),
+      el("h2", { style: "margin:14px 0 4px", text: "Each student" }),
+      ...s.responses.map((r) => el("div", { class: "resp" }, el("div", { class: "who", text: nm(r.name) }), el("div", { class: "txt", text: r.order.map((o) => q.options[o]).join(", ") }))), miss || "");
+    return;
+  }
+  if (q.type === "mc") {
+    box.replaceChildren(...q.options.map((o, i) => {
+      const k = (s.counts && s.counts[i]) || 0, pct = s.answered ? Math.round(100 * k / s.answered) : 0;
+      return el("div", { class: "bar" }, el("b", { text: LETTERS[i] }),
+        el("div", {}, el("div", {}, inline(o)), el("div", { class: "track" }, el("div", { class: "fill", style: "width:" + pct + "%" })),
+          el("div", { class: "names", text: s.responses.filter((r) => r.choice === i).map((r) => nm(r.name)).join(", ") })),
+        el("div", { class: "num", text: k + ", " + pct + "%" }));
+    }), miss || "");
+    return;
+  }
+  const top = box.scrollTop;
+  box.replaceChildren(...s.responses.map((r) => el("div", { class: "resp" },
+    el("div", { class: "who", text: nm(r.name) }),
+    el("div", { class: "txt", text: r.text }),
+    el("button", { class: r.shown ? "on" : "", text: r.shown ? "On iPad" : "Show", onclick: () => ctl({ t: "show", studentId: r.studentId, on: !r.shown }) }))), miss || "");
+  box.scrollTop = top;
+}
+function tick() {
+  const c = $("clock");
+  if (!c || !sky || !sky.run) { if (c) c.textContent = ""; return; }
+  if (endAt === null) { c.textContent = sky.run.closed ? "" : "No limit"; return; }
+  const left = sky.run.closed ? 0 : Math.max(0, endAt - performance.now());
+  c.textContent = fmt(left);
+  c.classList.toggle("low", left <= 10000);
+}
+setInterval(tick, 200);
+
+function render(s, fresh) {
+  sky = s;
+  endAt = s.run && s.run.remainingMs !== null ? performance.now() + s.run.remainingMs : null;
+  const pk = $("period");
+  if (pk.dataset.key !== JSON.stringify(s.periods)) {
+    pk.dataset.key = JSON.stringify(s.periods);
+    pk.replaceChildren(...(s.periods.length ? s.periods.map((p) => el("option", { value: p.id, text: p.name })) : [el("option", { value: "", text: "No roster yet" })]));
+  }
+  pk.value = s.periodId || "";
+  pk.disabled = !!(s.run && !s.run.closed);
+  $("pname").textContent = s.n + " of 18: " + PAGES[s.n];
+  $("bk").disabled = s.n <= 1; $("fw").disabled = s.n >= 18;
+  $("zOn").hidden = $("zFree").hidden = s.n !== 1;
+  $("pNext").hidden = s.n !== 12; $("pNext").disabled = (s.zodiac.points || 0) >= 3;
+  $("zOn").textContent = s.zodiac.on ? "Back to the horizon" : "Show the zodiac";
+  $("zOn").className = s.zodiac.on ? "on" : "pri";
+  $("zFree").textContent = "Students can switch it: " + (s.zodiac.free ? "on" : "off");
+  $("online").textContent = s.signedIn + " of " + s.total + " signed in";
+  const setPv = (fr, box, lab, k, label) => {
+    const ok = k >= 1 && k <= 18, want = ok ? "sky" + k + ".html" : "about:blank";
+    if ($(fr).dataset.src !== want) { $(fr).dataset.src = want; $(fr).src = want; }
+    $(box).classList.toggle("none", !ok); $(fr).hidden = !ok;
+    $(lab).textContent = ok ? label + k + ": " + PAGES[k] : label.replace(/ $/, "") + ": none";
+  };
+  setPv("pvP", "pvbP", "pvlP", s.n - 1, "Previous, ");
+  setPv("pvf", "pvbox", "pvlN", s.n, "Now, ");
+  setPv("pvX", "pvbX", "pvlX", s.n + 1, "Next, ");
+  fitPreview();
+  renderLeft(); renderStatus(); renderList(); renderWork(); renderAway();
+}
+// students who left full screen, switched tabs or clicked into another window
+function renderAway() {
+  const a = sky.away || [], box = $("away");
+  if (!a.length) return box.replaceChildren();
+  const mins = (ms) => { const s = Math.round(ms / 1000); return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s"; };
+  box.replaceChildren(el("span", { class: "lab", text: "Left the lesson:" }),
+    ...a.map((r) => el("span", { class: "chip" + (r.away ? " now" : ""), title: r.count + " times, " + mins(r.ms) + " total",
+      text: nm(r.name) + (r.away ? " — away now (" + r.why + ")" : "") + " ×" + r.count + ", " + mins(r.ms) })),
+    el("button", { text: "Clear", onclick: () => ctl({ t: "clearAway" }) }));
+}
+// what each student has chosen on this page (sentence, axes) and the questions the page asked them
+function renderWork() {
+  const w = sky.work || [], box = $("workbox");
+  if (!w.length) return box.replaceChildren();
+  const nice = (v) => v || "—";
+  box.replaceChildren(el("h2", { text: "Student work on this page" }), ...w.map((r) => {
+    const d = r.data || {}, sn = d.sentence || [], ax = d.axes || [];
+    const fl = (d.flags || []).filter(Boolean);
+    return el("div", { class: "wrow" + (fl.length ? " flag" : "") },
+      el("span", { class: "who", text: nm(r.name) }),
+      el("span", { class: "wtxt", text: (sn[0] || sn[1] ? "how " + nice(sn[0]) + " changes as a function of " + nice(sn[1]) : "sentence not done yet") + (ax[0] || ax[1] ? "   ·   x: " + nice(ax[0]) + ", y: " + nice(ax[1]) : "") }),
+      el("span", { class: "wflag", text: fl.length ? fl.join(" · ") : "on track" }));
+  }));
+}
+function fitPreview() { [["pvbox", "pvf"], ["pvbP", "pvP"], ["pvbX", "pvX"]].forEach(([b, f]) => { const w = $(b).offsetWidth; if (w) $(f).style.transform = "scale(" + (w / 1366) + ")"; }); }
+addEventListener("resize", fitPreview);
+async function go(d) {
+  const to = Math.max(1, Math.min(18, sky.n + d));
+  try { await post("/api/sky", { n: to }); edit = null; leftKey = ""; const st = await api("/api/t", { headers: hdr() }); render(st.sky); } catch (e) { report(e); }
+}
+$("bk").onclick = () => go(-1);
+$("fw").onclick = () => go(1);
+$("pNext").onclick = () => ctl({ t: "zodiac", points: (sky.zodiac.points || 0) + 1 });
+$("zOn").onclick = () => ctl({ t: "zodiac", on: !sky.zodiac.on });
+$("zFree").onclick = () => ctl({ t: "zodiac", free: !sky.zodiac.free });
+$("period").onchange = (e) => ctl({ t: "period", id: e.target.value });
+
+// ---------- tabs
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("pri", b.dataset.tab === t));
+  $("vclass").hidden = t !== "class"; $("vresults").hidden = t !== "results"; $("vroster").hidden = t !== "roster";
+  if (t === "results") loadResults();
+  if (t === "roster") loadRoster();
+}
+document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
+
+// ---------- results
+let lastResults = null;
+const cellText = (q, r) => (!r ? "" : q.type === "rank" ? r.order.map((o) => q.options[o]).join(", ") : q.type === "mc" ? LETTERS[r.choice] + ". " + q.options[r.choice] : r.text);
+async function loadResults() {
+  const box = $("resbox");
+  if (!sky.periodId) return box.replaceChildren(el("p", { text: "Add a class period on the Roster tab first." }));
+  try { lastResults = await api("/api/skyresults?period=" + encodeURIComponent(sky.periodId), { headers: hdr() }); } catch (e) { return report(e); }
+  const r = lastResults, name = (sky.periods.find((p) => p.id === sky.periodId) || {}).name;
+  box.replaceChildren(
+    el("div", { style: "display:flex;gap:10px;align-items:center;margin-bottom:10px" },
+      el("h2", { style: "margin:0;flex:1", text: "Results: " + name }),
+      el("button", { text: "Refresh", onclick: loadResults }),
+      el("button", { class: "pri", text: "Download spreadsheet", onclick: downloadCsv })),
+    r.questions.length ? el("table", {},
+      el("thead", {}, el("tr", {}, el("th", { text: "Student" }), ...r.questions.map((q) => el("th", { text: "Page " + q.page + ": " + q.prompt })))),
+      el("tbody", {}, ...r.students.map((st) => el("tr", {}, el("td", { text: nm(st.name) }),
+        ...r.questions.map((q) => el("td", { text: cellText(q, r.answers[q.id][st.id]) })))))) : el("p", { text: "No questions yet." }));
+}
+function downloadCsv() {
+  const r = lastResults, esc = (t) => '"' + String(t).replace(/"/g, '""') + '"';
+  const rows = [["Student", ...r.questions.map((q) => "Page " + q.page + ": " + q.prompt)],
+    ...r.students.map((st) => [nm(st.name), ...r.questions.map((q) => cellText(q, r.answers[q.id][st.id]))])];
+  const a = el("a", { href: URL.createObjectURL(new Blob([rows.map((x) => x.map(esc).join(",")).join("\r\n")], { type: "text/csv" })), download: "sky-lesson-results.csv" });
+  a.click();
+}
+
+// ---------- roster
+async function loadRoster() {
+  try { const r = await api("/api/roster", { headers: hdr() }); rosterDraft = r.periods.map((p) => ({ id: p.id, name: p.name, text: p.students.map((s) => s.code || "").filter(Boolean).join("\n"), students: p.students })); drawRoster(); } catch (e) { report(e); }
+}
+function drawRoster(msg) {
+  const box = $("rosbox");
+  box.replaceChildren(
+    el("div", { style: "display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap" },
+      el("h2", { style: "margin:0;flex:1", text: "Class rosters" }),
+      el("button", { text: "Add a class", onclick: () => { rosterDraft.push({ name: "", text: "", students: [] }); drawRoster(); } }),
+      el("button", { text: "Open name file", onclick: openNameFile }),
+      el("button", { text: "Print codes", onclick: printPins }),
+      el("button", { text: "Sign out all students", onclick: async () => { await ctl({ t: "signOutAll" }); drawRoster("All students are signed out."); } }),
+      el("button", { class: "pri", text: "Save", onclick: saveRoster })),
+    msg ? el("p", { class: "err", text: msg }) : "",
+    el("p", { text: "One login code per line, like 504cloud. Only codes go here: the server never sees names." }),
+    el("p", { text: Object.keys(names).length
+      ? Object.keys(names).length + " names are loaded on this computer only. They show in place of codes on this page and in downloaded results."
+      : "No names on this computer. Open your name file (a CSV with code, first name, last name) to see names instead of codes." },
+      Object.keys(names).length ? el("button", { text: "Remove names from this computer", onclick: forgetNames, style: "margin-left:10px" }) : ""),
+    el("div", { class: "pgrid" }, ...rosterDraft.map((p, i) => el("div", { class: "pcard" },
+      el("input", { placeholder: "Class name, like 3rd Period", value: p.name, oninput: (e) => (p.name = e.target.value) }),
+      el("textarea", { rows: 12, value: p.text, placeholder: "Login codes, one per line", oninput: (e) => (p.text = e.target.value) }),
+      el("div", { text: p.students.length + (p.students.length === 1 ? " student saved" : " students saved") }),
+      el("button", { text: "Remove this class", onclick: () => { rosterDraft.splice(i, 1); drawRoster(); } })))));
+}
+async function saveRoster() {
+  try {
+    await post("/api/roster", { periods: rosterDraft.map((p) => ({ id: p.id, name: p.name, codes: p.text.split("\n") })) });
+    await loadRoster();
+    drawRoster("Saved.");
+    render((await api("/api/t", { headers: hdr() })).sky);
+  } catch (e) { if (e.status === 401) needLogin(); else drawRoster(e.message); }
+}
+function printPins() {
+  $("pins").replaceChildren(...rosterDraft.map((p) => el("section", {}, el("h2", { text: p.name + " login codes" }),
+    el("table", {}, el("tbody", {}, ...p.students.map((s) => el("tr", {}, el("td", { text: nm(s.code) }), el("td", { text: s.code }))))))));
+  print();
+}
+
+// ---------- start
+function begin() {
+  $("login").hidden = true; $("head").hidden = false; setTab("class");
+  if (link) return;
+  link = new Link({
+    wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=teacher&token=" + encodeURIComponent(token),
+    poll: async () => { try { return await api("/api/t", { headers: hdr() }); } catch (e) { if (e.status === 401) needLogin(); throw e; } },
+    post: () => {},
+    pollMs: 2000,
+    onMessage: (m) => { if (m.t === "tstate") render(m.state.sky); else if (m.sky) render(m.sky); },
+  });
+  link.start();
+}
+$("login").onsubmit = async (e) => {
+  e.preventDefault(); $("err").textContent = "";
+  try {
+    const r = await api("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: $("user").value, passcode: $("pass").value }) });
+    token = r.token; store("cl_token", token); begin();
+  } catch (x) { $("err").textContent = x.message; }
+};
+token ? begin() : needLogin();
+</script>
+</body>
+</html>
