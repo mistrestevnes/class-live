@@ -777,7 +777,7 @@ function printLogins(p) {
   const codes = p.text.split("\n").map((c) => c.toLowerCase().replace(/\s+/g, "")).filter(Boolean);
   if (!codes.length) return stMsg("This class has no codes to print.");
   $("printArea").replaceChildren(...codes.map((c) => el("section", { class: "slip" },
-    el("div", { class: "lab", text: (shortName(names[c]) ? shortName(names[c]) + ", your" : "Your") + " login code is" }),
+    el("div", { class: "lab", text: (shortName(names[c]) ? shortName(names[c]) + ", your" : "Your") + " login code is:" }),
     el("div", { class: "code", text: c }),
     el("div", { class: "how", text: "Go to " + location.host + " and type your code." }),
     el("div", { class: "cls", text: p.name }))));
