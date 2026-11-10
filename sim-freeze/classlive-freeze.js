@@ -1,4 +1,4 @@
-// Class Live freeze — paste this at the very top of a sim's <head>, inside <script> ... </script>,
+// Class Live freeze — paste this at the very top of a sim's head section, inside a script tag,
 // before any of the sim's own code. When the teacher pauses Class Live or pushes a question,
 // the sim stops exactly where it is; when they resume, it carries on as if no time passed.
 // Works for sims that animate with requestAnimationFrame and measure time with performance.now() or Date.now().
