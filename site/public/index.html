@@ -35,6 +35,7 @@
   <footer class="cl-bottom aero-bar" id="nav" hidden>
     <button id="back">◀ Back</button>
     <span id="navNote" class="aero-muted"></span>
+    <button id="fs" hidden>⛶ Fullscreen</button>
     <button id="next" class="aero-btn-primary">Next ▶</button>
   </footer>
 
@@ -130,7 +131,6 @@ function render() {
   const closed = !!state.closed[pg.id];
   const mine = state.myVotes[pg.id];
   const opts = {
-    fullscreen: true,
     myChoice: mine,
     closed,
     onVote: (choice) => {
@@ -148,6 +148,12 @@ function render() {
   box.style.padding = onlySim ? "10px" : "";
   // pages with a sim use the full screen width
   box.parentElement.style.maxWidth = (pg.blocks || []).some((b) => b.type === "sim") ? "none" : "";
+
+  // fullscreen: the page's sim, or else its first image
+  const fsTarget = box.querySelector(".cl-sim") || box.querySelector(".cl-figure");
+  const fsGo = fsTarget && (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen);
+  $("fs").hidden = !fsGo;
+  $("fs").onclick = () => { try { fsGo.call(fsTarget); } catch {} };
 
   $("pageNum").textContent = "Page " + (page + 1);
   $("back").disabled = page === 0;
