@@ -62,7 +62,12 @@ const link = new Link({
   onMode: showMode,
 });
 
+// Tell the server when this tab is hidden (another tab or app) and when it comes back.
+function reportAway() { if (stoken) link.send({ t: "away", away: document.hidden }); }
+document.addEventListener("visibilitychange", reportAway);
+
 function showMode(mode) {
+  if (mode === "live" || mode === "polling") setTimeout(reportAway, 0); // catch up after reconnecting
   const s = $("status");
   s.className = "aero-chip cl-status " + mode + (mode === "offline" || mode === "connecting" ? " aero-chip-warn" : "");
   s.textContent = { live: "Connected", polling: "Connected", connecting: "Connecting…", offline: "Reconnecting…" }[mode];
@@ -125,6 +130,7 @@ function render() {
   const closed = !!state.closed[pg.id];
   const mine = state.myVotes[pg.id];
   const opts = {
+    fullscreen: true,
     myChoice: mine,
     closed,
     onVote: (choice) => {

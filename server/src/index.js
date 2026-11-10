@@ -73,6 +73,7 @@ export class Classroom extends DurableObject {
     ctx.blockConcurrencyWhile(async () => {
       this.live = (await ctx.storage.get("live")) || null;
       this.votes = this.live ? (await ctx.storage.get("votes:" + this.live.sessionId)) || {} : {};
+      this.watch = this.live ? (await ctx.storage.get("watch:" + this.live.sessionId)) || {} : {};
       this.liveLesson = this.live ? (await ctx.storage.get("lesson:" + this.live.lessonId)) || null : null;
       this.tokens = (await ctx.storage.get("tokens")) || [];
       this.sky = (await ctx.storage.get("sky")) || 1;
@@ -343,7 +344,8 @@ export class Classroom extends DurableObject {
       case "start": {
         const lesson = await this.ctx.storage.get("lesson:" + msg.lessonId);
         if (!lesson) return;
-        if (this.live) await this.ctx.storage.delete("votes:" + this.live.sessionId);
+        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
+        this.watch = {};
         this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now() };
         this.liveLesson = lesson;
         this.votes = {};
@@ -351,7 +353,8 @@ export class Classroom extends DurableObject {
         break;
       }
       case "end": {
-        if (this.live) await this.ctx.storage.delete("votes:" + this.live.sessionId);
+        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
+        this.watch = {};
         this.live = null;
         this.liveLesson = null;
         this.votes = {};
@@ -398,6 +401,14 @@ export class Classroom extends DurableObject {
       if (goingAway && !a.away) { a.count++; a.since = now; }
       if (!goingAway && a.away) a.ms += now - a.since;
       a.away = goingAway; a.why = goingAway ? String(msg.why || "").slice(0, 40) : a.why;
+      if (this.live) {
+        // live lesson: time each student spends with the Class Live tab hidden (students are not told)
+        const w = (this.watch[stu.name] ||= { away: false, since: 0, count: 0, ms: 0 });
+        if (goingAway && !w.away) { w.count++; w.since = now; }
+        if (!goingAway && w.away) w.ms += now - w.since;
+        w.away = goingAway;
+        await this.ctx.storage.put("watch:" + this.live.sessionId, this.watch);
+      }
       this.broadcast({ teachersOnly: true });
       return;
     }
@@ -855,6 +866,29 @@ export class Classroom extends DurableObject {
     return { count: seen.size, live, polling: seen.size - live, onPage };
   }
 
+  // Signed-in students for the live list: code, page, connected or not, and time away this class.
+  // Codes only; the teacher's computer swaps in names from its own file.
+  studentList() {
+    if (!this.live) return [];
+    const now = Date.now();
+    const on = new Map(); // code -> page
+    for (const ws of this.ctx.getWebSockets("student")) {
+      if (ws.readyState !== 1) continue;
+      const a = ws.deserializeAttachment() || {};
+      const stu = this.studentFrom(a.stoken);
+      if (stu) on.set(stu.name, a.page || 0);
+    }
+    for (const info of this.pollers.values()) {
+      if (info.code && now - info.t <= POLL_PRESENT_MS && !on.has(info.code)) on.set(info.code, info.page || 0);
+    }
+    const codes = new Set([...on.keys(), ...Object.keys(this.watch)]);
+    return [...codes].map((code) => {
+      const w = this.watch[code] || { away: false, count: 0, ms: 0, since: 0 };
+      return { code, connected: on.has(code), page: on.has(code) ? on.get(code) : null,
+        away: w.away, count: w.count, ms: w.ms + (w.away ? now - w.since : 0), awaySince: w.away ? w.since : 0 };
+    });
+  }
+
   async teacherState() {
     const tallies = {};
     if (this.live) {
@@ -872,6 +906,7 @@ export class Classroom extends DurableObject {
       lesson: this.liveLesson,
       tallies,
       presence: this.presence(),
+      students: this.studentList(),
       sky: await this.skyTeacherState(),
     };
   }
@@ -879,7 +914,7 @@ export class Classroom extends DurableObject {
   notePoller(sid, page, stu) {
     const prev = this.pollers.get(sid);
     const pg = Number(page) || 0;
-    this.pollers.set(sid, { page: pg, t: Date.now(), stuId: stu ? stu.id : null });
+    this.pollers.set(sid, { page: pg, t: Date.now(), stuId: stu ? stu.id : null, code: stu ? stu.name : null });
     if (!prev || prev.page !== pg) this.broadcast({ teachersOnly: true });
   }
 

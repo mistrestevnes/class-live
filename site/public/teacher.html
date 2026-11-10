@@ -37,6 +37,14 @@
   .t-home { max-width: 1000px; margin: 0 auto; width: 100%; padding: 0 12px; overflow: auto; }
   .t-home > * + * { margin-top: 12px; }
   .t-title-input { flex: 1; min-width: 200px; font-size: 1.2rem !important; }
+  #liveView .t-cols.with-who { grid-template-columns: 280px 1fr 300px; }
+  .t-who { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+  .t-who li { padding: 8px 10px; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); background: #FFFFFF; color: var(--aero-forest); }
+  .t-who li.away { background: #F8EDCB; border-color: var(--aero-gold); }
+  .t-who li.gone { color: var(--aero-muted); }
+  .t-who .t-who-name { font-weight: 700; font-size: 18px; }
+  .t-who .t-who-now { font-size: 18px; }
+  .t-who .t-who-sum { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-muted); }
   .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
   .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .t-login { max-width: 520px; margin: 10vh auto 0; }
@@ -193,6 +201,11 @@
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
     </div>
+    <aside class="aero-panel t-side" id="lvWho" hidden>
+      <h3>Students</h3>
+      <p class="t-hint" id="lvWhoNote"></p>
+      <ul class="t-who" id="lvWhoList"></ul>
+    </aside>
   </div>
   <footer class="cl-bottom aero-bar">
     <button id="lvRelock" class="t-small">Re-lock last page</button>
@@ -207,6 +220,7 @@ const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
 let link = null;
 let tstate = null;          // latest teacher state from the server
+let tstateAt = 0;           // when it arrived (for ticking away timers)
 let lvSelected = 0;         // page the teacher is looking at while live
 let lvLastUnlocked = -1;
 let lvSession = null;
@@ -346,6 +360,7 @@ function ensureLink() {
 function onTState(s) {
   if (!s || !("presence" in s)) return;
   tstate = s;
+  tstateAt = Date.now();
   if (!$("homeView").hidden) renderLiveCard();
   if (!$("liveView").hidden) renderLive();
 }
@@ -673,6 +688,7 @@ function renderLive() {
     $("lvPage").replaceChildren(el("p", { text: "Start a lesson from the Lessons screen." }));
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
     $("lvStudents").textContent = presence.count + " connected";
+    renderWho();
     return;
   }
   if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; }
@@ -721,7 +737,27 @@ function renderLive() {
   $("lvUnlockNote").textContent = more ? "Next: " + pageLabel(lesson.pages[next], next) : "";
   $("lvRelock").disabled = live.unlocked === 0;
   $("lvRelock").textContent = "Re-lock page " + (live.unlocked + 1);
+  renderWho();
 }
+
+// ---------- live student list: only on a computer that has the name file, so the iPad/TV never shows it
+function mmss(ms) { const t = Math.round(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+function renderWho() {
+  const show = !!(tstate && tstate.live && Object.keys(names).length);
+  $("lvWho").hidden = !show;
+  document.querySelector("#liveView .t-cols").classList.toggle("with-who", show);
+  if (!show) return;
+  const since = Date.now() - tstateAt;
+  const rows = (tstate.students || []).map((x) => ({ ...x, ms: x.ms + (x.away ? since : 0), name: shortName(names[x.code]) || x.code }));
+  rows.sort((a, b) => (b.away - a.away) || (a.connected - b.connected) || (b.ms - a.ms) || a.name.localeCompare(b.name));
+  const nAway = rows.filter((x) => x.away).length;
+  $("lvWhoNote").textContent = rows.length ? rows.length + " signed in" + (nAway ? " · " + nAway + " away now" : "") : "No one signed in yet.";
+  $("lvWhoList").replaceChildren(...rows.map((x) => el("li", { class: x.away ? "away" : x.connected ? "" : "gone" },
+    el("div", { class: "t-who-name", text: x.name }),
+    el("div", { class: "t-who-now", text: x.away ? "Away now" : x.connected ? "Here · page " + (x.page + 1) : "Not connected" }),
+    x.count ? el("div", { class: "t-who-sum", text: "Left " + x.count + (x.count === 1 ? " time" : " times") + " · " + mmss(x.ms) + " away" }) : null)));
+}
+setInterval(() => { if (!$("liveView").hidden && tstate && (tstate.students || []).some((x) => x.away)) renderWho(); }, 1000);
 
 route();
 // ---------------------------------------------------------------- students

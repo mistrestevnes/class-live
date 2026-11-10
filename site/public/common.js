@@ -221,21 +221,20 @@ function renderPage(page, opts = {}) {
         if (opts.preview) root.append(el("p", { class: "aero-muted", text: "(No image chosen yet)" }));
         continue;
       }
-      root.append(
-        el(
-          "figure",
-          { class: "cl-figure size-" + (b.size || "medium") },
-          el("img", { src: "/img/" + b.imageId, alt: b.caption || "" }),
-          b.caption ? el("figcaption", {}, inline(b.caption)) : null
-        )
+      const fig = el(
+        "figure",
+        { class: "cl-figure size-" + (b.size || "medium") },
+        el("img", { src: "/img/" + b.imageId, alt: b.caption || "" }),
+        b.caption ? el("figcaption", {}, inline(b.caption)) : null
       );
+      root.append(fig);
+      if (opts.fullscreen) root.append(fullscreenButton(fig));
     } else if (b.type === "sim") {
       if (!/^https:\/\//.test(b.url || "")) {
         if (opts.preview) root.append(el("p", { class: "aero-muted", text: "(Sim link not set yet)" }));
         continue;
       }
-      root.append(
-        el(
+      const sim = el(
           "div",
           { class: "cl-sim aero-stage height-" + (b.height || "tall") },
           el("iframe", {
@@ -245,13 +244,22 @@ function renderPage(page, opts = {}) {
             allowfullscreen: true,
             loading: "lazy",
           })
-        )
-      );
+        );
+      root.append(sim);
+      if (opts.fullscreen) root.append(fullscreenButton(sim));
     } else if (b.type === "poll") {
       root.append(renderPoll(b, opts));
     }
   }
   return root;
+}
+
+// A button under a sim or image that shows it on the whole screen. Esc comes back.
+function fullscreenButton(target) {
+  const go = target.requestFullscreen || target.webkitRequestFullscreen;
+  if (!go) return null;
+  return el("div", { class: "cl-fs-row" },
+    el("button", { class: "cl-fs-btn", text: "⛶ Fullscreen", onclick: () => { try { go.call(target); } catch {} } }));
 }
 
 // Puts a page into a container without reloading sims or images when only
