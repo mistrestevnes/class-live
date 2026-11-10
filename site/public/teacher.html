@@ -55,7 +55,7 @@
             color: #000; font-family: Helvetica, Arial, sans-serif; }
     .slip:last-child { page-break-after: auto; break-after: auto; }
     .slip .who { font-size: 20pt; font-weight: 700; margin-bottom: 0.25in; }
-    .slip .lab { font-size: 13pt; }
+    .slip .lab { font-size: 18pt; }
     .slip .code { font-size: 26pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.05in 0 0.25in; }
     .slip .how { font-size: 13pt; }
     .slip .cls { font-size: 11pt; margin-top: 0.2in; color: #444; }
@@ -777,8 +777,7 @@ function printLogins(p) {
   const codes = p.text.split("\n").map((c) => c.toLowerCase().replace(/\s+/g, "")).filter(Boolean);
   if (!codes.length) return stMsg("This class has no codes to print.");
   $("printArea").replaceChildren(...codes.map((c) => el("section", { class: "slip" },
-    el("div", { class: "who", text: shortName(names[c]) || " " }),
-    el("div", { class: "lab", text: "Your login code" }),
+    el("div", { class: "lab", text: (shortName(names[c]) ? shortName(names[c]) + ", your" : "Your") + " login code is" }),
     el("div", { class: "code", text: c }),
     el("div", { class: "how", text: "Go to " + location.host + " and type your code." }),
     el("div", { class: "cls", text: p.name }))));
