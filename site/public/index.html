@@ -39,6 +39,20 @@
     <button id="next" class="aero-btn-primary">Next ▶</button>
   </footer>
 
+  <!-- covers the page when the teacher pauses or asks a question -->
+  <div class="cl-cover" id="cover" hidden>
+    <section class="aero-panel cl-cover-box" id="pausedBox" hidden>
+      <h1>Paused</h1>
+      <p>Eyes on your teacher.</p>
+    </section>
+    <section class="aero-panel cl-cover-box" id="askBox" hidden>
+      <div class="cl-ask-top"><span class="cl-ask-label">Question</span><span class="cl-ask-time" id="askTime"></span></div>
+      <div class="cl-ask-prompt" id="askPrompt"></div>
+      <textarea id="askText" rows="7" aria-label="Your answer"></textarea>
+      <div class="cl-ask-foot"><span id="askNote" class="aero-muted"></span><button class="aero-btn-primary" id="askSubmit">Submit</button></div>
+    </section>
+  </div>
+
 <script src="common.js"></script>
 <script>
 let sid = store("cl_sid");
@@ -78,6 +92,8 @@ function apply(s) {
   if (stoken && s.signedIn === false) return signOut(); // code removed or signed out by the teacher
   const prevUnlocked = lastUnlocked;
   state = s;
+  if (typeof s.now === "number") clockSkew = s.now - Date.now();
+  applyCover();
   if (!s.live) {
     sessionId = null; lastUnlocked = -1;
     render();
@@ -163,6 +179,68 @@ function render() {
   $("next").classList.toggle("cl-pulse", canNext && pulse);
   $("navNote").textContent = canNext ? "" : atEnd ? "This is the last page." : "Wait for your teacher to unlock the next page.";
 }
+
+// ---------- pause and pushed questions
+let clockSkew = 0;          // server time minus this computer's time
+let askId = null, askDirty = false, askTimer = null, askSaveTimer = null, wasFrozen = false;
+const serverNow = () => Date.now() + clockSkew;
+
+// Sims that know Class Live freeze when they get {classlive:"pause"} and carry on with {classlive:"resume"}.
+function tellSims(cmd) {
+  for (const f of document.querySelectorAll(".cl-sim iframe")) { try { f.contentWindow.postMessage({ classlive: cmd }, "*"); } catch {} }
+}
+
+function applyCover() {
+  const live = !!state.live;
+  const a = live ? state.ask : null;
+  const paused = live && !!state.paused;
+  const frozen = paused || !!a;
+  $("cover").hidden = !frozen;
+  $("pausedBox").hidden = !paused || !!a;
+  $("askBox").hidden = !a;
+  if (frozen && document.fullscreenElement) { try { document.exitFullscreen(); } catch {} }
+  if (frozen !== wasFrozen) { tellSims(frozen ? "pause" : "resume"); wasFrozen = frozen; }
+  if (!a) { askId = null; clearInterval(askTimer); askTimer = null; return; }
+  if (a.id !== askId) {
+    askId = a.id; askDirty = false;
+    $("askPrompt").replaceChildren(formatText(a.prompt));
+    $("askText").value = a.mine || "";
+    $("askText").disabled = false;
+    $("askSubmit").disabled = false;
+    $("askNote").textContent = "";
+    setTimeout(() => $("askText").focus(), 50);
+  }
+  clearInterval(askTimer);
+  askTimer = setInterval(tickAsk, 250);
+  tickAsk();
+}
+function tickAsk() {
+  const a = state.ask;
+  if (!a) return;
+  const left = a.endsAt - serverNow();
+  if (left <= 0) {
+    if (!$("askText").disabled) { saveAsk(); $("askText").disabled = true; $("askSubmit").disabled = true; }
+    $("askTime").textContent = "Time's up";
+    $("askNote").textContent = $("askText").value.trim() ? "Your answer was saved." : "Time ran out.";
+    clearInterval(askTimer); askTimer = null;
+    return;
+  }
+  if ($("askText").disabled) { $("askText").disabled = false; $("askSubmit").disabled = false; $("askNote").textContent = ""; } // teacher added time
+  const t = Math.ceil(left / 1000);
+  $("askTime").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+}
+function saveAsk() {
+  if (!askId) return;
+  askDirty = false;
+  link.send({ t: "askAnswer", qid: askId, text: $("askText").value });
+}
+$("askText").oninput = () => {
+  askDirty = true;
+  $("askNote").textContent = "";
+  clearTimeout(askSaveTimer);
+  askSaveTimer = setTimeout(() => { if (askDirty) saveAsk(); }, 2000); // saves as they type
+};
+$("askSubmit").onclick = () => { saveAsk(); $("askNote").textContent = "Saved. You can change it until time runs out."; };
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }

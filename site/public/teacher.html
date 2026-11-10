@@ -51,6 +51,17 @@
   .t-roll li::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--aero-line); }
   .t-roll li.on::before { background: var(--aero-jade); border-color: var(--aero-jade); }
   .t-roll li:not(.on) { color: var(--aero-muted); }
+  .t-ask { padding: 16px 20px; }
+  .t-ask h3 { margin: 0 0 8px; }
+  .t-ask textarea { width: 100%; font-size: 20px; }
+  .t-ask .t-ask-prompt { font-size: 22px; margin-bottom: 10px; }
+  .t-ask .t-ask-time { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .t-ask .t-row { margin-top: 10px; }
+  .t-ask input[type=number] { width: 90px; font-size: 20px; }
+  .t-answers { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
+  .t-answers li { background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 10px 14px; color: var(--aero-forest); font-size: 19px; white-space: pre-wrap; }
+  .t-answers .t-who-name { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-muted); display: block; margin-bottom: 4px; white-space: normal; }
+  #lvPause[aria-pressed="true"] { background: var(--aero-gold); color: var(--aero-forest); text-shadow: none; }
   .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
   .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .t-login { max-width: 520px; margin: 10vh auto 0; }
@@ -208,6 +219,7 @@
       <p class="t-hint" id="lvUrlHint"></p>
     </aside>
     <div class="t-body">
+      <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
     </div>
@@ -220,6 +232,9 @@
   <footer class="cl-bottom aero-bar">
     <button id="lvRelock" class="t-small">Re-lock last page</button>
     <span class="aero-muted" id="lvUnlockNote"></span>
+    <span class="cl-grow"></span>
+    <button id="lvAskBtn" class="t-small">Ask a question</button>
+    <button id="lvPause" class="t-small">Pause students</button>
     <button id="lvUnlock" class="aero-btn-primary t-unlock">Unlock next page ▶</button>
   </footer>
 </section>
@@ -713,6 +728,7 @@ function renderLive() {
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
     $("lvStudents").textContent = presence.count + " connected";
     renderWho();
+    askDraft = null; renderAsk();
     return;
   }
   if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; }
@@ -762,7 +778,83 @@ function renderLive() {
   $("lvRelock").disabled = live.unlocked === 0;
   $("lvRelock").textContent = "Re-lock page " + (live.unlocked + 1);
   renderWho();
+  renderAsk();
+  $("lvPause").setAttribute("aria-pressed", live.paused ? "true" : "false");
+  $("lvPause").textContent = live.paused ? "Resume students" : "Pause students";
 }
+
+// ---------- pause and pushed questions
+$("lvPause").onclick = () => { if (tstate && tstate.live) link.send({ t: "pause", on: !tstate.live.paused }); };
+let askDraft = null; // { prompt, minutes } while writing a question
+$("lvAskBtn").onclick = () => { if (!tstate.live.ask) { askDraft = askDraft || { prompt: "", minutes: 2 }; renderAsk(); setTimeout(() => $("askPromptIn") && $("askPromptIn").focus(), 30); } };
+function teacherNow() { return Date.now() + ((tstate && tstate.now) ? tstate.now - tstateAt : 0); }
+function renderAsk() {
+  const box = $("lvAsk");
+  const a = tstate && tstate.live && tstate.live.ask;
+  $("lvAskBtn").disabled = !!a || !(tstate && tstate.live);
+  $("lvPause").disabled = !(tstate && tstate.live);
+  if (!a && !askDraft) { box.hidden = true; box._key = null; return; }
+  box.hidden = false;
+  if (!a) {
+    if (box._key === "draft") return; // don't wipe what's being typed
+    box._key = "draft";
+    const ta = el("textarea", { id: "askPromptIn", rows: 3, value: askDraft.prompt, placeholder: "Type the question", oninput: (e) => (askDraft.prompt = e.target.value) });
+    const mins = el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: askDraft.minutes, "aria-label": "Minutes", oninput: (e) => (askDraft.minutes = e.target.value) });
+    box.replaceChildren(el("h3", { text: "Ask a question" }), ta,
+      el("div", { class: "t-row" },
+        el("label", { class: "t-row" }, el("span", { text: "Time to answer" }), mins, el("span", { text: "minutes" })),
+        el("span", { class: "cl-grow" }),
+        el("button", { text: "Cancel", onclick: () => { askDraft = null; renderAsk(); } }),
+        el("button", { class: "aero-btn-primary", text: "Send to students", onclick: () => {
+          const prompt = askDraft.prompt.trim();
+          const seconds = Math.round((Number(askDraft.minutes) || 0) * 60);
+          if (!prompt) return ta.focus();
+          if (seconds < 10) return mins.focus();
+          link.send({ t: "ask", prompt, seconds });
+          askDraft = null;
+        } })));
+    return;
+  }
+  const answers = tstate.askAnswers || {};
+  const left = a.endsAt - teacherNow();
+  const open = left > 0;
+  const withText = Object.entries(answers).filter(([, v]) => v.text.trim());
+  const here = (tstate.students || []).filter((x) => x.connected).length;
+  const t = Math.max(0, Math.ceil(left / 1000));
+  const named = Object.keys(names).length > 0; // answers with names only on a computer with the name file
+  const key = a.id + "|" + open + "|" + t + "|" + JSON.stringify(answers) + "|" + here;
+  if (box._key === key) return;
+  box._key = key;
+  box.replaceChildren(
+    el("div", { class: "t-row" },
+      el("h3", { style: "flex:1;margin:0", text: open ? "Question running" : "Time's up" }),
+      el("span", { class: "t-ask-time", text: open ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "0:00" })),
+    el("div", { class: "t-ask-prompt", text: a.prompt }),
+    el("div", { class: "t-row" },
+      el("span", { class: "t-who-count", text: withText.length + " of " + here + " have written something" }),
+      el("span", { class: "cl-grow" }),
+      el("button", { text: open ? "+30 seconds" : "Reopen 1 minute", onclick: () => link.send({ t: "askMore", seconds: open ? 30 : 60 }) }),
+      open ? el("button", { text: "End now", onclick: () => link.send({ t: "askEnd" }) }) : null,
+      !open && named ? el("button", { text: "Download answers", onclick: () => downloadAnswers(a, answers) }) : null,
+      !open ? el("button", { class: "aero-btn-primary", text: "Close question", onclick: () => {
+        if (named && withText.length && !confirm("Close the question? Students' screens go back to the lesson. Download the answers first if you want to keep them.")) return;
+        link.send({ t: "askClose" });
+      } }) : null),
+    named ? el("ul", { class: "t-answers" }, ...withText
+      .map(([code, v]) => ({ name: shortName(names[code]) || code, text: v.text }))
+      .sort((x, y) => x.name.localeCompare(y.name))
+      .map((x) => el("li", {}, el("span", { class: "t-who-name", text: x.name }), x.text))) : null);
+}
+function downloadAnswers(a, answers) {
+  const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [["Name", "Code", "Answer"].map(q).join(",")];
+  for (const [code, v] of Object.entries(answers)) rows.push([names[code] || "", code, v.text].map(q).join(","));
+  const blob = new Blob(["Question: " + a.prompt.replace(/\s+/g, " ") + "\n" + rows.join("\n")], { type: "text/csv" });
+  const u = URL.createObjectURL(blob);
+  el("a", { href: u, download: "answers-" + new Date().toISOString().slice(0, 10) + ".csv" }).click();
+  setTimeout(() => URL.revokeObjectURL(u), 5000);
+}
+setInterval(() => { if (!$("liveView").hidden && tstate && tstate.live && tstate.live.ask) renderAsk(); }, 500);
 
 // ---------- live student list: only on a computer that has the name file, so the iPad/TV never shows it
 function mmss(ms) { const t = Math.round(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
