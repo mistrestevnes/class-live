@@ -14,7 +14,7 @@ export default {
       const stub = env.ROOM.get(env.ROOM.idFromName("main"));
       return stub.fetch(request);
     }
-    return new Response("Class Live server. Students use the pages.dev address.", { status: 404 });
+    return new Response("Class Live server. Students use classlive.scienceworks.xyz.", { status: 404 });
   },
 };
 
@@ -244,7 +244,7 @@ export class Classroom extends DurableObject {
     return json({ token: await this.newToken() });
   }
 
-  // Forgotten passcode: needs the RESET_KEY secret set from Terminal (see SETUP.txt).
+  // Forgotten passcode: needs the RESET_KEY secret, set in Cloudflare (Worker class-live > Settings > Variables and secrets).
   async reset({ resetKey, username, passcode }) {
     const key = this.env.RESET_KEY;
     if (!key) return json({ error: "No reset key has been set up yet. See “Forgot your passcode” in SETUP.txt." }, 400);
