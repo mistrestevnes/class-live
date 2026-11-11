@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -53,7 +53,8 @@
     <section class="aero-panel cl-cover-box" id="askBox" hidden>
       <div class="cl-ask-top"><span class="cl-ask-label" id="askLabel">Question</span><span class="cl-ask-time" id="askTime"></span></div>
       <div class="cl-ask-prompt" id="askPrompt"></div>
-      <textarea id="askText" rows="7" aria-label="Your answer"></textarea>
+      <div id="askMedia" hidden></div>
+      <textarea id="askText" rows="6" aria-label="Your answer"></textarea>
       <div class="cl-ask-foot"><span id="askNote" class="aero-muted"></span><button id="askToSim" hidden>Go back to the sim</button><button class="aero-btn-primary" id="askSubmit">Submit</button></div>
     </section>
   </div>
@@ -64,7 +65,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -204,6 +205,14 @@ function tellSims(cmd) {
   for (const f of document.querySelectorAll(".cl-sim iframe")) { try { f.contentWindow.postMessage({ classlive: cmd }, "*"); } catch {} }
 }
 
+// a picture or an animation that goes with a question
+function setMedia(box, a) {
+  box.replaceChildren();
+  if (a.imageId) box.append(el("img", { src: "/img/" + a.imageId, alt: "" }));
+  else if (a.sim) box.append(el("iframe", { src: a.sim, title: "Animation", allow: "autoplay; fullscreen" }));
+  box.hidden = !box.firstChild;
+}
+
 function applyCover() {
   const live = !!state.live;
   const a = live ? state.ask : null;
@@ -232,6 +241,7 @@ function applyCover() {
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
     $("askPrompt").replaceChildren(formatText(a.prompt));
+    setMedia($("askMedia"), a);
     $("askText").value = a.mine || "";
     $("askText").disabled = false;
     $("askNote").textContent = "";

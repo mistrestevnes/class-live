@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -57,6 +57,13 @@
   .t-pick h2 { margin: 0 0 4px; }
   .t-pick button { min-height: 60px; font-size: 1.2rem; }
   .t-part { margin-bottom: 12px; }
+  .t-prep { padding: 14px 18px; }
+  .t-prep .t-prepq { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--aero-line); }
+  .t-prep .t-prepq:first-of-type { border-top: 0; }
+  .t-pq { border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 12px 14px; margin-bottom: 12px; background: #FFFFFF; color: var(--aero-ink); }
+  .t-pq .t-block-head { margin-bottom: 8px; }
+  .t-media { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .t-media select { font-size: 18px; max-width: 260px; }
   .t-notesbox { margin-top: 18px; }
   .t-notesbox h3 { margin: 0 0 6px; }
   .t-notesbox select { width: 100%; font-size: 18px; margin-bottom: 6px; }
@@ -241,6 +248,7 @@
       <div id="lvNotesSlot"></div>
     </aside>
     <div class="t-body">
+      <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
@@ -261,7 +269,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -652,7 +660,75 @@ function renderEditor() {
       el("button", { class: "t-small", text: "+ " + label, disabled: type === "poll" && hasPoll,
         title: type === "poll" && hasPoll ? "One poll per page" : "",
         onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
+  items.push(questionsPanel(page));
   body.replaceChildren(...items);
+}
+
+// ---------- questions prepared for a page: sent from the class view with one click
+function newPrepared() {
+  return { id: randomId(6), allowSim: false, parts: [{ prompt: "", min: Number(store("cl_askMin")) || 2, imageId: "", sim: "" }] };
+}
+
+// a picture or an animation (an uploaded .html file) that goes with one part of a question
+function partMedia(p) {
+  const status = el("span", { class: "aero-muted" });
+  const pic = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
+    const f = pic.files[0]; if (!f) return;
+    status.textContent = "Uploading…";
+    try { p.imageId = await uploadImage(f); p.sim = ""; changed(); renderEditor(); } catch (e) { status.textContent = e.message; }
+  } });
+  const anim = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
+    const f = anim.files[0]; if (!f) return;
+    status.textContent = "Uploading…";
+    try { const r = await uploadSim(f, null); p.sim = "/sim/" + r.id; p.imageId = ""; changed(); renderEditor(); } catch (e) { status.textContent = e.message; }
+  } });
+  const pick = el("select", { "aria-label": "Animation", onchange: (e) => { p.sim = e.target.value ? "/sim/" + e.target.value : ""; if (p.sim) p.imageId = ""; changed(); renderEditor(); } },
+    el("option", { value: "", text: "Loading…" }));
+  loadSims().then((list) => {
+    pick.replaceChildren(el("option", { value: "", text: "No animation" }), ...list.map((x) => el("option", { value: x.id, text: "Animation: " + x.name })));
+    pick.value = p.sim ? p.sim.replace("/sim/", "") : "";
+  });
+  return el("div", { class: "t-media" },
+    p.imageId ? el("img", { class: "t-thumb", src: "/img/" + p.imageId, alt: "" }) : null,
+    el("button", { class: "t-small", text: p.imageId ? "Replace picture" : "Add a picture", onclick: () => pic.click() }),
+    p.imageId ? el("button", { class: "t-small", text: "Remove picture", onclick: () => { p.imageId = ""; changed(); renderEditor(); } }) : null,
+    pick,
+    el("button", { class: "t-small", text: "Upload animation file", onclick: () => anim.click() }),
+    status, pic, anim);
+}
+
+function questionsPanel(page) {
+  const qs = page.questions || [];
+  const panel = el("div", { class: "aero-panel t-block" }, el("div", { class: "t-block-head" }, el("h3", { text: "Questions for this page" })));
+  if (!qs.length) panel.append(el("p", { class: "t-hint", text: "Questions you add here show up in the class view when you are on this page, ready to send with one click." }));
+  qs.forEach((q, qi) => {
+    const move = (d) => { const j = qi + d; [qs[j], qs[qi]] = [qs[qi], qs[j]]; changed(); renderEditor(); };
+    const box = el("div", { class: "t-pq" }, el("div", { class: "t-block-head" },
+      el("h3", { text: "Question " + (qi + 1) }),
+      el("button", { class: "t-small", text: "▲", "aria-label": "Move up", disabled: qi === 0, onclick: () => move(-1) }),
+      el("button", { class: "t-small", text: "▼", "aria-label": "Move down", disabled: qi === qs.length - 1, onclick: () => move(1) }),
+      el("button", { class: "t-small", text: "Remove", onclick: () => { if (!confirm("Remove question " + (qi + 1) + "?")) return; qs.splice(qi, 1); changed(); renderEditor(); } })));
+    q.parts.forEach((p, pi) => box.append(el("div", { class: "t-part" },
+      q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
+      el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
+      el("div", { class: "t-row", style: "margin:6px 0" },
+        el("label", { class: "t-row" },
+          el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || 2, "aria-label": "Minutes",
+            oninput: (e) => { p.min = e.target.value; changed(); } }),
+          el("span", { text: "minutes" })),
+        q.parts.length > 1 ? el("button", { class: "t-small", text: "Remove part", onclick: () => { q.parts.splice(pi, 1); changed(); renderEditor(); } }) : null),
+      partMedia(p))));
+    box.append(el("div", { class: "t-row" },
+      el("button", { class: "t-small", text: "Add a part", disabled: q.parts.length >= 8,
+        onclick: () => { q.parts.push({ prompt: "", min: q.parts[q.parts.length - 1].min || 2, imageId: "", sim: "" }); changed(); renderEditor(); } }),
+      el("label", { class: "t-row" },
+        el("input", { type: "checkbox", checked: !!q.allowSim, onchange: (e) => { q.allowSim = e.target.checked; changed(); } }),
+        el("span", { text: "Students can go back to the sim while answering" }))));
+    panel.append(box);
+  });
+  panel.append(el("div", { class: "t-row" }, el("button", { class: "t-small", text: "+ Add a question",
+    onclick: () => { (page.questions ||= []).push(newPrepared()); changed(); renderEditor(); } })));
+  return panel;
 }
 
 function refreshPageLabels() {
@@ -892,7 +968,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "q" || e.key === "Q") { e.preventDefault(); openAsk(); }
 });
 function sendAsk() {
-  const parts = (askDraft ? askDraft.parts : []).map((p) => ({ prompt: (p.prompt || "").trim(), seconds: Math.round(Number(p.min) * 60) }));
+  const parts = (askDraft ? askDraft.parts : []).map((p) => ({ prompt: (p.prompt || "").trim(), seconds: Math.round(Number(p.min) * 60), imageId: p.imageId || "", sim: p.sim || "" }));
   const first = parts.findIndex((p) => !p.prompt);
   if (first >= 0 && parts.length === 1) return $("askPromptIn0").focus();
   const use = parts.filter((p) => p.prompt);
@@ -900,11 +976,49 @@ function sendAsk() {
   if (use.some((p) => !(p.seconds >= 10))) return;
   store("cl_askMin", String(use[use.length - 1].seconds / 60));
   store("cl_askSim", askDraft.allowSim ? "1" : "0");
-  link.send({ t: "ask", parts: use, allowSim: !!askDraft.allowSim });
+  link.send({ t: "ask", parts: use, allowSim: !!askDraft.allowSim, preparedId: askDraft.preparedId || "" });
   askDraft = null;
 }
 function teacherNow() { return Date.now() + ((tstate && tstate.now) ? tstate.now - tstateAt : 0); }
 const fmt = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+
+// questions prepared for the page being looked at: one click sends them
+function sendPrepared(q, editFirst) {
+  const parts = q.parts.filter((p) => (p.prompt || "").trim());
+  if (!parts.length) return;
+  if (editFirst) {
+    viewQ = null;
+    askDraft = { parts: q.parts.map((p) => ({ prompt: p.prompt || "", min: p.min || 2, imageId: p.imageId || "", sim: p.sim || "" })), allowSim: !!q.allowSim, preparedId: q.id };
+    $("lvAsk")._key = null;
+    renderAsk();
+    return;
+  }
+  link.send({ t: "ask", allowSim: !!q.allowSim, preparedId: q.id,
+    parts: parts.map((p) => ({ prompt: p.prompt.trim(), seconds: Math.round(Number(p.min || 2) * 60), imageId: p.imageId || "", sim: p.sim || "" })) });
+}
+function renderPrep() {
+  const box = $("lvPrep");
+  const live = tstate && tstate.live, lesson = tstate && tstate.lesson;
+  const page = live && lesson && lesson.pages[lvSelected];
+  const qs = (page && page.questions) || [];
+  if (!qs.length) { box.hidden = true; box._key = null; return; }
+  box.hidden = false;
+  const sent = live.sent || {}, busy = !!live.ask;
+  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs)].join("|");
+  if (box._key === key) return;
+  box._key = key;
+  box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Questions for this page" }),
+    ...qs.map((q) => {
+      const first = ((q.parts[0] || {}).prompt || "").trim() || "(empty question)";
+      const at = sent[q.id];
+      return el("div", { class: "t-prepq" },
+        el("div", { style: "flex:1;font-size:19px" },
+          (at ? "✓ " : "") + (first.length > 110 ? first.slice(0, 108) + "…" : first) + (q.parts.length > 1 ? " · " + q.parts.length + " parts" : ""),
+          at ? el("div", { class: "t-hint", text: "Asked at " + new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null),
+        el("button", { class: "t-small", text: "Edit first", disabled: busy, onclick: () => sendPrepared(q, true) }),
+        el("button", { class: "aero-btn-primary", text: at ? "Send again" : "Send", disabled: busy, title: busy ? "Close the running question first" : "", onclick: () => sendPrepared(q, false) }));
+    }));
+}
 
 function renderAsk() {
   const box = $("lvAsk");
@@ -913,6 +1027,7 @@ function renderAsk() {
   $("lvAskBtn").disabled = !!a || !live;
   $("lvPause").disabled = !live;
   renderQs();
+  renderPrep();
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
   if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
   box.hidden = false;
@@ -933,6 +1048,7 @@ function renderAsk() {
         onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); sendAsk(); } } });
       return el("div", { class: "t-part" },
         many ? el("div", { class: "t-hint", text: "Part " + (i + 1) }) : null,
+        p.imageId || p.sim ? el("div", { class: "t-hint", text: p.imageId ? "Has a picture" : "Has an animation" }) : null,
         ta,
         el("div", { class: "t-row" },
           el("label", { class: "t-row" }, mins, el("span", { text: "minutes" })),

@@ -479,8 +479,12 @@ export class Classroom extends DurableObject {
         parts = parts.slice(0, 8).map((p) => ({
           prompt: String((p && p.prompt) || "").trim().slice(0, 2000),
           seconds: Math.max(10, Math.min(Number(p && p.seconds) || 120, 3600)),
+          // a picture (an uploaded image) or an animation (an uploaded sim) shown with the question
+          imageId: /^[a-z0-9]{4,24}$/.test((p && p.imageId) || "") ? p.imageId : "",
+          sim: /^\/sim\/[a-z0-9]+$/.test((p && p.sim) || "") ? p.sim : "",
         })).filter((p) => p.prompt);
         if (!parts.length) return;
+        if (msg.preparedId) (this.live.sent ||= {})[String(msg.preparedId).replace(/[^a-z0-9]/gi, "").slice(0, 20)] = Date.now(); // for the "asked" mark
         this.live.askSet = { setId: rid(6), parts, i: 0, allowSim: !!msg.allowSim };
         await this.startPart(0);
         break;
@@ -582,7 +586,8 @@ export class Classroom extends DurableObject {
     const id = rid(8);
     set.i = i;
     this.live.ask = { id, prompt: p.prompt, seconds: p.seconds, startedAt: now, endsAt: now + p.seconds * 1000,
-      part: i + 1, parts: set.parts.length, allowSim: !!set.allowSim, paused: false, pausedAt: 0 };
+      part: i + 1, parts: set.parts.length, allowSim: !!set.allowSim, paused: false, pausedAt: 0,
+      imageId: p.imageId || "", sim: p.sim || "" };
     this.live.show = null; // a new question takes the middle of the screen
     this.qa[id] = {};
     this.qs.unshift({ id, prompt: p.prompt, seconds: p.seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "",
@@ -628,7 +633,7 @@ export class Classroom extends DurableObject {
     return {
       paused: !!L.paused,
       qpaused: qp, // the question is paused: students get a pause screen, the TV shows the page
-      ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim } : null,
+      ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "" } : null,
       show: q ? { qid: sh.qid, prompt: q.prompt, answers: sh.codes.filter((c) => qa[c]).map((c) => qa[c].text) } : null,
     };
   }

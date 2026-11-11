@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Screen</title>
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
   /* the TV page: open on the iPad and leave it. No controls, no names. */
@@ -47,16 +47,18 @@
     <section class="aero-panel cl-cover-box" id="askBox" hidden>
       <div class="cl-ask-label" id="askLabel">Question</div>
       <div class="cl-ask-prompt" id="askPrompt"></div>
+      <div id="askMedia" hidden></div>
       <span class="cl-ask-time" id="askTime"></span>
     </section>
   </div>
 
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let state = { live: false };
 let skew = 0;
 let timer = null;
+let askShown = null;
 
 const link = new Link({
   wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=screen",
@@ -100,7 +102,15 @@ function apply(s) {
   if (a) {
     $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
     $("askPrompt").replaceChildren(formatText(a.prompt));
-  }
+    if (askShown !== a.id) {
+      askShown = a.id;
+      const md = $("askMedia");
+      md.replaceChildren();
+      if (a.imageId) md.append(el("img", { src: "/img/" + a.imageId, alt: "" }));
+      else if (a.sim) md.append(el("iframe", { src: a.sim, title: "Animation", allow: "autoplay; fullscreen" }));
+      md.hidden = !md.firstChild;
+    }
+  } else askShown = null;
   clearInterval(timer);
   if (a) { timer = setInterval(tick, 250); tick(); }
 }
