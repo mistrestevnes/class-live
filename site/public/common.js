@@ -230,7 +230,7 @@ function renderPage(page, opts = {}) {
       root.append(fig);
       if (opts.fullscreen) root.append(fullscreenButton(fig));
     } else if (b.type === "sim") {
-      if (!/^https:\/\//.test(b.url || "")) {
+      if (!/^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "")) {
         if (opts.preview) root.append(el("p", { class: "aero-muted", text: "(Sim link not set yet)" }));
         continue;
       }

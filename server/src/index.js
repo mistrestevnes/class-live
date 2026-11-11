@@ -5,12 +5,13 @@
 // and fall back to ordinary requests every couple of seconds when it doesn't.
 
 import { DurableObject } from "cloudflare:workers";
+import { FREEZE_JS } from "./freeze.js";
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const p = url.pathname;
-    if (p.startsWith("/api/") || p === "/ws" || p.startsWith("/img/")) {
+    if (p.startsWith("/api/") || p === "/ws" || p.startsWith("/img/") || p.startsWith("/sim/")) {
       const stub = env.ROOM.get(env.ROOM.idFromName("main"));
       return stub.fetch(request);
     }
@@ -20,6 +21,7 @@ export default {
 
 const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this long after each check
 const MAX_IMAGE_BYTES = 1_800_000;
+const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
 const LATE_MS = 4000;        // a student's last save may arrive this long after the timer hits zero
 const MAX_ANSWER = 3000;     // characters
 const MAX_STUDENT_TOKENS = 600;
@@ -136,6 +138,7 @@ export class Classroom extends DurableObject {
     try {
       if (p === "/ws") return this.openSocket(request, url);
       if (p.startsWith("/img/") && m === "GET") return this.getImage(p.slice(5));
+      if (p.startsWith("/sim/") && m === "GET") return this.serveSim(p.slice(5));
 
       // students (no login)
       if (p === "/api/s" && m === "GET") {
@@ -214,6 +217,13 @@ export class Classroom extends DurableObject {
       if (lm && m === "PUT") return this.saveLesson(lm[1], await request.json());
       if (lm && m === "DELETE") return this.deleteLesson(lm[1]);
       if (p === "/api/images" && m === "POST") return this.saveImage(request);
+
+      // sims the teacher uploads (single .html files), shown in lessons from /sim/<id>
+      if (p === "/api/sims" && m === "GET") return json((await this.ctx.storage.get("sims")) || []);
+      if (p === "/api/sims" && m === "POST") return this.saveSim(request, null);
+      const sm = p.match(/^\/api\/sims\/([a-z0-9]+)$/);
+      if (sm && m === "PUT") return this.saveSim(request, sm[1]);
+      if (sm && m === "DELETE") return this.deleteSim(sm[1]);
 
       // the teacher's private notes, one set for each lesson in each block
       if (p === "/api/notes" && m === "GET") {
@@ -343,6 +353,50 @@ export class Classroom extends DurableObject {
     const id = rid(12);
     await this.ctx.storage.put("img:" + id, { type, data });
     return json({ id });
+  }
+
+  // An uploaded sim file. name comes in the x-name header; a PUT to an existing id replaces the file
+  // and keeps the name unless a new one is sent, so lessons that use the sim pick up the new version.
+  async saveSim(request, id) {
+    const html = await request.text();
+    if (new TextEncoder().encode(html).length > MAX_SIM_BYTES) return json({ error: "That file is too large (the limit is about 1.8 MB)." }, 400);
+    if (!/<(html|head|body|script|canvas|div)\b/i.test(html)) return json({ error: "That doesn't look like a web page (.html file)." }, 400);
+    const index = (await this.ctx.storage.get("sims")) || [];
+    const old = id ? index.find((x) => x.id === id) : null;
+    if (id && !old) return json({ error: "That sim isn't there any more." }, 404);
+    let name = "";
+    try { name = decodeURIComponent(request.headers.get("x-name") || ""); } catch { name = request.headers.get("x-name") || ""; }
+    name = name.replace(/\.html?$/i, "").replace(/\s+/g, " ").trim().slice(0, 80) || (old ? old.name : "Sim");
+    if (old && !request.headers.get("x-name")) name = old.name;
+    const sid = id || rid(12);
+    const updated = Date.now();
+    await this.ctx.storage.put("sim:" + sid, { html, updated });
+    const entry = { id: sid, name, size: html.length, updated };
+    await this.ctx.storage.put("sims", [entry, ...index.filter((x) => x.id !== sid)]);
+    return json(entry);
+  }
+
+  async deleteSim(id) {
+    await this.ctx.storage.delete("sim:" + id);
+    await this.ctx.storage.put("sims", ((await this.ctx.storage.get("sims")) || []).filter((x) => x.id !== id));
+    return json({ ok: true });
+  }
+
+  // Serves the page with the Class Live freeze script added at the top, so Pause and
+  // pushed questions freeze it. A sim that already has its own Class Live code is left as it is.
+  async serveSim(id) {
+    const sim = await this.ctx.storage.get("sim:" + id.replace(/[^a-z0-9]/g, ""));
+    if (!sim) return new Response("That sim was not found.", { status: 404 });
+    let html = sim.html;
+    if (!/classlive/i.test(html)) {
+      const tag = "<script>" + FREEZE_JS + "</script>";
+      let at = 0;
+      let m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i);
+      if (m) at = m.index + m[0].length;
+      else { m = html.match(/^\s*<!doctype[^>]*>/i); if (m) at = m[0].length; }
+      html = html.slice(0, at) + tag + html.slice(at);
+    }
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
   }
 
   async getImage(id) {

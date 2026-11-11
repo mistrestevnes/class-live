@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -57,8 +57,10 @@
   .t-pick h2 { margin: 0 0 4px; }
   .t-pick button { min-height: 60px; font-size: 1.2rem; }
   .t-part { margin-bottom: 12px; }
-  .t-notes { padding: 16px 20px; }
-  .t-notes textarea { width: 100%; font-size: 20px; }
+  .t-notesbox { margin-top: 18px; }
+  .t-notesbox h3 { margin: 0 0 6px; }
+  .t-notesbox select { width: 100%; font-size: 18px; margin-bottom: 6px; }
+  .t-notesbox textarea { width: 100%; font-size: 18px; min-height: 180px; resize: vertical; }
   .t-ask { padding: 16px 20px; }
   .t-ask h3 { margin: 0 0 8px; }
   .t-ask textarea { width: 100%; font-size: 20px; }
@@ -212,6 +214,7 @@
         <button class="t-small" id="pgDup">Copy</button>
         <button class="t-small" id="pgDel">Delete</button>
       </div>
+      <div id="edNotesSlot"></div>
     </aside>
     <div class="t-body" id="edBody"></div>
   </div>
@@ -235,13 +238,9 @@
       <p class="t-hint" id="lvUrlHint"></p>
       <h3 style="margin-top:18px">Questions</h3>
       <ul class="t-qs" id="lvQs"></ul>
+      <div id="lvNotesSlot"></div>
     </aside>
     <div class="t-body">
-      <div class="aero-panel t-notes" id="lvNotes" hidden>
-        <h3 id="lvNotesTitle" style="margin:0 0 8px">My notes</h3>
-        <textarea id="lvNotesText" rows="6" aria-label="My notes" placeholder="Notes for you only. Students and the TV never see these."></textarea>
-        <div class="t-row"><span class="t-hint" id="lvNotesState"></span><span class="cl-grow"></span><button id="lvNotesClose" class="t-small">Close</button></div>
-      </div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
@@ -256,14 +255,13 @@
     <button id="lvRelock" class="t-small">Re-lock last page</button>
     <span class="aero-muted" id="lvUnlockNote"></span>
     <span class="cl-grow"></span>
-    <button id="lvNotesBtn" class="t-small">Notes</button>
     <button id="lvAskBtn" class="t-small">Ask a question</button>
     <button id="lvPause" class="t-small">Pause students</button>
     <button id="lvUnlock" class="aero-btn-primary t-unlock">Unlock next page ▶</button>
   </footer>
 </section>
 
-<script src="common.js?v=7"></script>
+<script src="common.js?v=8"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -559,6 +557,8 @@ async function openEditor(id) {
     try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/"; return; }
     edPage = 0;
   }
+  $("edNotesSlot").append(notesBox);
+  if (notes.lesson !== id) notesShow(id);
   $("edTitle").value = ed.title;
   setSave("Saved");
   renderEditor();
@@ -718,14 +718,42 @@ function blockEditor(page, b, i) {
     box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Size" }),
       sizeSelect(b, "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"]])));
   } else if (b.type === "sim") {
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Sim web address" }),
+    const cur = (b.url || "").match(/^\/sim\/([a-z0-9]+)$/);
+    const status = el("span", { class: "aero-muted" });
+    const pick = el("select", { "aria-label": "Uploaded sim", onchange: (e) => { if (e.target.value) { b.url = "/sim/" + e.target.value; changed(); renderEditor(); } } },
+      el("option", { value: "", text: "Loading…" }));
+    loadSims().then((list) => {
+      pick.replaceChildren(el("option", { value: "", text: list.length ? "Choose an uploaded sim" : "No sims uploaded yet" }),
+        ...list.map((x) => el("option", { value: x.id, text: x.name })));
+      pick.value = cur ? cur[1] : "";
+    });
+    const upNew = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
+      const f = upNew.files[0]; if (!f) return;
+      status.textContent = "Uploading…";
+      try { const r = await uploadSim(f, null); b.url = "/sim/" + r.id; changed(); renderEditor(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    const upRep = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
+      const f = upRep.files[0]; if (!f || !cur) return;
+      status.textContent = "Replacing…";
+      try { await uploadSim(f, cur[1]); status.textContent = "Replaced. Students get the new version the next time the page loads."; renderEditorSoon(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Uploaded sim" }), pick),
+      el("div", { class: "t-row", style: "margin-bottom:10px" },
+        el("button", { class: "t-small", text: "Upload a sim file", onclick: () => upNew.click() }),
+        cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
+        status, upNew, upRep));
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
       el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: set("url") })));
     box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Height" }),
       sizeSelect(b, "height", [["tall", "Fills the screen"], ["medium", "About half the screen"]])));
-    box.append(el("p", { class: "t-hint", text: "Paste the address of one of your sims (it must start with https://)." }));
+    box.append(el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. Uploaded sims freeze when you pause the class." }));
   }
   return box;
 }
+
+function renderEditorSoon() { setTimeout(() => { if (!$("editView").hidden) renderEditor(); }, 1500); }
 
 function sizeSelect(b, key, choices) {
   const s = el("select", { onchange: (e) => { b[key] = e.target.value; changed(); } },
@@ -756,6 +784,7 @@ async function uploadImage(file) {
 // ---------------------------------------------------------------- teaching live
 function showLive() {
   show("liveView");
+  $("lvNotesSlot").append(notesBox);
   $("lvUrlHint").textContent = "Students go to: " + location.host;
   renderLive();
 }
@@ -779,6 +808,7 @@ function renderLive() {
     $("lvTitle").textContent = "No class running";
     $("lvPages").replaceChildren();
     $("lvPollBar").hidden = true;
+    notesBox.hidden = true;
     $("lvPage").replaceChildren(el("p", { text: "Start a lesson from the Lessons screen." }));
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
     $("lvStudents").textContent = presence.count + " connected";
@@ -786,7 +816,9 @@ function renderLive() {
     askDraft = null; renderAsk();
     return;
   }
-  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; closeNotes(); }
+  notesBox.hidden = false;
+  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; notesShow(live.lessonId, live.periodId || ""); }
+  else if (notes.lesson !== live.lessonId) notesShow(live.lessonId, live.periodId || "");
   if (live.unlocked > lvLastUnlocked) lvSelected = live.unlocked; // follow the page just unlocked
   lvLastUnlocked = live.unlocked;
   lvSelected = Math.min(lvSelected, lesson.pages.length - 1);
@@ -880,7 +912,6 @@ function renderAsk() {
   const a = live && live.ask;
   $("lvAskBtn").disabled = !!a || !live;
   $("lvPause").disabled = !live;
-  $("lvNotesBtn").disabled = !live;
   renderQs();
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
   if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
@@ -1007,54 +1038,69 @@ function downloadAnswers(q, answers) {
 }
 setInterval(() => { if (!$("liveView").hidden && tstate && tstate.live && tstate.live.ask) renderAsk(); }, 500);
 
-// ---------- my notes: private, one set for each lesson in each block, never sent to students or the TV
-let notesKey = null, notesIds = null, notesTimer = null;
-function liveNotesIds() {
-  const L = tstate && tstate.live;
-  return L ? { lesson: L.lessonId, period: L.periodId || "" } : null;
+// ---------- my notes: private, always showing beside the pages. One set for each lesson in each block;
+// never sent to students or the TV. The same box moves between the lesson editor and the class view.
+const notes = { lesson: null, period: "", periods: null, key: null, timer: null, ids: null };
+const notesSelect = el("select", { "aria-label": "Notes for which class", onchange: () => { store("cl_notesBlock", notesSelect.value); notesShow(notes.lesson, notesSelect.value); } });
+const notesText = el("textarea", { "aria-label": "My notes", disabled: true, placeholder: "Notes for you only. Students and the TV never see these.",
+  oninput: () => { if (!notes.key) return; notesState.textContent = "Saving…"; clearTimeout(notes.timer); notes.timer = setTimeout(notesSave, 700); } });
+const notesState = el("p", { class: "t-hint", style: "margin:4px 0 0" });
+const notesBox = el("div", { class: "t-notesbox" }, el("h3", { text: "My notes" }), notesSelect, notesText, notesState);
+
+async function notesLoadPeriods() {
+  if (notes.periods) return;
+  try { notes.periods = (await tapi("/api/roster")).periods || []; } catch { notes.periods = []; }
+  notesSelect.replaceChildren(...(notes.periods.length ? notes.periods.map((p) => el("option", { value: p.id, text: p.name }))
+    : [el("option", { value: "", text: "All classes" })]));
 }
-async function openNotes() {
-  const id = liveNotesIds();
-  if (!id) return;
-  const L = tstate.live;
-  $("lvNotes").hidden = false;
-  $("lvNotesTitle").textContent = "My notes · " + (tstate.lesson ? tstate.lesson.title : "") + (L.periodName ? " · " + L.periodName : "");
-  const key = id.lesson + ":" + id.period;
-  if (notesKey !== key) {
-    notesKey = null; notesIds = id;
-    $("lvNotesText").value = "";
-    $("lvNotesState").textContent = "Loading…";
-    try {
-      const r = await tapi("/api/notes?lesson=" + encodeURIComponent(id.lesson) + "&period=" + encodeURIComponent(id.period));
-      $("lvNotesText").value = r.text || "";
-      notesKey = key;
-      $("lvNotesState").textContent = "Saved";
-    } catch { $("lvNotesState").textContent = "Couldn't load your notes."; return; }
-  }
-  $("lvNotesText").focus();
-}
-async function saveNotes() {
-  clearTimeout(notesTimer); notesTimer = null;
-  if (!notesKey || !notesIds) return;
+async function notesSave() {
+  clearTimeout(notes.timer); notes.timer = null;
+  if (!notes.key || !notes.ids) return;
   try {
     await tapi("/api/notes", { method: "PUT", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lesson: notesIds.lesson, period: notesIds.period, text: $("lvNotesText").value }) });
-    if (!notesTimer) $("lvNotesState").textContent = "Saved";
-  } catch { $("lvNotesState").textContent = "Couldn't save. Retrying…"; notesTimer = setTimeout(saveNotes, 3000); }
+      body: JSON.stringify({ lesson: notes.ids.lesson, period: notes.ids.period, text: notesText.value }) });
+    if (!notes.timer) notesState.textContent = "Saved";
+  } catch { notesState.textContent = "Couldn't save. Retrying…"; notes.timer = setTimeout(notesSave, 3000); }
 }
-function closeNotes() {
-  if (notesTimer) saveNotes();
-  $("lvNotes").hidden = true;
-  notesKey = null;
+// Show the notes for a lesson. period: a block to switch to, or leave out for the one used last.
+async function notesShow(lessonId, period) {
+  if (notes.timer) await notesSave();
+  notes.lesson = lessonId; notes.key = null;
+  notesText.disabled = true; notesText.value = "";
+  await notesLoadPeriods();
+  const ids = (notes.periods || []).map((p) => p.id);
+  let pd = period !== undefined && period !== "" && ids.includes(period) ? period : store("cl_notesBlock");
+  if (!ids.includes(pd)) pd = ids[0] || "";
+  notesSelect.value = pd;
+  if (period) store("cl_notesBlock", pd);
+  notes.period = pd;
+  const mine = lessonId;
+  notesState.textContent = "Loading…";
+  try {
+    const r = await tapi("/api/notes?lesson=" + encodeURIComponent(lessonId) + "&period=" + encodeURIComponent(pd));
+    if (notes.lesson !== mine || notes.period !== pd) return; // switched again while loading
+    notesText.value = r.text || "";
+    notes.ids = { lesson: lessonId, period: pd };
+    notes.key = lessonId + ":" + pd;
+    notesText.disabled = false;
+    notesState.textContent = "Saved";
+  } catch { notesState.textContent = "Couldn't load your notes."; }
 }
-$("lvNotesText").oninput = () => {
-  if (!notesKey) return;
-  $("lvNotesState").textContent = "Saving…";
-  clearTimeout(notesTimer);
-  notesTimer = setTimeout(saveNotes, 700);
-};
-$("lvNotesBtn").onclick = () => ($("lvNotes").hidden ? openNotes() : closeNotes());
-$("lvNotesClose").onclick = closeNotes;
+
+// ---------- uploaded sims
+let simsCache = null;
+async function loadSims() {
+  if (!simsCache) { try { simsCache = await tapi("/api/sims"); } catch { return []; } }
+  return simsCache;
+}
+async function uploadSim(file, id) {
+  if (file.size > 1_900_000) throw new Error("That file is too large (the limit is about 1.8 MB).");
+  const headers = { "content-type": "text/html" };
+  if (!id) headers["x-name"] = encodeURIComponent(file.name);
+  const r = await tapi(id ? "/api/sims/" + id : "/api/sims", { method: id ? "PUT" : "POST", headers, body: file });
+  simsCache = null;
+  return r;
+}
 
 // ---------- live student list: only on a computer that has the name file, so the iPad/TV never shows it
 function mmss(ms) { const t = Math.round(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
