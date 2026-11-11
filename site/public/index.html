@@ -131,7 +131,10 @@ function apply(s) {
     pulse = false;
     reportPage();
   } else if (s.unlocked > prevUnlocked && prevUnlocked >= 0 && page === prevUnlocked) {
-    pulse = true; // teacher just unlocked the page after this one
+    page = s.unlocked; // teacher just unlocked the next page: students on the newest page move along with it
+    pulse = false;
+    spKey = null;
+    reportPage();
   }
   lastUnlocked = s.unlocked;
   if (page > s.unlocked) { page = s.unlocked; reportPage(); }
