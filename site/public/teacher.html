@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=11">
+<link rel="stylesheet" href="app.css?v=12">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -248,6 +248,7 @@
       <div id="lvNotesSlot"></div>
     </aside>
     <div class="t-body">
+      <div class="aero-panel t-sq" id="lvSq" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
@@ -269,7 +270,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -1066,6 +1067,45 @@ function renderPrep() {
     }));
 }
 
+// ---------- questions students sent me: a flash when a new one comes in, and a reply goes back to that student only
+const sqDraft = {};
+let sqCount = null, sqSession = null;
+function renderSq() {
+  const box = $("lvSq");
+  const live = tstate && tstate.live;
+  const list = (live && tstate.sq) || [];
+  if (!live || !list.length) { box.hidden = true; box._key = null; sqCount = null; return; }
+  const sid = live.sessionId;
+  if (sid !== sqSession) { sqSession = sid; sqCount = null; }
+  box.hidden = false;
+  if (sqCount !== null && list.length > sqCount) { box.classList.remove("t-flash"); void box.offsetWidth; box.classList.add("t-flash"); }
+  sqCount = list.length;
+  const key = JSON.stringify(list.map((x) => [x.id, x.reply]));
+  if (box._key === key) return;
+  box._key = key;
+  const shown = list.slice().reverse();
+  box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Questions from students (" + list.length + ")" }),
+    ...shown.map((q) => {
+      const who = shortName(names[q.code]) || q.code;
+      const when = new Date(q.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      const ta = el("textarea", { rows: 2, placeholder: q.reply ? "Reply again" : "Type a reply", value: sqDraft[q.id] || "",
+        oninput: (e) => (sqDraft[q.id] = e.target.value),
+        onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } } });
+      const send = () => {
+        const text = ta.value.trim();
+        if (!text) return;
+        link.send({ t: "sqReply", id: q.id, text });
+        delete sqDraft[q.id]; ta.value = "";
+      };
+      return el("div", { class: "t-sqitem" },
+        el("div", { class: "t-hint", text: who + " · " + when }),
+        el("div", { style: "font-weight:700", text: q.text }),
+        q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null,
+        ta,
+        el("div", { class: "t-row", style: "margin-top:4px" }, el("span", { class: "cl-grow" }), el("button", { class: "aero-btn-primary", text: "Reply", onclick: send })));
+    }));
+}
+
 function renderAsk() {
   const box = $("lvAsk");
   const live = tstate && tstate.live;
@@ -1074,6 +1114,7 @@ function renderAsk() {
   $("lvPause").disabled = !live;
   renderQs();
   renderPrep();
+  renderSq();
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
   if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
   box.hidden = false;

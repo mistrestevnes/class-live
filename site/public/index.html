@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=11">
+<link rel="stylesheet" href="app.css?v=12">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -69,6 +69,15 @@
     </section>
   </div>
 
+  <!-- a student's own question to the teacher: always available during class, even over the pause screen -->
+  <button class="cl-qbtn" id="qBtn" hidden>Ask a question</button>
+  <section class="aero-panel cl-qbox" id="qBox" hidden>
+    <div class="cl-ask-top"><span class="cl-ask-label">Ask your teacher</span><button id="qClose">Close</button></div>
+    <div id="qList"></div>
+    <textarea id="qText" rows="3" aria-label="Your question" maxlength="1000"></textarea>
+    <div class="cl-ask-foot"><span id="qNote" class="aero-muted"></span><button class="aero-btn-primary" id="qSend">Send</button></div>
+  </section>
+
   <button class="aero-btn-primary cl-sptab" id="spTab" hidden>Show the question</button>
 
   <!-- when the teacher lets students use the sim while answering -->
@@ -77,7 +86,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -119,6 +128,7 @@ function apply(s) {
   if (typeof s.now === "number") clockSkew = s.now - Date.now();
   applyCover();
   renderSp();
+  renderQ();
   if (!s.live) {
     sessionId = null; lastUnlocked = -1;
     render();
@@ -420,6 +430,46 @@ $("spSubmit").onclick = () => { if ($("spText").value.trim()) spSave(true); };
 $("spMin").onclick = () => { if (spDirty) spSave(false); spMinimized = true; renderSp(); };
 $("spTab").onclick = () => { spMinimized = false; renderSp(); };
 setInterval(renderSp, 500);
+
+// ---------- questions to the teacher (private: only the teacher sees them, and the teacher's reply comes back here)
+const seenReplies = new Set(JSON.parse(store("cl_seenReplies") || "[]"));
+function renderQ() {
+  const on = !!state.live;
+  $("qBtn").hidden = !on || !$("qBox").hidden;
+  if (!on) { $("qBox").hidden = true; return; }
+  const list = state.myQs || [];
+  const fresh = list.filter((x) => x.reply && !seenReplies.has(x.id));
+  $("qBtn").textContent = fresh.length ? "Teacher replied" : "Ask a question";
+  $("qBtn").classList.toggle("cl-qflash", fresh.length > 0);
+  if (!$("qBox").hidden) {
+    const key = JSON.stringify(list);
+    if ($("qList")._key !== key) {
+      $("qList")._key = key;
+      $("qList").replaceChildren(...list.slice(-4).map((x) => el("div", { class: "cl-qitem" },
+        el("div", { class: "cl-qmine", text: x.text }),
+        x.reply ? el("div", { class: "cl-qreply", text: "Teacher: " + x.reply }) : el("div", { class: "aero-muted", text: "Sent. Waiting for your teacher." }))));
+    }
+    for (const x of fresh) seenReplies.add(x.id);
+    if (fresh.length) store("cl_seenReplies", JSON.stringify([...seenReplies].slice(-200)));
+  }
+}
+function openQ() {
+  $("qBox").hidden = false; $("qBtn").hidden = true; $("qList")._key = null;
+  if (document.fullscreenElement) { try { document.exitFullscreen(); } catch {} }
+  renderQ();
+  setTimeout(() => $("qText").focus(), 50);
+}
+$("qBtn").onclick = openQ;
+$("qClose").onclick = () => { $("qBox").hidden = true; renderQ(); };
+$("qSend").onclick = () => {
+  const text = $("qText").value.trim();
+  if (!text) return $("qText").focus();
+  link.send({ t: "sqSend", text });
+  $("qText").value = "";
+  $("qNote").textContent = "Sent.";
+  setTimeout(() => { $("qNote").textContent = ""; }, 3000);
+};
+setInterval(renderQ, 1000);
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }
