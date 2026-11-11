@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -269,7 +269,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -708,11 +708,42 @@ function questionsPanel(page) {
       el("button", { class: "t-small", text: "▲", "aria-label": "Move up", disabled: qi === 0, onclick: () => move(-1) }),
       el("button", { class: "t-small", text: "▼", "aria-label": "Move down", disabled: qi === qs.length - 1, onclick: () => move(1) }),
       el("button", { class: "t-small", text: "Remove", onclick: () => { if (!confirm("Remove question " + (qi + 1) + "?")) return; qs.splice(qi, 1); changed(); renderEditor(); } })));
+    const own = q.mode === "student";
+    const earlier = qs.slice(0, qi).filter((x) => x.mode === "student");
+    box.append(el("div", { class: "t-row", style: "margin:6px 0" },
+      el("label", { class: "t-row" }, el("span", { text: "How it starts" }),
+        el("select", { "aria-label": "How it starts", onchange: (e) => {
+          q.mode = e.target.value === "own" ? "student" : "";
+          if (q.mode && !q.trigger) q.trigger = { type: "sim", event: "" };
+          changed(); renderEditor(); } },
+          el("option", { value: "teacher", text: "I send it", selected: !own }),
+          el("option", { value: "own", text: "Starts on its own", selected: own })))));
+    if (own) {
+      q.trigger ||= { type: "sim", event: "" };
+      box.append(el("div", { class: "t-row", style: "margin:6px 0" },
+        el("select", { "aria-label": "What starts it", onchange: (e) => {
+          const v = e.target.value;
+          q.trigger = v === "sim" ? { type: "sim", event: "" } : { type: "after", afterId: v, delay: 3 };
+          changed(); renderEditor(); } },
+          el("option", { value: "sim", text: "When the sim reports an event", selected: q.trigger.type === "sim" }),
+          ...earlier.map((x) => el("option", { value: x.id, text: "After question " + (qs.indexOf(x) + 1) + " is submitted", selected: q.trigger.type === "after" && q.trigger.afterId === x.id }))),
+        q.trigger.type === "sim"
+          ? el("input", { type: "text", style: "width:200px", value: q.trigger.event || "", placeholder: "Event name, like dataSubmitted", "aria-label": "Sim event name",
+              oninput: (e) => { q.trigger.event = e.target.value.trim(); changed(); } })
+          : el("label", { class: "t-row" },
+              el("input", { type: "number", min: "0", max: "600", step: "1", style: "width:80px", value: q.trigger.delay ?? 3, "aria-label": "Seconds to wait",
+                oninput: (e) => { q.trigger.delay = Number(e.target.value) || 0; changed(); } }),
+              el("span", { text: "seconds later" }))));
+      box.append(el("div", { class: "t-row", style: "margin:6px 0" },
+        el("label", { class: "t-row" }, el("span", { text: "When the last part is submitted, tell the sim" }),
+          el("input", { type: "text", style: "width:200px", value: q.command || "", placeholder: "Command name (optional)", "aria-label": "Sim command",
+            oninput: (e) => { q.command = e.target.value.trim(); changed(); } }))));
+    }
     q.parts.forEach((p, pi) => box.append(el("div", { class: "t-part" },
       q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
       el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
       el("div", { class: "t-row", style: "margin:6px 0" },
-        el("label", { class: "t-row" },
+        own ? null : el("label", { class: "t-row" },
           el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || 2, "aria-label": "Minutes",
             oninput: (e) => { p.min = e.target.value; changed(); } }),
           el("span", { text: "minutes" })),
@@ -721,7 +752,7 @@ function questionsPanel(page) {
     box.append(el("div", { class: "t-row" },
       el("button", { class: "t-small", text: "Add a part", disabled: q.parts.length >= 8,
         onclick: () => { q.parts.push({ prompt: "", min: q.parts[q.parts.length - 1].min || 2, imageId: "", sim: "" }); changed(); renderEditor(); } }),
-      el("label", { class: "t-row" },
+      own ? null : el("label", { class: "t-row" },
         el("input", { type: "checkbox", checked: !!q.allowSim, onchange: (e) => { q.allowSim = e.target.checked; changed(); } }),
         el("span", { text: "Students can go back to the sim while answering" }))));
     panel.append(box);
@@ -1004,13 +1035,25 @@ function renderPrep() {
   if (!qs.length) { box.hidden = true; box._key = null; return; }
   box.hidden = false;
   const sent = live.sent || {}, busy = !!live.ask;
-  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs)].join("|");
+  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs), JSON.stringify((tstate && tstate.spCounts) || {})].join("|");
   if (box._key === key) return;
   box._key = key;
   box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Questions for this page" }),
     ...qs.map((q) => {
       const first = ((q.parts[0] || {}).prompt || "").trim() || "(empty question)";
       const at = sent[q.id];
+      if (q.mode === "student") {
+        const sc = (tstate && tstate.spCounts) || {};
+        return el("div", { class: "t-prepq", style: "flex-direction:column;align-items:stretch" },
+          el("div", { style: "font-size:19px" }, first.length > 110 ? first.slice(0, 108) + "…" : first),
+          el("div", { class: "t-hint", text: "Starts on its own" }),
+          ...q.parts.map((p, i) => {
+            const c = sc[q.id + "." + i];
+            return el("div", { class: "t-row", style: "gap:10px" },
+              el("span", { style: "flex:1;font-size:18px", text: (q.parts.length > 1 ? "Part " + (i + 1) + ": " : "") + (c ? c.done + " submitted, " + (c.n - c.done) + " still writing" : "not started") }),
+              c ? el("button", { class: "t-small", text: "Answers", onclick: () => openSaved(c.qid) }) : null);
+          }));
+      }
       return el("div", { class: "t-prepq" },
         el("div", { style: "flex:1;font-size:19px" },
           (at ? "✓ " : "") + (first.length > 110 ? first.slice(0, 108) + "…" : first) + (q.parts.length > 1 ? " · " + q.parts.length + " parts" : ""),

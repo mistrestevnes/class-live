@@ -80,6 +80,7 @@ export class Classroom extends DurableObject {
       this.qa = {};                                       // qid -> { code: { text, at } }, loaded as needed from "qa:<qid>"
       if (this.live && this.live.ask) await this.loadQA(this.live.ask.id);
       if (this.live && this.live.show) await this.loadQA(this.live.show.qid);
+      if (this.live) for (const q of this.qs) if (q.sp && q.sessionId === this.live.sessionId) await this.loadQA(q.id);
       this.liveLesson = this.live ? (await ctx.storage.get("lesson:" + this.live.lessonId)) || null : null;
       this.tokens = (await ctx.storage.get("tokens")) || [];
       this.sky = (await ctx.storage.get("sky")) || 1;
@@ -616,6 +617,66 @@ export class Classroom extends DurableObject {
     this.broadcast({ teachersOnly: !(sh && sh.qid === a.id && sh.codes.includes(stu.name)) });
   }
 
+  // Questions that run on their own (mode "student") are answered at each student's own pace, in a side panel.
+  // Each part gets its own saved question (so it shows in the Questions list) the first time anyone answers it.
+  spId(pageId, qid, idx) {
+    return "s" + [this.live.sessionId, pageId, qid, idx].join("_").replace(/[^a-z0-9_]/gi, "").slice(0, 70);
+  }
+  spQuestions() {
+    const out = [];
+    if (!this.live) return out;
+    for (const pg of this.pages().slice(0, this.live.unlocked + 1)) {
+      for (const q of pg.questions || []) if (q && q.mode === "student" && Array.isArray(q.parts) && q.parts.length) out.push({ pg, q });
+    }
+    return out;
+  }
+  async saveSp(msg, stu, submit, sid) {
+    if (!stu || !this.live || !this.inBlock(stu)) return;
+    const hit = this.spQuestions().find((x) => x.pg.id === msg.pageId && x.q.id === msg.qid);
+    const idx = Number(msg.idx);
+    if (!hit || !Number.isInteger(idx) || idx < 0 || idx >= hit.q.parts.length) return;
+    const prompt = String(hit.q.parts[idx].prompt || "").trim();
+    if (!prompt) return;
+    const id = this.spId(hit.pg.id, hit.q.id, idx);
+    await this.loadQA(id);
+    const cur = this.qa[id][stu.name];
+    if (cur && cur.done) return; // submitted answers are final
+    if (!this.qs.some((q) => q.id === id)) {
+      this.qs.unshift({ id, prompt: prompt.slice(0, 2000), seconds: 0, startedAt: Date.now(), lesson: this.liveLesson ? this.liveLesson.title : "",
+        block: this.live.periodName || "", part: idx + 1, parts: hit.q.parts.length, setId: "", sp: true, sessionId: this.live.sessionId });
+      if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
+      await this.ctx.storage.put("qs", this.qs);
+    }
+    this.qa[id][stu.name] = { text: String(msg.text || "").slice(0, 5000), at: Date.now(), done: !!submit };
+    await this.ctx.storage.put("qa:" + id, this.qa[id]);
+    this.broadcast({ teachersOnly: true });
+    if (submit) this.sendToStudent(sid);
+  }
+  // this student's saved answers to the self-paced questions: "questionId.partIndex" -> { text, done, at }
+  spMine(stu) {
+    const out = {};
+    if (!stu) return out;
+    for (const { pg, q } of this.spQuestions()) {
+      q.parts.forEach((_, i) => {
+        const a = (this.qa[this.spId(pg.id, q.id, i)] || {})[stu.name];
+        if (a) out[q.id + "." + i] = { text: a.text, done: !!a.done, at: a.at };
+      });
+    }
+    return out;
+  }
+  // how many students have answered / submitted each part (for the teacher)
+  spCounts() {
+    const out = {};
+    for (const { pg, q } of this.spQuestions()) {
+      q.parts.forEach((_, i) => {
+        const a = this.qa[this.spId(pg.id, q.id, i)] || {};
+        const v = Object.values(a);
+        out[q.id + "." + i] = { n: v.length, done: v.filter((x) => x.done).length, qid: this.spId(pg.id, q.id, i) };
+      });
+    }
+    return out;
+  }
+
   async loadQA(qid) {
     if (!qid) return {};
     if (!this.qa[qid]) this.qa[qid] = (await this.ctx.storage.get("qa:" + qid)) || {};
@@ -661,6 +722,8 @@ export class Classroom extends DurableObject {
     if (msg.t === "work") return this.saveWork(msg, stu);
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
     if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
+    if (msg.t === "spAnswer") return this.saveSp(msg, stu, false, sid);
+    if (msg.t === "spSubmit") return this.saveSp(msg, stu, true, sid);
     if (msg.t === "away") {
       if (!stu) return;
       this.away ||= {};
@@ -701,7 +764,8 @@ export class Classroom extends DurableObject {
     const a = sh.ask;
     const mine = a && stu && this.qa[a.id] && this.qa[a.id][stu.name];
     if (a) { a.mine = mine ? mine.text : ""; a.done = !!(mine && mine.done); }
-    return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac };
+    return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac,
+      spMine: inb ? this.spMine(stu) : {} };
   }
 
   // ---------------------------------------------------------------- student sign-in
@@ -1099,7 +1163,20 @@ export class Classroom extends DurableObject {
   lessonState(sid, inBlock = true) {
     if (!this.live || !this.liveLesson || !inBlock) return { live: false };
     const unlocked = this.live.unlocked;
-    const pages = this.pages().slice(0, unlocked + 1);
+    // students only get the questions that run on their own; the ones the teacher sends stay private until sent
+    const pages = this.pages().slice(0, unlocked + 1).map((pg) => {
+      if (!pg.questions) return pg;
+      const word = (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v || "") ? v : "");
+      const qs = pg.questions.filter((q) => q && q.mode === "student" && Array.isArray(q.parts)).map((q) => ({
+        id: q.id, mode: "student",
+        trigger: q.trigger && q.trigger.type === "after"
+          ? { type: "after", afterId: word(q.trigger.afterId), delay: Math.max(0, Math.min(Number(q.trigger.delay) || 0, 600)) }
+          : { type: "sim", event: word(q.trigger && q.trigger.event) },
+        command: word(q.command),
+        parts: q.parts.slice(0, 8).map((p) => ({ prompt: String((p && p.prompt) || "").slice(0, 2000), imageId: (p && p.imageId) || "", sim: (p && p.sim) || "" })),
+      }));
+      return { ...pg, questions: qs };
+    });
     const myVotes = {};
     const closed = {};
     for (const pg of pages) {
@@ -1186,6 +1263,7 @@ export class Classroom extends DurableObject {
       now: Date.now(),
       askAnswers: this.live && this.live.ask ? this.qa[this.live.ask.id] || {} : {},
       qs: this.qs,
+      spCounts: this.spCounts(),
       sky: await this.skyTeacherState(),
     };
   }

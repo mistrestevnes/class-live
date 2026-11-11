@@ -124,3 +124,16 @@ textarea { resize: vertical; line-height: 1.45; }
 #askMedia { margin-bottom: 14px; text-align: center; }
 #askMedia img { max-width: 100%; max-height: 38vh; border-radius: 8px; }
 #askMedia iframe { width: 100%; height: 38vh; border: 0; border-radius: 8px; background: #000000; }
+
+/* questions that start on their own: a column beside the page, so the sim stays usable */
+.cl-mid { flex: 1; min-height: 0; display: flex; }
+.cl-mid .cl-main { flex: 1; min-width: 0; }
+.cl-sp { flex: none; width: min(400px, 36vw); margin: 4px 12px 4px 0; padding: 16px 18px; overflow: auto; align-self: stretch; }
+.cl-sp .cl-ask-prompt { font-size: 22px; }
+.cl-sp textarea { width: 100%; }
+.cl-sp .cl-ask-top button { padding: 4px 14px; font-size: 18px; }
+.cl-sp .cl-ask-foot button { min-height: 52px; padding: 8px 26px; }
+#spMedia { margin-bottom: 12px; text-align: center; }
+#spMedia img { max-width: 100%; max-height: 30vh; border-radius: 8px; }
+#spMedia iframe { width: 100%; height: 30vh; border: 0; border-radius: 8px; background: #000000; }
+.cl-sptab { position: fixed; right: 24px; bottom: 96px; z-index: 40; min-height: 52px; padding: 8px 24px; font-size: 1.1rem; }

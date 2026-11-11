@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -15,6 +15,7 @@
     <span class="aero-chip cl-status connecting" id="status">Connecting…</span>
   </header>
 
+  <div class="cl-mid">
   <main class="cl-main">
     <div class="cl-center">
       <form class="aero-panel cl-message" id="login" hidden>
@@ -31,6 +32,15 @@
       <section class="aero-panel" id="pageBox" hidden></section>
     </div>
   </main>
+  <!-- questions that start on their own: they sit beside the sim, so the sim stays in use -->
+  <aside class="aero-panel cl-sp" id="sp" hidden>
+    <div class="cl-ask-top"><span class="cl-ask-label" id="spLabel">Question</span><button id="spMin" aria-label="Hide the question">Hide</button></div>
+    <div class="cl-ask-prompt" id="spPrompt"></div>
+    <div id="spMedia" hidden></div>
+    <textarea id="spText" rows="6" aria-label="Your answer"></textarea>
+    <div class="cl-ask-foot"><span id="spNote" class="aero-muted"></span><button class="aero-btn-primary" id="spSubmit">Submit</button></div>
+  </aside>
+  </div>
 
   <footer class="cl-bottom aero-bar" id="nav" hidden>
     <button id="back">◀ Back</button>
@@ -59,13 +69,15 @@
     </section>
   </div>
 
+  <button class="aero-btn-primary cl-sptab" id="spTab" hidden>Show the question</button>
+
   <!-- when the teacher lets students use the sim while answering -->
   <div class="aero-panel cl-askback" id="askBack" hidden>
     <span id="askBackTime" class="cl-ask-time"></span>
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -106,6 +118,7 @@ function apply(s) {
   state = s;
   if (typeof s.now === "number") clockSkew = s.now - Date.now();
   applyCover();
+  renderSp();
   if (!s.live) {
     sessionId = null; lastUnlocked = -1;
     render();
@@ -136,7 +149,9 @@ function go(delta) {
   page = n;
   if (delta > 0) pulse = false;
   reportPage();
+  spKey = null;
   render();
+  renderSp();
   document.querySelector(".cl-main").scrollTop = 0;
 }
 $("back").onclick = () => go(-1);
@@ -297,6 +312,99 @@ $("askSubmit").onclick = () => {
 };
 $("askToSim").onclick = () => { if (askDirty) saveAsk(); askMin = true; applyCover(); };
 $("askBackBtn").onclick = () => { askMin = false; applyCover(); };
+
+// ---------- questions that start on their own (a sim event, or after another question). Answered at the student's own pace.
+const simEvents = {};       // pageId -> events the sim on that page has reported
+const cmdSent = new Set();  // commands already sent to the sim
+let spMinimized = false, spKey = null, spDirty = false, spSaveTimer = null;
+const spAnswers = () => state.spMine || (state.spMine = {});
+const spDone = (q, mine) => q.parts.every((_, i) => (mine[q.id + "." + i] || {}).done);
+const spDoneAt = (q, mine) => Math.max(0, ...q.parts.map((_, i) => (mine[q.id + "." + i] || {}).at || 0));
+
+window.addEventListener("message", (e) => {
+  const d = e.data, name = d && d.classliveEvent;
+  if (typeof name !== "string" || !state.pages) return;
+  const fr = [...document.querySelectorAll(".cl-sim iframe")].find((f) => f.contentWindow === e.source);
+  if (!fr) return; // only the sim on this page counts
+  const pg = state.pages[page];
+  if (!pg) return;
+  if (name === "ready") { for (const k of [...cmdSent]) if (k.startsWith(pg.id + ".")) cmdSent.delete(k); }
+  else (simEvents[pg.id] ||= {})[name.slice(0, 40)] = true;
+  renderSp();
+});
+
+function sendSimCommands(pg, mine) {
+  for (const q of pg.questions || []) {
+    const k = pg.id + "." + q.id + "." + q.command;
+    if (!q.command || cmdSent.has(k) || !spDone(q, mine)) continue;
+    cmdSent.add(k);
+    for (const f of document.querySelectorAll(".cl-sim iframe")) { try { f.contentWindow.postMessage({ classliveCommand: q.command }, "*"); } catch {} }
+  }
+}
+
+function renderSp() {
+  const pg = state.live && state.pages && state.pages[page];
+  const qs = (pg && pg.questions) || [];
+  const mine = spAnswers();
+  let cur = null, recent = null;
+  if (qs.length) {
+    sendSimCommands(pg, mine);
+    for (const q of qs) {
+      const done = spDone(q, mine);
+      const began = q.parts.some((_, i) => mine[q.id + "." + i]);
+      let on = began;
+      if (!on && q.trigger.type === "sim") on = !!(simEvents[pg.id] || {})[q.trigger.event];
+      if (!on && q.trigger.type === "after") {
+        const prev = qs.find((x) => x.id === q.trigger.afterId);
+        on = !!prev && spDone(prev, mine) && serverNow() >= spDoneAt(prev, mine) + q.trigger.delay * 1000;
+      }
+      if (!on) continue;
+      if (!done) { cur = { q }; break; }
+      if (serverNow() - spDoneAt(q, mine) < 3000) recent = { q };
+    }
+  }
+  const use = cur || recent;
+  const showing = !!use && !(state.paused || state.qpaused);
+  $("sp").hidden = !showing || spMinimized;
+  $("spTab").hidden = !showing || !spMinimized;
+  document.body.classList.toggle("sp-open", showing && !spMinimized);
+  if (!showing) { spKey = null; return; }
+  const q = use.q;
+  const idx = cur ? q.parts.findIndex((_, i) => !(mine[q.id + "." + i] || {}).done) : q.parts.length - 1;
+  const part = q.parts[idx], key = pg.id + "." + q.id + "." + idx;
+  const finished = !cur;
+  if (key !== spKey) {
+    spKey = key; spDirty = false; spMinimized = false;
+    $("sp").hidden = false; $("spTab").hidden = true; document.body.classList.add("sp-open");
+    $("spLabel").textContent = q.parts.length > 1 ? "Question · part " + (idx + 1) + " of " + q.parts.length : "Question";
+    $("spPrompt").replaceChildren(formatText(part.prompt));
+    setMedia($("spMedia"), part);
+    $("spText").value = (mine[q.id + "." + idx] || {}).text || "";
+  }
+  $("spText").readOnly = finished;
+  $("spSubmit").hidden = finished;
+  $("spSubmit").disabled = !$("spText").value.trim();
+  $("spNote").textContent = finished ? "Submitted." : "";
+}
+function spSave(submit) {
+  const pg = state.pages[page];
+  const parts = spKey && spKey.split(".");
+  if (!parts || parts[0] !== pg.id) return;
+  const qid = parts[1], idx = Number(parts[2]);
+  spDirty = false; clearTimeout(spSaveTimer);
+  link.send({ t: submit ? "spSubmit" : "spAnswer", pageId: pg.id, qid, idx, text: $("spText").value });
+  if (submit) { spAnswers()[qid + "." + idx] = { text: $("spText").value, done: true, at: serverNow() }; renderSp(); }
+}
+$("spText").oninput = () => {
+  spDirty = true;
+  $("spSubmit").disabled = !$("spText").value.trim();
+  clearTimeout(spSaveTimer);
+  spSaveTimer = setTimeout(() => { if (spDirty) spSave(false); }, 2000);
+};
+$("spSubmit").onclick = () => { if ($("spText").value.trim()) spSave(true); };
+$("spMin").onclick = () => { if (spDirty) spSave(false); spMinimized = true; renderSp(); };
+$("spTab").onclick = () => { spMinimized = false; renderSp(); };
+setInterval(renderSp, 500);
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }
