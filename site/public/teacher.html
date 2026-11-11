@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="app.css?v=4">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -95,7 +95,7 @@
   }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
 </style>
-<link rel="stylesheet" href="aerolab.css">
+<link rel="stylesheet" href="aerolab.css?v=4">
 </head>
 <body>
 
@@ -249,7 +249,7 @@
   </footer>
 </section>
 
-<script src="common.js"></script>
+<script src="common.js?v=4"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
