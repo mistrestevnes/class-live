@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app.css?v=6">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -95,7 +95,7 @@
   }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
 </style>
-<link rel="stylesheet" href="aerolab.css?v=5">
+<link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
 
@@ -249,7 +249,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -1036,9 +1036,9 @@ $("stOpenNames").onclick = () => {
     const got = readNameFile(await f.text());
     const n = Object.keys(got).length;
     if (!n) return stMsg("No codes with names were found. The file needs the code, then the first name, then the last name or initial.");
-    names = got;
+    names = { ...names, ...got }; // adds to the names already here; a code in this file replaces its old name
     try { localStorage.setItem("cl_names", JSON.stringify(names)); } catch {}
-    drawNamesNote(); stMsg(n + " names loaded on this computer.");
+    drawNamesNote(); stMsg(n + " names added. " + Object.keys(names).length + " in all on this computer.");
   };
   inp.click();
 };
