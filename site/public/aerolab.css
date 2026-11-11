@@ -34,6 +34,9 @@
      choice card), it floats over other content (a dialog, a magnifier),
      or it holds a graph, table or form that needs a light background.
    - Leave var(--aero-page-bottom) clear below the last control.
+   - The page header (title, links, top buttons) goes in .aero-header:
+     no box, straight on the forest page, with room above it
+     (var(--aero-page-top)) so nothing crowds the top edge.
 
    Every color the rules use is a token in :root, so changing a token
    changes the look.
@@ -97,6 +100,7 @@
   --aero-radius: 10px;
   --aero-radius-sm: 6px;
   --aero-control-h: 32px;
+  --aero-page-top: 28px;         /* space above the page header */
   --aero-page-bottom: 48px;      /* space below the last control, so nobody mouses to the screen edge */
   --aero-focus: 0 0 0 2px #FFFFFF, 0 0 0 4px #12291F;
 
@@ -158,6 +162,17 @@ dialog::backdrop { background: rgba(5, 12, 9, .6); }
   border-radius: var(--aero-radius);
   overflow: hidden;
 }
+
+/* ---------- page header: no box, room above ---------- */
+.aero-header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: var(--aero-page-top) 24px 12px;
+  color: var(--aero-ink-on-dark);
+  background: none;
+}
+.aero-header h1, .aero-header h2 { margin: 0; }
+.aero-header .aero-muted, .aero-header .aero-chip { color: var(--aero-muted-on-dark); }
+.aero-header .aero-chip .aero-data { color: var(--aero-ink-on-dark); }
 
 /* ---------- buttons: plain (default) ---------- */
 button, .aero-btn {

@@ -4,7 +4,8 @@ html, body { height: 100%; }
 body { display: flex; flex-direction: column; }
 [hidden] { display: none !important; }
 
-.cl-top, .cl-bottom { margin: 10px 12px; flex: none; }
+.cl-bottom { margin: 10px 12px; flex: none; }
+.cl-top { flex: none; }
 .cl-top { justify-content: space-between; }
 .cl-top .cl-title { font-family: var(--aero-font-body); font-size: 1.35rem; margin: 0; }
 .cl-grow { flex: 1; }
@@ -112,3 +113,4 @@ textarea { resize: vertical; line-height: 1.45; }
 /* answers picked by the teacher, shown without names */
 .cl-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .cl-card { background: #FFFFFF; color: #0B2A1F; border: 1px solid #BFD8CC; border-radius: 10px; padding: 14px 16px; font-size: 21px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aero-header .cl-status.live::before, .aero-header .cl-status.polling::before { background: var(--aero-link-on-dark); }

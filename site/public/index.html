@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=4">
-<link rel="stylesheet" href="aerolab.css?v=4">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="aerolab.css?v=5">
 </head>
 <body>
-  <header class="cl-top aero-bar">
+  <header class="cl-top aero-header">
     <h1 class="cl-title" id="title">Class Live</h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="pageNum" hidden></span>
@@ -58,7 +58,7 @@
     </section>
   </div>
 
-<script src="common.js?v=4"></script>
+<script src="common.js?v=5"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }

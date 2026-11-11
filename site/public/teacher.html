@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=5">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -95,7 +95,7 @@
   }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
 </style>
-<link rel="stylesheet" href="aerolab.css?v=4">
+<link rel="stylesheet" href="aerolab.css?v=5">
 </head>
 <body>
 
@@ -134,7 +134,7 @@
 
 <!-- students: login codes, name file, printing -->
 <section id="studentsView" class="t-wrap" hidden>
-  <header class="cl-top aero-bar">
+  <header class="cl-top aero-header">
     <button id="stBack">◀ Lessons</button>
     <h1 class="cl-title">Students</h1>
     <span class="cl-grow"></span>
@@ -159,7 +159,7 @@
 
 <!-- lessons list -->
 <section id="homeView" class="t-wrap" hidden>
-  <header class="cl-top aero-bar">
+  <header class="cl-top aero-header">
     <h1 class="cl-title">Class Live · Lessons</h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="studentUrl"></span>
@@ -185,7 +185,7 @@
 
 <!-- lesson designer -->
 <section id="editView" class="t-wrap" hidden>
-  <header class="cl-top aero-bar">
+  <header class="cl-top aero-header">
     <button id="edBack">◀ Lessons</button>
     <input type="text" id="edTitle" class="t-title-input" aria-label="Lesson title">
     <span class="aero-chip" id="saveState">Saved</span>
@@ -211,7 +211,7 @@
 
 <!-- teaching live -->
 <section id="liveView" class="t-wrap" hidden>
-  <header class="cl-top aero-bar">
+  <header class="cl-top aero-header">
     <h1 class="cl-title" id="lvTitle"></h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="lvStudents"></span>
@@ -249,7 +249,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=4"></script>
+<script src="common.js?v=5"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
