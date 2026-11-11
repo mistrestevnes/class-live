@@ -215,6 +215,17 @@ export class Classroom extends DurableObject {
       if (lm && m === "DELETE") return this.deleteLesson(lm[1]);
       if (p === "/api/images" && m === "POST") return this.saveImage(request);
 
+      // the teacher's private notes, one set for each lesson in each block
+      if (p === "/api/notes" && m === "GET") {
+        const n = await this.ctx.storage.get(this.notesKey(url.searchParams.get("lesson"), url.searchParams.get("period")));
+        return json({ text: n ? n.text : "" });
+      }
+      if (p === "/api/notes" && m === "PUT") {
+        const b = await request.json();
+        await this.ctx.storage.put(this.notesKey(b.lesson, b.period), { text: String(b.text || "").slice(0, 20000), updated: Date.now() });
+        return json({ ok: true });
+      }
+
       return json({ error: "not found" }, 404);
     } catch (err) {
       return json({ error: String(err && err.message ? err.message : err) }, 500);
@@ -342,6 +353,11 @@ export class Classroom extends DurableObject {
     });
   }
 
+  notesKey(lesson, period) {
+    const c = (x) => String(x || "none").replace(/[^a-z0-9]/gi, "").slice(0, 20) || "none";
+    return "notes:" + c(lesson) + ":" + c(period);
+  }
+
   // ---------------------------------------------------------------- live session
   pages() {
     return (this.liveLesson && this.liveLesson.pages) || [];
@@ -354,7 +370,10 @@ export class Classroom extends DurableObject {
         if (!lesson) return;
         if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
-        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now() };
+        // each block is started on its own: only that block's students move into the lesson
+        const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
+        if (this.roster.periods.length && !pd) return;
+        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "" };
         this.liveLesson = lesson;
         this.votes = {};
         await this.ctx.storage.put("live", this.live);
@@ -398,25 +417,43 @@ export class Classroom extends DurableObject {
         await this.ctx.storage.put("live", this.live);
         break;
       }
-      // a written question pushed to every screen, with a time limit
+      // a written question pushed to every screen, with a time limit. It can have several parts,
+      // each with its own timer: part 1 goes out now, "askNext" sends the next one.
       case "ask": {
         if (!this.live) return;
-        const prompt = String(msg.prompt || "").trim().slice(0, 2000);
-        const seconds = Math.max(10, Math.min(Number(msg.seconds) || 120, 3600));
-        if (!prompt) return;
+        let parts = Array.isArray(msg.parts) ? msg.parts : [{ prompt: msg.prompt, seconds: msg.seconds }];
+        parts = parts.slice(0, 8).map((p) => ({
+          prompt: String((p && p.prompt) || "").trim().slice(0, 2000),
+          seconds: Math.max(10, Math.min(Number(p && p.seconds) || 120, 3600)),
+        })).filter((p) => p.prompt);
+        if (!parts.length) return;
+        this.live.askSet = { setId: rid(6), parts, i: 0, allowSim: !!msg.allowSim };
+        await this.startPart(0);
+        break;
+      }
+      case "askNext": {
+        const set = this.live && this.live.askSet;
+        if (!set || set.i + 1 >= set.parts.length) return;
+        await this.startPart(set.i + 1);
+        break;
+      }
+      // stop the answering so the class can talk: students see a pause screen, the TV goes back to the page
+      case "askPause": {
+        const a = this.live && this.live.ask;
+        if (!a) return;
         const now = Date.now();
-        this.live.ask = { id: rid(8), prompt, seconds, startedAt: now, endsAt: now + seconds * 1000 };
-        this.live.show = null; // a new question takes the middle of the screen
-        this.qa[this.live.ask.id] = {};
-        this.qs.unshift({ id: this.live.ask.id, prompt, seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "" });
-        if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
-        await this.ctx.storage.put("qs", this.qs);
+        if (msg.on && !a.paused) { a.paused = true; a.pausedAt = now; }
+        else if (!msg.on && a.paused) {
+          if (a.endsAt > a.pausedAt) a.endsAt += now - a.pausedAt; // the time left is the same as when it was paused
+          a.paused = false; a.pausedAt = 0;
+        }
+        else return;
         await this.ctx.storage.put("live", this.live);
         break;
       }
       case "askMore": {
         const a = this.live && this.live.ask;
-        if (!a) return;
+        if (!a || a.paused) return;
         const now = Date.now();
         a.endsAt = Math.max(a.endsAt, now) + Math.max(10, Math.min(Number(msg.seconds) || 30, 600)) * 1000;
         await this.ctx.storage.put("live", this.live);
@@ -424,7 +461,7 @@ export class Classroom extends DurableObject {
       }
       case "askEnd": {
         const a = this.live && this.live.ask;
-        if (!a) return;
+        if (!a || a.paused) return;
         a.endsAt = Math.min(a.endsAt, Date.now());
         await this.ctx.storage.put("live", this.live);
         break;
@@ -432,6 +469,7 @@ export class Classroom extends DurableObject {
       case "askClose": {
         if (!this.live || !this.live.ask) return;
         this.live.ask = null;
+        this.live.askSet = null;
         await this.ctx.storage.put("live", this.live);
         break;
       }
@@ -483,13 +521,36 @@ export class Classroom extends DurableObject {
     this.broadcast();
   }
 
+  async startPart(i) {
+    const set = this.live.askSet;
+    const p = set.parts[i];
+    const now = Date.now();
+    const id = rid(8);
+    set.i = i;
+    this.live.ask = { id, prompt: p.prompt, seconds: p.seconds, startedAt: now, endsAt: now + p.seconds * 1000,
+      part: i + 1, parts: set.parts.length, allowSim: !!set.allowSim, paused: false, pausedAt: 0 };
+    this.live.show = null; // a new question takes the middle of the screen
+    this.qa[id] = {};
+    this.qs.unshift({ id, prompt: p.prompt, seconds: p.seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "",
+      block: this.live.periodName || "", part: i + 1, parts: set.parts.length, setId: set.setId });
+    if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
+    await this.ctx.storage.put("qs", this.qs);
+    await this.ctx.storage.put("live", this.live);
+  }
+
+  // is this student in the block that is running? (no class running, or a class with no block set, counts as yes)
+  inBlock(stu) {
+    return !this.live || !this.live.periodId || (!!stu && stu.periodId === this.live.periodId);
+  }
+
   // A student's written answer. Saved as they type; accepted until time runs out (plus a few seconds for slow networks).
   async saveAsk(msg, stu) {
     const a = this.live && this.live.ask;
-    if (!stu || !a || msg.qid !== a.id) return;
-    if (Date.now() > a.endsAt + 5000) return;
+    if (!stu || !a || msg.qid !== a.id || !this.inBlock(stu)) return;
+    if (!a.paused && Date.now() > a.endsAt + 5000) return;
     await this.loadQA(a.id);
-    this.qa[a.id][stu.name] = { text: String(msg.text || "").slice(0, 5000), at: Date.now() };
+    // typing again after submitting means the answer is being changed, so it is not "submitted" until they press Submit again
+    this.qa[a.id][stu.name] = { text: String(msg.text || "").slice(0, 5000), at: Date.now(), done: !!msg.submit };
     await this.ctx.storage.put("qa:" + a.id, this.qa[a.id]);
     // if this student's answer is on display, the screens need the new wording
     const sh = this.live.show;
@@ -505,13 +566,15 @@ export class Classroom extends DurableObject {
   // what everyone in the room may see: the question and the picked answers, never names
   shared() {
     const L = this.live;
-    if (!L) return { paused: false, ask: null, show: null };
+    if (!L) return { paused: false, qpaused: false, ask: null, show: null };
     const sh = L.show;
     const q = sh && this.qs.find((x) => x.id === sh.qid);
     const qa = sh ? this.qa[sh.qid] || {} : {};
+    const a = L.ask, qp = !!(a && a.paused);
     return {
       paused: !!L.paused,
-      ask: L.ask ? { id: L.ask.id, prompt: L.ask.prompt, endsAt: L.ask.endsAt } : null,
+      qpaused: qp, // the question is paused: students get a pause screen, the TV shows the page
+      ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim } : null,
       show: q ? { qid: sh.qid, prompt: q.prompt, answers: sh.codes.filter((c) => qa[c]).map((c) => qa[c].text) } : null,
     };
   }
@@ -538,6 +601,7 @@ export class Classroom extends DurableObject {
     if (msg.t === "answer") return this.saveAnswer(msg, stu);
     if (msg.t === "work") return this.saveWork(msg, stu);
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
+    if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
     if (msg.t === "away") {
       if (!stu) return;
       this.away ||= {};
@@ -547,7 +611,7 @@ export class Classroom extends DurableObject {
       if (goingAway && !a.away) { a.count++; a.since = now; }
       if (!goingAway && a.away) a.ms += now - a.since;
       a.away = goingAway; a.why = goingAway ? String(msg.why || "").slice(0, 40) : a.why;
-      if (this.live) {
+      if (this.live && this.inBlock(stu)) {
         // live lesson: time each student spends with the Class Live tab hidden (students are not told)
         const w = (this.watch[stu.name] ||= { away: false, since: 0, count: 0, ms: 0 });
         if (goingAway && !w.away) { w.count++; w.since = now; }
@@ -558,7 +622,7 @@ export class Classroom extends DurableObject {
       this.broadcast({ teachersOnly: true });
       return;
     }
-    if (msg.t !== "vote" || !this.live) return;
+    if (msg.t !== "vote" || !this.live || !this.inBlock(stu)) return;
     const pages = this.pages();
     const idx = pages.findIndex((pg) => pg.id === msg.pageId);
     if (idx < 0 || idx > this.live.unlocked) return;
@@ -573,11 +637,12 @@ export class Classroom extends DurableObject {
   }
 
   studentState(sid, stu) {
-    const sh = this.shared();
+    const inb = this.inBlock(stu);
+    const sh = inb ? this.shared() : { paused: false, qpaused: false, ask: null, show: null };
     const a = sh.ask;
     const mine = a && stu && this.qa[a.id] && this.qa[a.id][stu.name];
-    if (a) a.mine = mine ? mine.text : "";
-    return { ...this.lessonState(sid), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac };
+    if (a) { a.mine = mine ? mine.text : ""; a.done = !!(mine && mine.done); }
+    return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac };
   }
 
   // ---------------------------------------------------------------- student sign-in
@@ -972,8 +1037,8 @@ export class Classroom extends DurableObject {
     return json({ questions, students: pd.students.map((st) => ({ id: st.id, name: st.name })), answers });
   }
 
-  lessonState(sid) {
-    if (!this.live || !this.liveLesson) return { live: false };
+  lessonState(sid, inBlock = true) {
+    if (!this.live || !this.liveLesson || !inBlock) return { live: false };
     const unlocked = this.live.unlocked;
     const pages = this.pages().slice(0, unlocked + 1);
     const myVotes = {};

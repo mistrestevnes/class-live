@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -51,6 +51,14 @@
   .t-roll li::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--aero-line); }
   .t-roll li.on::before { background: var(--aero-jade); border-color: var(--aero-jade); }
   .t-roll li:not(.on) { color: var(--aero-ink-muted); }
+  .t-roll li.grp { grid-column: 1 / -1; font-family: Helvetica, Arial, sans-serif; font-weight: 700; padding-top: 10px; }
+  .t-roll li.grp::before { display: none; }
+  .t-pick { display: grid; gap: 12px; max-width: 560px; }
+  .t-pick h2 { margin: 0 0 4px; }
+  .t-pick button { min-height: 60px; font-size: 1.2rem; }
+  .t-part { margin-bottom: 12px; }
+  .t-notes { padding: 16px 20px; }
+  .t-notes textarea { width: 100%; font-size: 20px; }
   .t-ask { padding: 16px 20px; }
   .t-ask h3 { margin: 0 0 8px; }
   .t-ask textarea { width: 100%; font-size: 20px; }
@@ -229,6 +237,11 @@
       <ul class="t-qs" id="lvQs"></ul>
     </aside>
     <div class="t-body">
+      <div class="aero-panel t-notes" id="lvNotes" hidden>
+        <h3 id="lvNotesTitle" style="margin:0 0 8px">My notes</h3>
+        <textarea id="lvNotesText" rows="6" aria-label="My notes" placeholder="Notes for you only. Students and the TV never see these."></textarea>
+        <div class="t-row"><span class="t-hint" id="lvNotesState"></span><span class="cl-grow"></span><button id="lvNotesClose" class="t-small">Close</button></div>
+      </div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
@@ -243,13 +256,14 @@
     <button id="lvRelock" class="t-small">Re-lock last page</button>
     <span class="aero-muted" id="lvUnlockNote"></span>
     <span class="cl-grow"></span>
+    <button id="lvNotesBtn" class="t-small">Notes</button>
     <button id="lvAskBtn" class="t-small">Ask a question</button>
     <button id="lvPause" class="t-small">Pause students</button>
     <button id="lvUnlock" class="aero-btn-primary t-unlock">Unlock next page ▶</button>
   </footer>
 </section>
 
-<script src="common.js?v=6"></script>
+<script src="common.js?v=7"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -430,10 +444,21 @@ function renderHomeWho() {
   $("homeWho").hidden = !has;
   if (!has) return;
   const rows = (tstate.students || []).filter((x) => x.cls).map((x) => ({ ...x, name: shortName(names[x.code]) || x.code }));
-  rows.sort((a, b) => a.name.localeCompare(b.name));
+  rows.sort((a, b) => a.cls.localeCompare(b.cls) || a.name.localeCompare(b.name));
   const n = rows.filter((x) => x.connected).length;
   $("homeWhoNote").textContent = n + " of " + rows.length + " signed in";
-  $("homeWhoList").replaceChildren(...rows.map((x) => el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name })));
+  const blocks = new Set(rows.map((x) => x.cls));
+  const out = [];
+  let last = null;
+  for (const x of rows) {
+    if (blocks.size > 1 && x.cls !== last) {
+      const inB = rows.filter((y) => y.cls === x.cls);
+      out.push(el("li", { class: "grp", text: x.cls + " · " + inB.filter((y) => y.connected).length + " of " + inB.length + " signed in" }));
+      last = x.cls;
+    }
+    out.push(el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name }));
+  }
+  $("homeWhoList").replaceChildren(...out);
 }
 
 function renderLiveCard() {
@@ -444,7 +469,7 @@ function renderLiveCard() {
   const p = tstate.presence;
   card.replaceChildren(el("div", { class: "t-row" },
     el("div", { style: "flex:1;min-width:240px" },
-      el("h2", { style: "margin:0", text: "Class running: " + tstate.lesson.title }),
+      el("h2", { style: "margin:0", text: "Class running: " + tstate.lesson.title + (tstate.live.periodName ? " · " + tstate.live.periodName : "") }),
       el("span", { class: "aero-muted", text: p.count + (p.count === 1 ? " student connected" : " students connected") })),
     el("button", { class: "aero-btn-primary", text: "Go to class", onclick: () => (location.hash = "#/live") }),
     el("button", { text: "End class", onclick: endClass }),
@@ -471,17 +496,37 @@ async function deleteLesson(l) {
   showHome();
 }
 
+// Each block is started on its own. With more than one block on the class list, ask which.
+async function pickBlock() {
+  let periods = [];
+  try { periods = (await tapi("/api/roster")).periods || []; } catch {}
+  if (!periods.length) return { id: null };
+  if (periods.length === 1) return { id: periods[0].id };
+  return new Promise((resolve) => {
+    const done = (v) => { ov.remove(); resolve(v); };
+    const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": "Which class" },
+      el("section", { class: "aero-panel cl-cover-box t-pick" },
+        el("h2", { text: "Which class are you starting?" }),
+        ...periods.map((p) => el("button", { class: "aero-btn-primary", text: p.name + " · " + p.students.length + " students", onclick: () => done({ id: p.id }) })),
+        el("button", { text: "Cancel", onclick: () => done(null) })));
+    document.body.append(ov);
+  });
+}
+
 async function startLesson(id) {
   if (tstate && tstate.live) {
+    const who = tstate.live.periodName ? tstate.live.periodName + " is in a class right now. " : "";
     const same = tstate.live.lessonId === id;
-    const ok = confirm(same
-      ? "Start this lesson fresh for a new class? Pages lock again and the current votes are cleared."
-      : "Another lesson is running. Start this one instead? The current class ends and its votes are cleared.");
+    const ok = confirm(who + (same
+      ? "Start this lesson fresh for a new class? The running class ends, pages lock again, and the current votes are cleared."
+      : "Start this one instead? The running class ends and its votes are cleared."));
     if (!ok) return;
   }
+  const pick = await pickBlock();
+  if (!pick) return;
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
-  await link.send({ t: "start", lessonId: id });
+  await link.send({ t: "start", lessonId: id, periodId: pick.id });
   location.hash = "#/live";
 }
 
@@ -741,12 +786,12 @@ function renderLive() {
     askDraft = null; renderAsk();
     return;
   }
-  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; }
+  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; closeNotes(); }
   if (live.unlocked > lvLastUnlocked) lvSelected = live.unlocked; // follow the page just unlocked
   lvLastUnlocked = live.unlocked;
   lvSelected = Math.min(lvSelected, lesson.pages.length - 1);
 
-  $("lvTitle").textContent = lesson.title;
+  $("lvTitle").textContent = lesson.title + (live.periodName ? " · " + live.periodName : "");
   $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
     (presence.polling ? " (" + presence.polling + " checking every few seconds)" : "");
 
@@ -802,9 +847,9 @@ const askMinutes = () => Number(store("cl_askMin")) || 2;
 function openAsk() {
   if (!tstate || !tstate.live || tstate.live.ask) return;
   viewQ = null;
-  askDraft = askDraft || { prompt: "" };
+  askDraft = askDraft || { parts: [{ prompt: "", min: askMinutes() }], allowSim: store("cl_askSim") === "1" };
   renderAsk();
-  setTimeout(() => $("askPromptIn") && $("askPromptIn").focus(), 20);
+  setTimeout(() => $("askPromptIn0") && $("askPromptIn0").focus(), 20);
 }
 $("lvAskBtn").onclick = openAsk;
 // Q opens the question box from anywhere in the class view (not while typing)
@@ -815,12 +860,15 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "q" || e.key === "Q") { e.preventDefault(); openAsk(); }
 });
 function sendAsk() {
-  const prompt = (askDraft && askDraft.prompt || "").trim();
-  const seconds = Math.round(Number(($("askMinIn") || {}).value || askMinutes()) * 60);
-  if (!prompt) return $("askPromptIn").focus();
-  if (!(seconds >= 10)) return $("askMinIn").focus();
-  store("cl_askMin", String(seconds / 60));
-  link.send({ t: "ask", prompt, seconds });
+  const parts = (askDraft ? askDraft.parts : []).map((p) => ({ prompt: (p.prompt || "").trim(), seconds: Math.round(Number(p.min) * 60) }));
+  const first = parts.findIndex((p) => !p.prompt);
+  if (first >= 0 && parts.length === 1) return $("askPromptIn0").focus();
+  const use = parts.filter((p) => p.prompt);
+  if (!use.length) return;
+  if (use.some((p) => !(p.seconds >= 10))) return;
+  store("cl_askMin", String(use[use.length - 1].seconds / 60));
+  store("cl_askSim", askDraft.allowSim ? "1" : "0");
+  link.send({ t: "ask", parts: use, allowSim: !!askDraft.allowSim });
   askDraft = null;
 }
 function teacherNow() { return Date.now() + ((tstate && tstate.now) ? tstate.now - tstateAt : 0); }
@@ -832,6 +880,7 @@ function renderAsk() {
   const a = live && live.ask;
   $("lvAskBtn").disabled = !!a || !live;
   $("lvPause").disabled = !live;
+  $("lvNotesBtn").disabled = !live;
   renderQs();
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
   if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
@@ -840,21 +889,39 @@ function renderAsk() {
   if (!a && askDraft && !viewQ) {
     if (box._key === "draft") return; // don't wipe what's being typed
     box._key = "draft";
-    const ta = el("textarea", { id: "askPromptIn", rows: 2, value: askDraft.prompt, placeholder: "Type the question, then press Enter",
-      oninput: (e) => (askDraft.prompt = e.target.value),
-      onkeydown: (e) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAsk(); }
-        if (e.key === "Escape") { askDraft = null; renderAsk(); }
-      } });
-    const mins = el("input", { type: "number", id: "askMinIn", min: "0.5", max: "60", step: "0.5", value: askMinutes(), "aria-label": "Minutes",
-      onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); sendAsk(); } } });
-    box.replaceChildren(ta,
+    const many = askDraft.parts.length > 1;
+    const rows = askDraft.parts.map((p, i) => {
+      const ta = el("textarea", { id: "askPromptIn" + i, rows: 2, value: p.prompt, placeholder: many ? "Part " + (i + 1) : "Type the question, then press Enter",
+        oninput: (e) => (p.prompt = e.target.value),
+        onkeydown: (e) => {
+          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAsk(); }
+          if (e.key === "Escape") { askDraft = null; renderAsk(); }
+        } });
+      const mins = el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: p.min, "aria-label": "Minutes for part " + (i + 1),
+        oninput: (e) => (p.min = e.target.value),
+        onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); sendAsk(); } } });
+      return el("div", { class: "t-part" },
+        many ? el("div", { class: "t-hint", text: "Part " + (i + 1) }) : null,
+        ta,
+        el("div", { class: "t-row" },
+          el("label", { class: "t-row" }, mins, el("span", { text: "minutes" })),
+          many ? el("button", { class: "t-small", text: "Remove part", onclick: () => { askDraft.parts.splice(i, 1); box._key = null; renderAsk(); } }) : null));
+    });
+    box.replaceChildren(...rows,
       el("div", { class: "t-row" },
-        el("label", { class: "t-row" }, mins, el("span", { text: "minutes" })),
+        el("button", { class: "t-small", text: "Add a part", onclick: () => {
+          askDraft.parts.push({ prompt: "", min: askDraft.parts[askDraft.parts.length - 1].min });
+          box._key = null; renderAsk();
+          setTimeout(() => { const t = $("askPromptIn" + (askDraft.parts.length - 1)); if (t) t.focus(); }, 20);
+        } }),
+        el("label", { class: "t-row" },
+          el("input", { type: "checkbox", checked: !!askDraft.allowSim, onchange: (e) => (askDraft.allowSim = e.target.checked) }),
+          el("span", { text: "Students can go back to the sim while answering" }))),
+      el("div", { class: "t-row" },
         el("span", { class: "t-hint", text: "Enter sends · Shift+Enter new line · Esc cancels" }),
         el("span", { class: "cl-grow" }),
         el("button", { text: "Cancel", onclick: () => { askDraft = null; renderAsk(); } }),
-        el("button", { class: "aero-btn-primary", text: "Send to students", onclick: sendAsk })));
+        el("button", { class: "aero-btn-primary", text: many ? "Send part 1 to students" : "Send to students", onclick: sendAsk })));
     return;
   }
 
@@ -863,31 +930,37 @@ function renderAsk() {
   const q = isLive ? a : (tstate.qs || []).find((x) => x.id === viewQ.id);
   if (!q) { viewQ = null; return renderAsk(); }
   const answers = isLive ? tstate.askAnswers || {} : viewQ.answers || {};
-  const left = isLive ? a.endsAt - teacherNow() : 0;
+  const left = isLive ? (a.paused ? a.endsAt - a.pausedAt : a.endsAt - teacherNow()) : 0;
+  const set = live && live.askSet;
+  const hasNext = isLive && !!set && set.i + 1 < set.parts.length;
+  const partTxt = q.parts > 1 ? " · part " + q.part + " of " + q.parts : "";
   const open = isLive && left > 0;
   const shown = live && live.show && live.show.qid === q.id ? live.show.codes : [];
   const withText = Object.entries(answers).filter(([, v]) => v.text.trim());
-  const here = (tstate.students || []).filter((x) => x.connected).length;
+  const here = blockStudents().filter((x) => x.connected).length;
+  const nDone = Object.values(answers).filter((v) => v.done).length;
   const t = Math.max(0, Math.ceil(left / 1000));
   const named = Object.keys(names).length > 0; // names only on a computer with the name file
-  const key = [q.id, isLive, open, t, JSON.stringify(answers), here, shown.join(), !!live].join("|");
+  const key = [q.id, isLive, open, t, JSON.stringify(answers), here, shown.join(), !!live, isLive && a.paused, hasNext, set ? set.i : ""].join("|");
   if (box._key === key) return;
   box._key = key;
   const btn = (text, onclick, cls) => el("button", { text, onclick, class: cls || "" });
   box.replaceChildren(
     el("div", { class: "t-row" },
-      el("h3", { style: "flex:1;margin:0", text: isLive ? (open ? "Question running" : "Time's up") : "Saved question · " + new Date(q.startedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) }),
+      el("h3", { style: "flex:1;margin:0", text: (isLive ? (a.paused ? "Question paused" : open ? "Question running" : "Time's up") : "Saved question") + partTxt + (isLive ? "" : " · " + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })) }),
       isLive ? el("span", { class: "t-ask-time", text: fmt(t) }) : null),
     el("div", { class: "t-ask-prompt", text: q.prompt }),
     el("div", { class: "t-row" },
-      el("span", { class: "t-who-count", text: isLive ? withText.length + " of " + here + " have written something" : withText.length + " answers" }),
+      el("span", { class: "t-who-count", text: isLive ? nDone + " of " + here + " submitted · " + withText.length + " have written something" : withText.length + " answers" }),
       el("span", { class: "cl-grow" }),
       shown.length ? btn("Hide all (" + shown.length + ")", () => link.send({ t: "hideAll" })) : null,
-      isLive ? btn(open ? "+30 seconds" : "Reopen 1 minute", () => link.send({ t: "askMore", seconds: open ? 30 : 60 })) : null,
-      open ? btn("End now", () => link.send({ t: "askEnd" })) : null,
+      isLive ? btn(a.paused ? "Resume question" : "Pause question", () => link.send({ t: "askPause", on: !a.paused }), a.paused ? "aero-btn-primary" : "") : null,
+      isLive && !a.paused ? btn(open ? "+30 seconds" : "Reopen 1 minute", () => link.send({ t: "askMore", seconds: open ? 30 : 60 })) : null,
+      open && !a.paused ? btn("End now", () => link.send({ t: "askEnd" })) : null,
+      hasNext ? btn("Next part (" + (set.i + 2) + " of " + set.parts.length + ")", () => link.send({ t: "askNext" }), "aero-btn-primary") : null,
       !open && named ? btn("Download", () => downloadAnswers(q, answers)) : null,
       !isLive ? btn("Delete", () => { if (confirm("Delete this question and all its answers? This can't be undone.")) { link.send({ t: "qDelete", qid: q.id }); viewQ = null; } }) : null,
-      isLive && !open ? btn("Close question", () => link.send({ t: "askClose" }), "aero-btn-primary") : null,
+      isLive && (!open || hasNext) && !a.paused ? btn("Close question", () => link.send({ t: "askClose" }), hasNext ? "" : "aero-btn-primary") : null,
       !isLive ? btn("Done", () => { viewQ = null; renderAsk(); }, "aero-btn-primary") : null),
     el("ul", { class: "t-answers" }, ...withText
       .map(([code, v]) => ({ code, name: named ? shortName(names[code]) || code : "", text: v.text }))
@@ -912,8 +985,8 @@ function renderQs() {
     "aria-pressed": (viewQ ? viewQ.id === q.id : a && a.id === q.id) ? "true" : "false",
     onclick: () => openSaved(q.id),
   },
-    el("span", { text: q.prompt.length > 70 ? q.prompt.slice(0, 68) + "…" : q.prompt }),
-    el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
+    el("span", { text: (q.parts > 1 ? "Part " + q.part + "/" + q.parts + ": " : "") + (q.prompt.length > 70 ? q.prompt.slice(0, 68) + "…" : q.prompt) }),
+    el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
     : [el("li", { class: "t-hint", text: "Questions you ask show up here." })]));
 }
 async function openSaved(id) {
@@ -934,15 +1007,70 @@ function downloadAnswers(q, answers) {
 }
 setInterval(() => { if (!$("liveView").hidden && tstate && tstate.live && tstate.live.ask) renderAsk(); }, 500);
 
+// ---------- my notes: private, one set for each lesson in each block, never sent to students or the TV
+let notesKey = null, notesIds = null, notesTimer = null;
+function liveNotesIds() {
+  const L = tstate && tstate.live;
+  return L ? { lesson: L.lessonId, period: L.periodId || "" } : null;
+}
+async function openNotes() {
+  const id = liveNotesIds();
+  if (!id) return;
+  const L = tstate.live;
+  $("lvNotes").hidden = false;
+  $("lvNotesTitle").textContent = "My notes · " + (tstate.lesson ? tstate.lesson.title : "") + (L.periodName ? " · " + L.periodName : "");
+  const key = id.lesson + ":" + id.period;
+  if (notesKey !== key) {
+    notesKey = null; notesIds = id;
+    $("lvNotesText").value = "";
+    $("lvNotesState").textContent = "Loading…";
+    try {
+      const r = await tapi("/api/notes?lesson=" + encodeURIComponent(id.lesson) + "&period=" + encodeURIComponent(id.period));
+      $("lvNotesText").value = r.text || "";
+      notesKey = key;
+      $("lvNotesState").textContent = "Saved";
+    } catch { $("lvNotesState").textContent = "Couldn't load your notes."; return; }
+  }
+  $("lvNotesText").focus();
+}
+async function saveNotes() {
+  clearTimeout(notesTimer); notesTimer = null;
+  if (!notesKey || !notesIds) return;
+  try {
+    await tapi("/api/notes", { method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lesson: notesIds.lesson, period: notesIds.period, text: $("lvNotesText").value }) });
+    if (!notesTimer) $("lvNotesState").textContent = "Saved";
+  } catch { $("lvNotesState").textContent = "Couldn't save. Retrying…"; notesTimer = setTimeout(saveNotes, 3000); }
+}
+function closeNotes() {
+  if (notesTimer) saveNotes();
+  $("lvNotes").hidden = true;
+  notesKey = null;
+}
+$("lvNotesText").oninput = () => {
+  if (!notesKey) return;
+  $("lvNotesState").textContent = "Saving…";
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(saveNotes, 700);
+};
+$("lvNotesBtn").onclick = () => ($("lvNotes").hidden ? openNotes() : closeNotes());
+$("lvNotesClose").onclick = closeNotes;
+
 // ---------- live student list: only on a computer that has the name file, so the iPad/TV never shows it
 function mmss(ms) { const t = Math.round(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+// students of the block that is running (everyone, if the class was started without a block)
+function blockStudents() {
+  const L = tstate && tstate.live;
+  const all = (tstate && tstate.students) || [];
+  return L && L.periodName ? all.filter((x) => x.cls === L.periodName) : all;
+}
 function renderWho() {
   const show = !!(tstate && tstate.live && Object.keys(names).length);
   $("lvWho").hidden = !show;
   document.querySelector("#liveView .t-cols").classList.toggle("with-who", show);
   if (!show) return;
   const since = Date.now() - tstateAt;
-  const rows = (tstate.students || []).map((x) => ({ ...x, ms: x.ms + (x.away ? since : 0), name: shortName(names[x.code]) || x.code }));
+  const rows = blockStudents().map((x) => ({ ...x, ms: x.ms + (x.away ? since : 0), name: shortName(names[x.code]) || x.code }));
   rows.sort((a, b) => (b.away - a.away) || (a.connected - b.connected) || (b.ms - a.ms) || a.name.localeCompare(b.name));
   const nAway = rows.filter((x) => x.away).length;
   const nOn = rows.filter((x) => x.connected).length;

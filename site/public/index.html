@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -51,14 +51,20 @@
       <div class="cl-cards" id="showCards"></div>
     </section>
     <section class="aero-panel cl-cover-box" id="askBox" hidden>
-      <div class="cl-ask-top"><span class="cl-ask-label">Question</span><span class="cl-ask-time" id="askTime"></span></div>
+      <div class="cl-ask-top"><span class="cl-ask-label" id="askLabel">Question</span><span class="cl-ask-time" id="askTime"></span></div>
       <div class="cl-ask-prompt" id="askPrompt"></div>
       <textarea id="askText" rows="7" aria-label="Your answer"></textarea>
-      <div class="cl-ask-foot"><span id="askNote" class="aero-muted"></span><button class="aero-btn-primary" id="askSubmit">Submit</button></div>
+      <div class="cl-ask-foot"><span id="askNote" class="aero-muted"></span><button id="askToSim" hidden>Go back to the sim</button><button class="aero-btn-primary" id="askSubmit">Submit</button></div>
     </section>
   </div>
 
-<script src="common.js?v=6"></script>
+  <!-- when the teacher lets students use the sim while answering -->
+  <div class="aero-panel cl-askback" id="askBack" hidden>
+    <span id="askBackTime" class="cl-ask-time"></span>
+    <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
+  </div>
+
+<script src="common.js?v=7"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -188,7 +194,10 @@ function render() {
 // ---------- pause and pushed questions
 let clockSkew = 0;          // server time minus this computer's time
 let askId = null, askDirty = false, askTimer = null, askSaveTimer = null, wasFrozen = false;
+let askMin = false;         // the student stepped back to the sim (only when the teacher allows it)
+let askEditing = false;     // the student is changing an answer they already submitted
 const serverNow = () => Date.now() + clockSkew;
+const clock = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
 
 // Sims that know Class Live freeze when they get {classlive:"pause"} and carry on with {classlive:"resume"}.
 function tellSims(cmd) {
@@ -199,27 +208,34 @@ function applyCover() {
   const live = !!state.live;
   const a = live ? state.ask : null;
   const sh = live ? state.show : null;
-  const paused = live && !!state.paused;
-  const frozen = paused || !!a || !!sh;
+  const paused = live && (!!state.paused || !!state.qpaused);
+  if (!a || a.id !== askId) { askMin = false; askEditing = false; }
+  const askUp = !!a && !askMin;
+  const frozen = paused || askUp || !!sh;
   $("cover").hidden = !frozen;
-  $("pausedBox").hidden = !paused || !!a || !!sh;
+  $("pausedBox").hidden = !paused || askUp || !!sh;
   $("showBox").hidden = !sh;
-  $("askBox").hidden = !a || !!sh; // answers on display take the middle; the question comes back after
+  $("askBox").hidden = !askUp || !!sh; // answers on display take the middle; the question comes back after
+  $("askBack").hidden = !(a && askMin && !frozen);
   if (sh) {
     $("showPrompt").replaceChildren(formatText(sh.prompt));
     $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
   }
   if (frozen && document.fullscreenElement) { try { document.exitFullscreen(); } catch {} }
   if (frozen !== wasFrozen) { tellSims(frozen ? "pause" : "resume"); wasFrozen = frozen; }
-  if (!a) { askId = null; clearInterval(askTimer); askTimer = null; return; }
+  if (!a) {
+    if (askId && askDirty) saveAsk(); // paused or closed while typing: keep what they wrote
+    askId = null; clearInterval(askTimer); askTimer = null; return;
+  }
+  $("askToSim").hidden = !a.allowSim;
+  $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
     $("askPrompt").replaceChildren(formatText(a.prompt));
     $("askText").value = a.mine || "";
     $("askText").disabled = false;
-    $("askSubmit").disabled = false;
     $("askNote").textContent = "";
-    setTimeout(() => $("askText").focus(), 50);
+    if (askUp) setTimeout(() => $("askText").focus(), 50);
   }
   clearInterval(askTimer);
   askTimer = setInterval(tickAsk, 250);
@@ -229,16 +245,26 @@ function tickAsk() {
   const a = state.ask;
   if (!a) return;
   const left = a.endsAt - serverNow();
-  if (left <= 0) {
-    if (!$("askText").disabled) { saveAsk(); $("askText").disabled = true; $("askSubmit").disabled = true; }
-    $("askTime").textContent = "Time's up";
+  const over = left <= 0;
+  const t = Math.max(0, Math.ceil(left / 1000));
+  $("askTime").textContent = over ? "Time's up" : clock(t);
+  $("askBackTime").textContent = over ? "Time's up" : clock(t);
+  if (over && askMin) { askMin = false; applyCover(); return; } // time ran out while they were on the sim: bring the question back
+  if (over) {
+    if (!$("askText").disabled) { if (askDirty) saveAsk(); $("askText").disabled = true; }
+    $("askText").readOnly = false;
+    $("askSubmit").disabled = true;
+    $("askSubmit").textContent = "Submit";
     $("askNote").textContent = $("askText").value.trim() ? "Your answer was saved." : "Time ran out.";
     clearInterval(askTimer); askTimer = null;
     return;
   }
-  if ($("askText").disabled) { $("askText").disabled = false; $("askSubmit").disabled = false; $("askNote").textContent = ""; } // teacher added time
-  const t = Math.ceil(left / 1000);
-  $("askTime").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  const done = !!a.done && !askEditing;
+  $("askText").disabled = false;
+  $("askText").readOnly = done;
+  $("askSubmit").disabled = false;
+  $("askSubmit").textContent = done ? "Change my answer" : "Submit";
+  $("askNote").textContent = done ? (a.part < a.parts ? "Submitted. Wait for the next part." : "Submitted.") : "";
 }
 function saveAsk() {
   if (!askId) return;
@@ -247,11 +273,20 @@ function saveAsk() {
 }
 $("askText").oninput = () => {
   askDirty = true;
-  $("askNote").textContent = "";
   clearTimeout(askSaveTimer);
   askSaveTimer = setTimeout(() => { if (askDirty) saveAsk(); }, 2000); // saves as they type
 };
-$("askSubmit").onclick = () => { saveAsk(); $("askNote").textContent = "Saved. You can change it until time runs out."; };
+$("askSubmit").onclick = () => {
+  const a = state.ask;
+  if (!a || !askId) return;
+  if (a.done && !askEditing) { askEditing = true; tickAsk(); $("askText").focus(); return; } // change a submitted answer
+  askDirty = false; clearTimeout(askSaveTimer);
+  link.send({ t: "askSubmit", qid: askId, text: $("askText").value });
+  a.done = true; askEditing = false;
+  tickAsk();
+};
+$("askToSim").onclick = () => { if (askDirty) saveAsk(); askMin = true; applyCover(); };
+$("askBackBtn").onclick = () => { askMin = false; applyCover(); };
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }
