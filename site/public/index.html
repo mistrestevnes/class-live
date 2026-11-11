@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=13">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -69,6 +69,10 @@
     </section>
   </div>
 
+  <!-- 3-second warning before the sim pauses, and the 10-second warning while answering -->
+  <div class="aero-panel cl-count" id="countBox" hidden><div id="countNote">Pausing in</div><div id="countNum">3</div></div>
+  <div class="aero-panel cl-toast" id="toast" hidden></div>
+
   <!-- a student's own question to the teacher: always available during class, even over the pause screen -->
   <button class="cl-qbtn" id="qBtn" hidden>Ask a question</button>
   <section class="aero-panel cl-qbox" id="qBox" hidden>
@@ -86,7 +90,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=12"></script>
+<script src="common.js?v=13"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -225,6 +229,12 @@ let clockSkew = 0;          // server time minus this computer's time
 let askId = null, askDirty = false, askTimer = null, askSaveTimer = null, wasFrozen = false;
 let askMin = false;         // the student stepped back to the sim (only when the teacher allows it)
 let askEditing = false;     // the student is changing an answer they already submitted
+let coverOn = false, cdUntil = 0, cdWhy = "", skipCd = false, appliedOnce = false;   // 3-second countdown before the cover
+let toastKey = "", toastTimer = null;
+function showToast(text, ms) {
+  $("toast").textContent = text; $("toast").hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; }, ms);
+}
 let coverFrozen = false;    // the pause screen or a sent question covers the page
 let spLock = false;         // a question that starts on its own, set so students can't use the sim while answering
 function syncFreeze() {
@@ -254,7 +264,19 @@ function applyCover() {
   const paused = live && (!!state.paused || !!state.qpaused);
   if (!a || a.id !== askId) { askMin = false; askEditing = false; }
   const askUp = !!a && !askMin;
-  const frozen = paused || askUp || !!sh;
+  const want = paused || askUp || !!sh;
+  // a 3-second countdown before the sim stops (not on the first load, and not when a student steps back to a question)
+  if (!want) { coverOn = false; cdUntil = 0; skipCd = false; }
+  else if (!coverOn && !cdUntil) {
+    if (!appliedOnce || skipCd || !!sh) { coverOn = true; skipCd = false; }
+    else { cdUntil = Date.now() + 3000; cdWhy = paused ? "Pausing in" : "Question in"; setTimeout(applyCover, 3050); }
+  }
+  if (cdUntil && Date.now() >= cdUntil) { cdUntil = 0; coverOn = true; }
+  appliedOnce = true;
+  const counting = want && !coverOn && !!cdUntil;
+  $("countBox").hidden = !counting;
+  if (counting) { $("countNote").textContent = cdWhy; $("countNum").textContent = Math.max(1, Math.ceil((cdUntil - Date.now()) / 1000)); }
+  const frozen = want && coverOn;
   $("cover").hidden = !frozen;
   $("pausedBox").hidden = !paused || askUp || !!sh;
   $("showBox").hidden = !sh;
@@ -294,7 +316,9 @@ function tickAsk() {
   const t = Math.max(0, Math.ceil(left / 1000));
   $("askTime").textContent = over ? "Time's up" : clock(t);
   $("askBackTime").textContent = over ? "Time's up" : clock(t);
-  if (over && askMin) { askMin = false; applyCover(); return; } // time ran out while they were on the sim: bring the question back
+  if (left > 11000) toastKey = ""; // time was added: warn again at 10 seconds
+  else if (!over && left <= 10000 && toastKey !== a.id) { toastKey = a.id; showToast("10 seconds left", 3500); }
+  if (over && askMin) { askMin = false; skipCd = true; applyCover(); return; } // time ran out while they were on the sim: bring the question back
   if (over) {
     if (!$("askText").disabled) { if (askDirty) saveAsk(); $("askText").disabled = true; }
     $("askText").readOnly = false;
@@ -331,7 +355,7 @@ $("askSubmit").onclick = () => {
   tickAsk();
 };
 $("askToSim").onclick = () => { if (askDirty) saveAsk(); askMin = true; applyCover(); };
-$("askBackBtn").onclick = () => { askMin = false; applyCover(); };
+$("askBackBtn").onclick = () => { askMin = false; skipCd = true; applyCover(); };
 
 // ---------- questions that start on their own (a sim event, or after another question). Answered at the student's own pace.
 const simEvents = {};       // pageId -> events the sim on that page has reported
@@ -430,6 +454,7 @@ $("spSubmit").onclick = () => { if ($("spText").value.trim()) spSave(true); };
 $("spMin").onclick = () => { if (spDirty) spSave(false); spMinimized = true; renderSp(); };
 $("spTab").onclick = () => { spMinimized = false; renderSp(); };
 setInterval(renderSp, 500);
+setInterval(() => { if (cdUntil) applyCover(); }, 250);
 
 // ---------- questions to the teacher (private: only the teacher sees them, and the teacher's reply comes back here)
 const seenReplies = new Set(JSON.parse(store("cl_seenReplies") || "[]"));
