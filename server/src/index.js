@@ -1173,6 +1173,7 @@ export class Classroom extends DurableObject {
           ? { type: "after", afterId: word(q.trigger.afterId), delay: Math.max(0, Math.min(Number(q.trigger.delay) || 0, 600)) }
           : { type: "sim", event: word(q.trigger && q.trigger.event) },
         command: word(q.command),
+        noSim: !!q.noSim,
         parts: q.parts.slice(0, 8).map((p) => ({ prompt: String((p && p.prompt) || "").slice(0, 2000), imageId: (p && p.imageId) || "", sim: (p && p.sim) || "" })),
       }));
       return { ...pg, questions: qs };

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=10">
+<link rel="stylesheet" href="app.css?v=11">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -269,7 +269,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=10"></script>
+<script src="common.js?v=11"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -752,7 +752,7 @@ function questionsPanel(page) {
     box.append(el("div", { class: "t-row" },
       el("button", { class: "t-small", text: "Add a part", disabled: q.parts.length >= 8,
         onclick: () => { q.parts.push({ prompt: "", min: q.parts[q.parts.length - 1].min || 2, imageId: "", sim: "" }); changed(); renderEditor(); } }),
-      own ? null : (() => {
+      (() => {
         const b = el("button", { class: "t-small", "aria-pressed": String(!q.noSim) });
         const label = () => { b.textContent = "Students can use the sim while answering: " + (q.noSim ? "Off" : "On"); b.setAttribute("aria-pressed", String(!q.noSim)); };
         label();

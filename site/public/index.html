@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=10">
+<link rel="stylesheet" href="app.css?v=11">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -77,7 +77,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=10"></script>
+<script src="common.js?v=11"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -215,6 +215,12 @@ let clockSkew = 0;          // server time minus this computer's time
 let askId = null, askDirty = false, askTimer = null, askSaveTimer = null, wasFrozen = false;
 let askMin = false;         // the student stepped back to the sim (only when the teacher allows it)
 let askEditing = false;     // the student is changing an answer they already submitted
+let coverFrozen = false;    // the pause screen or a sent question covers the page
+let spLock = false;         // a question that starts on its own, set so students can't use the sim while answering
+function syncFreeze() {
+  const want = coverFrozen || spLock;
+  if (want !== wasFrozen) { tellSims(want ? "pause" : "resume"); wasFrozen = want; }
+}
 const serverNow = () => Date.now() + clockSkew;
 const clock = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
 
@@ -249,7 +255,8 @@ function applyCover() {
     $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
   }
   if (frozen && document.fullscreenElement) { try { document.exitFullscreen(); } catch {} }
-  if (frozen !== wasFrozen) { tellSims(frozen ? "pause" : "resume"); wasFrozen = frozen; }
+  coverFrozen = frozen;
+  syncFreeze();
   if (!a) {
     if (askId && askDirty) saveAsk(); // paused or closed while typing: keep what they wrote
     askId = null; clearInterval(askTimer); askTimer = null; return;
@@ -368,6 +375,11 @@ function renderSp() {
   }
   const use = cur || recent;
   const showing = !!use && !(state.paused || state.qpaused);
+  spLock = showing && !!cur && !!cur.q.noSim;
+  if (spLock) spMinimized = false;
+  document.body.classList.toggle("sp-lock", spLock);
+  $("spMin").hidden = spLock;
+  syncFreeze();
   $("sp").hidden = !showing || spMinimized;
   $("spTab").hidden = !showing || !spMinimized;
   document.body.classList.toggle("sp-open", showing && !spMinimized);
