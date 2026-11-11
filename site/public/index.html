@@ -45,6 +45,11 @@
       <h1>Paused</h1>
       <p>Eyes on your teacher.</p>
     </section>
+    <section class="aero-panel cl-cover-box" id="showBox" hidden>
+      <div class="cl-ask-label">Class answers</div>
+      <div class="cl-ask-prompt" id="showPrompt"></div>
+      <div class="cl-cards" id="showCards"></div>
+    </section>
     <section class="aero-panel cl-cover-box" id="askBox" hidden>
       <div class="cl-ask-top"><span class="cl-ask-label">Question</span><span class="cl-ask-time" id="askTime"></span></div>
       <div class="cl-ask-prompt" id="askPrompt"></div>
@@ -193,11 +198,17 @@ function tellSims(cmd) {
 function applyCover() {
   const live = !!state.live;
   const a = live ? state.ask : null;
+  const sh = live ? state.show : null;
   const paused = live && !!state.paused;
-  const frozen = paused || !!a;
+  const frozen = paused || !!a || !!sh;
   $("cover").hidden = !frozen;
-  $("pausedBox").hidden = !paused || !!a;
-  $("askBox").hidden = !a;
+  $("pausedBox").hidden = !paused || !!a || !!sh;
+  $("showBox").hidden = !sh;
+  $("askBox").hidden = !a || !!sh; // answers on display take the middle; the question comes back after
+  if (sh) {
+    $("showPrompt").replaceChildren(formatText(sh.prompt));
+    $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
+  }
   if (frozen && document.fullscreenElement) { try { document.exitFullscreen(); } catch {} }
   if (frozen !== wasFrozen) { tellSims(frozen ? "pause" : "resume"); wasFrozen = frozen; }
   if (!a) { askId = null; clearInterval(askTimer); askTimer = null; return; }

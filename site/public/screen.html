@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Live · Screen</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="aerolab.css">
+<style>
+  /* the TV page: open on the iPad and leave it. No controls, no names. */
+  body { font-size: 20px; }
+  .s-main { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 24px; }
+  .s-main .aero-panel { max-width: 1200px; margin: 0 auto; }
+  .s-main.wide .aero-panel { max-width: none; }
+  #waiting { text-align: center; max-width: 700px; margin: 12vh auto 0; }
+  #showBox .cl-card, #askBox .cl-ask-prompt { font-size: 26px; }
+  #askBox { text-align: center; }
+  #askBox .cl-ask-time { font-size: 3rem; display: block; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <header class="cl-top aero-bar">
+    <h1 class="cl-title" id="title">Class Live</h1>
+    <span class="cl-grow"></span>
+    <span class="aero-chip" id="pageNum" hidden></span>
+    <span class="aero-chip cl-status connecting" id="status">Connecting…</span>
+  </header>
+
+  <main class="s-main" id="main">
+    <section class="aero-panel cl-message" id="waiting">
+      <h1>Class Live</h1>
+      <p class="aero-muted">Waiting for class to start.</p>
+    </section>
+    <section class="aero-panel" id="pageBox" hidden></section>
+  </main>
+
+  <div class="cl-cover" id="cover" hidden>
+    <section class="aero-panel cl-cover-box" id="pausedBox" hidden>
+      <h1>Paused</h1>
+      <p>Eyes on your teacher.</p>
+    </section>
+    <section class="aero-panel cl-cover-box" id="showBox" hidden>
+      <div class="cl-ask-label">Class answers</div>
+      <div class="cl-ask-prompt" id="showPrompt"></div>
+      <div class="cl-cards" id="showCards"></div>
+    </section>
+    <section class="aero-panel cl-cover-box" id="askBox" hidden>
+      <div class="cl-ask-label">Question</div>
+      <div class="cl-ask-prompt" id="askPrompt"></div>
+      <span class="cl-ask-time" id="askTime"></span>
+    </section>
+  </div>
+
+<script src="common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { live: false };
+let skew = 0;
+let timer = null;
+
+const link = new Link({
+  wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=screen",
+  poll: () => api("/api/screen"),
+  post: async () => {},
+  pollMs: 3000,
+  onMessage: (m) => { if (m.t === "state") apply(m.state); else if ("live" in m) apply(m); },
+  onMode: (mode) => {
+    const s = $("status");
+    s.hidden = mode === "live" || mode === "polling";
+    s.className = "aero-chip cl-status " + mode + " aero-chip-warn";
+    s.textContent = mode === "offline" ? "Reconnecting…" : "Connecting…";
+  },
+});
+link.start();
+
+function apply(s) {
+  state = s;
+  if (typeof s.now === "number") skew = s.now - Date.now();
+  const live = s.live && s.page;
+  $("waiting").hidden = !!live;
+  $("pageBox").hidden = !live;
+  $("pageNum").hidden = !live;
+  $("title").textContent = live ? s.title : "Class Live";
+  if (live) {
+    $("pageNum").textContent = "Page " + (s.pageNum + 1);
+    mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results });
+    const sim = (s.page.blocks || []).some((b) => b.type === "sim");
+    $("main").classList.toggle("wide", sim);
+  }
+  // the middle window: answers on display, else the running question, else paused
+  const a = live ? s.ask : null, sh = live ? s.show : null, paused = live && s.paused;
+  $("cover").hidden = !(a || sh || paused);
+  $("showBox").hidden = !sh;
+  $("askBox").hidden = !a || !!sh;
+  $("pausedBox").hidden = !paused || !!a || !!sh;
+  if (sh) {
+    $("showPrompt").replaceChildren(formatText(sh.prompt));
+    $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
+  }
+  if (a) $("askPrompt").replaceChildren(formatText(a.prompt));
+  clearInterval(timer);
+  if (a) { timer = setInterval(tick, 250); tick(); }
+}
+function tick() {
+  const a = state.ask;
+  if (!a) return;
+  const left = a.endsAt - (Date.now() + skew);
+  const t = Math.max(0, Math.ceil(left / 1000));
+  $("askTime").textContent = left > 0 ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "Time's up";
+}
+</script>
+</body>
+</html>

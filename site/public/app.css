@@ -108,3 +108,7 @@ textarea { resize: vertical; line-height: 1.45; }
 #askText { width: 100%; font-size: 22px; line-height: 1.45; resize: vertical; }
 .cl-ask-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .cl-ask-foot button { min-height: 56px; padding: 10px 34px; font-size: 1.15rem; }
+
+/* answers picked by the teacher, shown without names */
+.cl-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.cl-card { background: #FFFFFF; color: #0B2A1F; border: 1px solid #BFD8CC; border-radius: 10px; padding: 14px 16px; font-size: 21px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -62,6 +62,14 @@
   .t-answers li { background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 10px 14px; color: var(--aero-forest); font-size: 19px; white-space: pre-wrap; }
   .t-answers .t-who-name { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-muted); display: block; margin-bottom: 4px; white-space: normal; }
   #lvPause[aria-pressed="true"] { background: var(--aero-gold); color: var(--aero-forest); text-shadow: none; }
+  .t-qs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  .t-qs button { width: 100%; text-align: left; font-size: 18px; padding: 8px 10px; display: block; white-space: normal; }
+  .t-qs button[aria-pressed="true"] { outline: 3px solid var(--aero-jade); }
+  .t-qs .t-q-when { display: block; font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-muted); }
+  .t-answers li { display: flex; gap: 12px; align-items: flex-start; }
+  .t-answers .t-ans-text { flex: 1; }
+  .t-answers li.shown { border-color: var(--aero-jade); box-shadow: 0 0 0 2px var(--aero-jade); }
+  .t-answers button { flex: none; min-width: 84px; }
   .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
   .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .t-login { max-width: 520px; margin: 10vh auto 0; }
@@ -217,6 +225,8 @@
       <h3>Pages</h3>
       <ul class="t-pages" id="lvPages"></ul>
       <p class="t-hint" id="lvUrlHint"></p>
+      <h3 style="margin-top:18px">Questions</h3>
+      <ul class="t-qs" id="lvQs"></ul>
     </aside>
     <div class="t-body">
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
@@ -753,6 +763,7 @@ function renderLive() {
   }));
 
   const page = lesson.pages[lvSelected];
+  if (live.screenPage !== Math.min(lvSelected, live.unlocked) && lvSelected <= live.unlocked) link.send({ t: "screenPage", n: lvSelected });
   const poll = (page.blocks || []).find((b) => b.type === "poll");
   const bar = $("lvPollBar");
   const revealed = !!live.revealed[page.id];
@@ -785,73 +796,140 @@ function renderLive() {
 
 // ---------- pause and pushed questions
 $("lvPause").onclick = () => { if (tstate && tstate.live) link.send({ t: "pause", on: !tstate.live.paused }); };
-let askDraft = null; // { prompt, minutes } while writing a question
-$("lvAskBtn").onclick = () => { if (!tstate.live.ask) { askDraft = askDraft || { prompt: "", minutes: 2 }; renderAsk(); setTimeout(() => $("askPromptIn") && $("askPromptIn").focus(), 30); } };
+let askDraft = null;  // { prompt } while writing a question
+let viewQ = null;     // a saved question opened from the Questions list: { id, answers }
+const askMinutes = () => Number(store("cl_askMin")) || 2;
+function openAsk() {
+  if (!tstate || !tstate.live || tstate.live.ask) return;
+  viewQ = null;
+  askDraft = askDraft || { prompt: "" };
+  renderAsk();
+  setTimeout(() => $("askPromptIn") && $("askPromptIn").focus(), 20);
+}
+$("lvAskBtn").onclick = openAsk;
+// Q opens the question box from anywhere in the class view (not while typing)
+document.addEventListener("keydown", (e) => {
+  if ($("liveView").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || "";
+  if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+  if (e.key === "q" || e.key === "Q") { e.preventDefault(); openAsk(); }
+});
+function sendAsk() {
+  const prompt = (askDraft && askDraft.prompt || "").trim();
+  const seconds = Math.round(Number(($("askMinIn") || {}).value || askMinutes()) * 60);
+  if (!prompt) return $("askPromptIn").focus();
+  if (!(seconds >= 10)) return $("askMinIn").focus();
+  store("cl_askMin", String(seconds / 60));
+  link.send({ t: "ask", prompt, seconds });
+  askDraft = null;
+}
 function teacherNow() { return Date.now() + ((tstate && tstate.now) ? tstate.now - tstateAt : 0); }
+const fmt = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+
 function renderAsk() {
   const box = $("lvAsk");
-  const a = tstate && tstate.live && tstate.live.ask;
-  $("lvAskBtn").disabled = !!a || !(tstate && tstate.live);
-  $("lvPause").disabled = !(tstate && tstate.live);
-  if (!a && !askDraft) { box.hidden = true; box._key = null; return; }
+  const live = tstate && tstate.live;
+  const a = live && live.ask;
+  $("lvAskBtn").disabled = !!a || !live;
+  $("lvPause").disabled = !live;
+  renderQs();
+  if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
+  if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
   box.hidden = false;
-  if (!a) {
+
+  if (!a && askDraft && !viewQ) {
     if (box._key === "draft") return; // don't wipe what's being typed
     box._key = "draft";
-    const ta = el("textarea", { id: "askPromptIn", rows: 3, value: askDraft.prompt, placeholder: "Type the question", oninput: (e) => (askDraft.prompt = e.target.value) });
-    const mins = el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: askDraft.minutes, "aria-label": "Minutes", oninput: (e) => (askDraft.minutes = e.target.value) });
-    box.replaceChildren(el("h3", { text: "Ask a question" }), ta,
+    const ta = el("textarea", { id: "askPromptIn", rows: 2, value: askDraft.prompt, placeholder: "Type the question, then press Enter",
+      oninput: (e) => (askDraft.prompt = e.target.value),
+      onkeydown: (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAsk(); }
+        if (e.key === "Escape") { askDraft = null; renderAsk(); }
+      } });
+    const mins = el("input", { type: "number", id: "askMinIn", min: "0.5", max: "60", step: "0.5", value: askMinutes(), "aria-label": "Minutes",
+      onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); sendAsk(); } } });
+    box.replaceChildren(ta,
       el("div", { class: "t-row" },
-        el("label", { class: "t-row" }, el("span", { text: "Time to answer" }), mins, el("span", { text: "minutes" })),
+        el("label", { class: "t-row" }, mins, el("span", { text: "minutes" })),
+        el("span", { class: "t-hint", text: "Enter sends · Shift+Enter new line · Esc cancels" }),
         el("span", { class: "cl-grow" }),
         el("button", { text: "Cancel", onclick: () => { askDraft = null; renderAsk(); } }),
-        el("button", { class: "aero-btn-primary", text: "Send to students", onclick: () => {
-          const prompt = askDraft.prompt.trim();
-          const seconds = Math.round((Number(askDraft.minutes) || 0) * 60);
-          if (!prompt) return ta.focus();
-          if (seconds < 10) return mins.focus();
-          link.send({ t: "ask", prompt, seconds });
-          askDraft = null;
-        } })));
+        el("button", { class: "aero-btn-primary", text: "Send to students", onclick: sendAsk })));
     return;
   }
-  const answers = tstate.askAnswers || {};
-  const left = a.endsAt - teacherNow();
-  const open = left > 0;
+
+  // a running question, or a saved one opened from the list
+  const isLive = !!a && !viewQ;
+  const q = isLive ? a : (tstate.qs || []).find((x) => x.id === viewQ.id);
+  if (!q) { viewQ = null; return renderAsk(); }
+  const answers = isLive ? tstate.askAnswers || {} : viewQ.answers || {};
+  const left = isLive ? a.endsAt - teacherNow() : 0;
+  const open = isLive && left > 0;
+  const shown = live && live.show && live.show.qid === q.id ? live.show.codes : [];
   const withText = Object.entries(answers).filter(([, v]) => v.text.trim());
   const here = (tstate.students || []).filter((x) => x.connected).length;
   const t = Math.max(0, Math.ceil(left / 1000));
-  const named = Object.keys(names).length > 0; // answers with names only on a computer with the name file
-  const key = a.id + "|" + open + "|" + t + "|" + JSON.stringify(answers) + "|" + here;
+  const named = Object.keys(names).length > 0; // names only on a computer with the name file
+  const key = [q.id, isLive, open, t, JSON.stringify(answers), here, shown.join(), !!live].join("|");
   if (box._key === key) return;
   box._key = key;
+  const btn = (text, onclick, cls) => el("button", { text, onclick, class: cls || "" });
   box.replaceChildren(
     el("div", { class: "t-row" },
-      el("h3", { style: "flex:1;margin:0", text: open ? "Question running" : "Time's up" }),
-      el("span", { class: "t-ask-time", text: open ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "0:00" })),
-    el("div", { class: "t-ask-prompt", text: a.prompt }),
+      el("h3", { style: "flex:1;margin:0", text: isLive ? (open ? "Question running" : "Time's up") : "Saved question · " + new Date(q.startedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) }),
+      isLive ? el("span", { class: "t-ask-time", text: fmt(t) }) : null),
+    el("div", { class: "t-ask-prompt", text: q.prompt }),
     el("div", { class: "t-row" },
-      el("span", { class: "t-who-count", text: withText.length + " of " + here + " have written something" }),
+      el("span", { class: "t-who-count", text: isLive ? withText.length + " of " + here + " have written something" : withText.length + " answers" }),
       el("span", { class: "cl-grow" }),
-      el("button", { text: open ? "+30 seconds" : "Reopen 1 minute", onclick: () => link.send({ t: "askMore", seconds: open ? 30 : 60 }) }),
-      open ? el("button", { text: "End now", onclick: () => link.send({ t: "askEnd" }) }) : null,
-      !open && named ? el("button", { text: "Download answers", onclick: () => downloadAnswers(a, answers) }) : null,
-      !open ? el("button", { class: "aero-btn-primary", text: "Close question", onclick: () => {
-        if (named && withText.length && !confirm("Close the question? Students' screens go back to the lesson. Download the answers first if you want to keep them.")) return;
-        link.send({ t: "askClose" });
-      } }) : null),
-    named ? el("ul", { class: "t-answers" }, ...withText
-      .map(([code, v]) => ({ name: shortName(names[code]) || code, text: v.text }))
-      .sort((x, y) => x.name.localeCompare(y.name))
-      .map((x) => el("li", {}, el("span", { class: "t-who-name", text: x.name }), x.text))) : null);
+      shown.length ? btn("Hide all (" + shown.length + ")", () => link.send({ t: "hideAll" })) : null,
+      isLive ? btn(open ? "+30 seconds" : "Reopen 1 minute", () => link.send({ t: "askMore", seconds: open ? 30 : 60 })) : null,
+      open ? btn("End now", () => link.send({ t: "askEnd" })) : null,
+      !open && named ? btn("Download", () => downloadAnswers(q, answers)) : null,
+      !isLive ? btn("Delete", () => { if (confirm("Delete this question and all its answers? This can't be undone.")) { link.send({ t: "qDelete", qid: q.id }); viewQ = null; } }) : null,
+      isLive && !open ? btn("Close question", () => link.send({ t: "askClose" }), "aero-btn-primary") : null,
+      !isLive ? btn("Done", () => { viewQ = null; renderAsk(); }, "aero-btn-primary") : null),
+    el("ul", { class: "t-answers" }, ...withText
+      .map(([code, v]) => ({ code, name: named ? shortName(names[code]) || code : "", text: v.text }))
+      .sort((x, y) => x.name.localeCompare(y.name) || 0)
+      .map((x) => {
+        const on = shown.includes(x.code);
+        return el("li", { class: on ? "shown" : "" },
+          el("div", { class: "t-ans-text" }, x.name ? el("span", { class: "t-who-name", text: x.name }) : null, x.text),
+          live ? el("button", { class: on ? "aero-btn-primary" : "", text: on ? "Showing" : "Show", "aria-pressed": on ? "true" : "false",
+            onclick: () => link.send({ t: "show", qid: q.id, code: x.code, on: !on }) }) : null);
+      })));
 }
-function downloadAnswers(a, answers) {
-  const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
-  const rows = [["Name", "Code", "Answer"].map(q).join(",")];
-  for (const [code, v] of Object.entries(answers)) rows.push([names[code] || "", code, v.text].map(q).join(","));
-  const blob = new Blob(["Question: " + a.prompt.replace(/\s+/g, " ") + "\n" + rows.join("\n")], { type: "text/csv" });
+
+// the Questions list: every question asked, newest first; click to see its answers again
+function renderQs() {
+  const qs = (tstate && tstate.qs) || [];
+  const a = tstate && tstate.live && tstate.live.ask;
+  const key = qs.map((q) => q.id).join() + "|" + (viewQ ? viewQ.id : "") + "|" + (a ? a.id : "");
+  if ($("lvQs")._key === key) return;
+  $("lvQs")._key = key;
+  $("lvQs").replaceChildren(...(qs.length ? qs.slice(0, 40).map((q) => el("li", {}, el("button", {
+    "aria-pressed": (viewQ ? viewQ.id === q.id : a && a.id === q.id) ? "true" : "false",
+    onclick: () => openSaved(q.id),
+  },
+    el("span", { text: q.prompt.length > 70 ? q.prompt.slice(0, 68) + "…" : q.prompt }),
+    el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
+    : [el("li", { class: "t-hint", text: "Questions you ask show up here." })]));
+}
+async function openSaved(id) {
+  const a = tstate.live && tstate.live.ask;
+  askDraft = null;
+  if (a && a.id === id) { viewQ = null; return renderAsk(); }
+  try { viewQ = { id, answers: await tapi("/api/answers?q=" + encodeURIComponent(id)) }; } catch { return; }
+  renderAsk();
+}
+function downloadAnswers(q, answers) {
+  const c = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [["Name", "Code", "Answer"].map(c).join(",")];
+  for (const [code, v] of Object.entries(answers)) rows.push([names[code] || "", code, v.text].map(c).join(","));
+  const blob = new Blob(["Question: " + q.prompt.replace(/\s+/g, " ") + "\n" + rows.join("\n")], { type: "text/csv" });
   const u = URL.createObjectURL(blob);
-  el("a", { href: u, download: "answers-" + new Date().toISOString().slice(0, 10) + ".csv" }).click();
+  el("a", { href: u, download: "answers-" + new Date(q.startedAt).toISOString().slice(0, 10) + ".csv" }).click();
   setTimeout(() => URL.revokeObjectURL(u), 5000);
 }
 setInterval(() => { if (!$("liveView").hidden && tstate && tstate.live && tstate.live.ask) renderAsk(); }, 500);

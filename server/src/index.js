@@ -74,7 +74,10 @@ export class Classroom extends DurableObject {
       this.live = (await ctx.storage.get("live")) || null;
       this.votes = this.live ? (await ctx.storage.get("votes:" + this.live.sessionId)) || {} : {};
       this.watch = this.live ? (await ctx.storage.get("watch:" + this.live.sessionId)) || {} : {};
-      this.asks = this.live ? (await ctx.storage.get("asks:" + this.live.sessionId)) || {} : {}; // qid -> code -> { text, at }
+      this.qs = (await ctx.storage.get("qs")) || [];   // every question asked: { id, prompt, seconds, startedAt, lesson } (kept until deleted)
+      this.qa = {};                                       // qid -> { code: { text, at } }, loaded as needed from "qa:<qid>"
+      if (this.live && this.live.ask) await this.loadQA(this.live.ask.id);
+      if (this.live && this.live.show) await this.loadQA(this.live.show.qid);
       this.liveLesson = this.live ? (await ctx.storage.get("lesson:" + this.live.lessonId)) || null : null;
       this.tokens = (await ctx.storage.get("tokens")) || [];
       this.sky = (await ctx.storage.get("sky")) || 1;
@@ -153,6 +156,9 @@ export class Classroom extends DurableObject {
         return json(this.studentState(sid, stu));
       }
 
+      // the TV page, for networks that block websockets
+      if (p === "/api/screen" && m === "GET") return json(this.screenState());
+
       // student sign-in
       if (p === "/api/slogin" && m === "POST") return this.studentLogin(await request.json());
 
@@ -194,6 +200,7 @@ export class Classroom extends DurableObject {
       if (p === "/api/account" && m === "GET") return json({ username: ((await this.ctx.storage.get("auth")) || {}).username || "" });
       if (p === "/api/account" && m === "POST") return this.changeAccount(await request.json());
       if (p === "/api/t" && m === "GET") return json(await this.teacherState());
+      if (p === "/api/answers" && m === "GET") return json(await this.loadQA(url.searchParams.get("q")));
       if (p === "/api/t" && m === "POST") {
         await this.teacherMessage(await request.json());
         return json(await this.teacherState());
@@ -345,9 +352,8 @@ export class Classroom extends DurableObject {
       case "start": {
         const lesson = await this.ctx.storage.get("lesson:" + msg.lessonId);
         if (!lesson) return;
-        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId, "asks:" + this.live.sessionId]);
+        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
-        this.asks = {};
         this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now() };
         this.liveLesson = lesson;
         this.votes = {};
@@ -355,9 +361,8 @@ export class Classroom extends DurableObject {
         break;
       }
       case "end": {
-        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId, "asks:" + this.live.sessionId]);
+        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
-        this.asks = {};
         this.live = null;
         this.liveLesson = null;
         this.votes = {};
@@ -401,6 +406,11 @@ export class Classroom extends DurableObject {
         if (!prompt) return;
         const now = Date.now();
         this.live.ask = { id: rid(8), prompt, seconds, startedAt: now, endsAt: now + seconds * 1000 };
+        this.live.show = null; // a new question takes the middle of the screen
+        this.qa[this.live.ask.id] = {};
+        this.qs.unshift({ id: this.live.ask.id, prompt, seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "" });
+        if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
+        await this.ctx.storage.put("qs", this.qs);
         await this.ctx.storage.put("live", this.live);
         break;
       }
@@ -425,6 +435,48 @@ export class Classroom extends DurableObject {
         await this.ctx.storage.put("live", this.live);
         break;
       }
+      // answers picked to show (no names) on the TV and students' screens
+      case "show": {
+        if (!this.live) return;
+        const qid = String(msg.qid || "");
+        if (!this.qs.some((q) => q.id === qid)) return;
+        await this.loadQA(qid);
+        let sh = this.live.show && this.live.show.qid === qid ? this.live.show : { qid, codes: [] };
+        const code = String(msg.code || "");
+        sh.codes = sh.codes.filter((c) => c !== code);
+        if (msg.on && this.qa[qid][code]) sh.codes.push(code);
+        this.live.show = sh.codes.length ? sh : null;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      case "hideAll": {
+        if (!this.live || !this.live.show) return;
+        this.live.show = null;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      case "qDelete": {
+        const qid = String(msg.qid || "");
+        this.qs = this.qs.filter((q) => q.id !== qid);
+        delete this.qa[qid];
+        await this.ctx.storage.put("qs", this.qs);
+        await this.ctx.storage.delete("qa:" + qid);
+        if (this.live) {
+          if (this.live.ask && this.live.ask.id === qid) this.live.ask = null;
+          if (this.live.show && this.live.show.qid === qid) this.live.show = null;
+          await this.ctx.storage.put("live", this.live);
+        }
+        break;
+      }
+      // the page the TV shows follows the page the teacher is looking at
+      case "screenPage": {
+        if (!this.live) return;
+        const n = Math.max(0, Math.min(Number(msg.n) || 0, this.live.unlocked));
+        if (this.live.screenPage === n) return;
+        this.live.screenPage = n;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
       default:
         return; // "refresh" and unknown messages change nothing
     }
@@ -436,10 +488,50 @@ export class Classroom extends DurableObject {
     const a = this.live && this.live.ask;
     if (!stu || !a || msg.qid !== a.id) return;
     if (Date.now() > a.endsAt + 5000) return;
-    const per = (this.asks[a.id] ||= {});
-    per[stu.name] = { text: String(msg.text || "").slice(0, 5000), at: Date.now() };
-    await this.ctx.storage.put("asks:" + this.live.sessionId, this.asks);
-    this.broadcast({ teachersOnly: true });
+    await this.loadQA(a.id);
+    this.qa[a.id][stu.name] = { text: String(msg.text || "").slice(0, 5000), at: Date.now() };
+    await this.ctx.storage.put("qa:" + a.id, this.qa[a.id]);
+    // if this student's answer is on display, the screens need the new wording
+    const sh = this.live.show;
+    this.broadcast({ teachersOnly: !(sh && sh.qid === a.id && sh.codes.includes(stu.name)) });
+  }
+
+  async loadQA(qid) {
+    if (!qid) return {};
+    if (!this.qa[qid]) this.qa[qid] = (await this.ctx.storage.get("qa:" + qid)) || {};
+    return this.qa[qid];
+  }
+
+  // what everyone in the room may see: the question and the picked answers, never names
+  shared() {
+    const L = this.live;
+    if (!L) return { paused: false, ask: null, show: null };
+    const sh = L.show;
+    const q = sh && this.qs.find((x) => x.id === sh.qid);
+    const qa = sh ? this.qa[sh.qid] || {} : {};
+    return {
+      paused: !!L.paused,
+      ask: L.ask ? { id: L.ask.id, prompt: L.ask.prompt, endsAt: L.ask.endsAt } : null,
+      show: q ? { qid: sh.qid, prompt: q.prompt, answers: sh.codes.filter((c) => qa[c]).map((c) => qa[c].text) } : null,
+    };
+  }
+
+  // the TV (iPad) page: what the teacher is looking at, poll results when shown, no names, no controls
+  screenState() {
+    const base = { now: Date.now(), ...this.shared() };
+    if (!this.live || !this.liveLesson) return { ...base, live: false };
+    const pages = this.pages();
+    const n = Math.min(this.live.screenPage ?? this.live.unlocked, this.live.unlocked, pages.length - 1);
+    const pg = pages[n];
+    let results = null;
+    const poll = pg && (pg.blocks || []).find((b) => b.type === "poll");
+    if (poll && this.live.revealed[pg.id]) {
+      const counts = (poll.options || []).map(() => 0);
+      const v = this.votes[pg.id] || {};
+      for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
+      results = { counts, total: Object.keys(v).length };
+    }
+    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results };
   }
 
   async studentMessage(sid, msg, stu) {
@@ -481,10 +573,11 @@ export class Classroom extends DurableObject {
   }
 
   studentState(sid, stu) {
-    const a = this.live && this.live.ask;
-    const mine = a && stu && this.asks[a.id] && this.asks[a.id][stu.name];
-    return { ...this.lessonState(sid), now: Date.now(), paused: !!(this.live && this.live.paused),
-      ask: a ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, mine: mine ? mine.text : "" } : null, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac };
+    const sh = this.shared();
+    const a = sh.ask;
+    const mine = a && stu && this.qa[a.id] && this.qa[a.id][stu.name];
+    if (a) a.mine = mine ? mine.text : "";
+    return { ...this.lessonState(sid), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac };
   }
 
   // ---------------------------------------------------------------- student sign-in
@@ -967,7 +1060,8 @@ export class Classroom extends DurableObject {
       presence: this.presence(),
       students: this.studentList(),
       now: Date.now(),
-      askAnswers: this.live && this.live.ask ? this.asks[this.live.ask.id] || {} : {},
+      askAnswers: this.live && this.live.ask ? this.qa[this.live.ask.id] || {} : {},
+      qs: this.qs,
       sky: await this.skyTeacherState(),
     };
   }
@@ -989,6 +1083,9 @@ export class Classroom extends DurableObject {
       if (!this.checkToken(url.searchParams.get("token"))) return new Response("not signed in", { status: 401 });
       this.ctx.acceptWebSocket(server, ["teacher"]);
       server.serializeAttachment({ role: "teacher" });
+    } else if (role === "screen") {
+      this.ctx.acceptWebSocket(server, ["screen"]);
+      server.serializeAttachment({ role: "screen" });
     } else {
       const sid = (url.searchParams.get("sid") || "").slice(0, 40);
       if (!sid) return new Response("missing sid", { status: 400 });
@@ -1006,6 +1103,7 @@ export class Classroom extends DurableObject {
         await null;
         try {
           if (role === "teacher") server.send(JSON.stringify({ t: "tstate", state: await this.teacherState() }));
+          else if (role === "screen") server.send(JSON.stringify({ t: "state", state: this.screenState() }));
           else {
             const a = server.deserializeAttachment();
             server.send(JSON.stringify({ t: "state", state: this.studentState(a.sid, this.studentFrom(a.stoken)) }));
@@ -1072,6 +1170,10 @@ export class Classroom extends DurableObject {
           } catch {}
         }
         if (teachersOnly) return;
+        const sc = JSON.stringify({ t: "state", state: this.screenState() });
+        for (const ws of this.ctx.getWebSockets("screen")) {
+          try { ws.send(sc); } catch {}
+        }
         for (const ws of this.ctx.getWebSockets("student")) {
           const a = ws.deserializeAttachment() || {};
           try {
