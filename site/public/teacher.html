@@ -1312,7 +1312,7 @@ async function openSaved(id) {
 }
 // ---------- text boxes grow with what's typed, so there's never a scroll bar inside them (except my notes)
 function growBox(t) {
-  if (!t || t.tagName !== "TEXTAREA" || t.id === "notesText" || !t.isConnected) return;
+  if (!t || t.tagName !== "TEXTAREA" || (typeof notesText !== "undefined" && t === notesText) || !t.isConnected) return;
   t.style.overflow = "hidden";
   t.style.height = "auto";
   t.style.height = t.scrollHeight + 2 + "px";
