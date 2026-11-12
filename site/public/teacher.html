@@ -180,6 +180,7 @@
     <h1 class="cl-title">Class Live · Lessons</h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="studentUrl"></span>
+    <button class="t-small" id="recBtn">Record a replay</button>
     <button class="t-small" id="studentsBtn">Students</button>
     <button class="t-small" id="accountBtn">Username &amp; passcode</button>
     <button class="t-small" id="signOutBtn">Sign out</button>
@@ -290,6 +291,7 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
 const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView"];
 function show(v) { for (const id of VIEWS) $(id).hidden = id !== v; }
 
+$("recBtn").onclick = () => { location.href = "/recorder"; };
 $("studentUrl").textContent = "Students go to: " + location.host;
 
 // ---------------------------------------------------------------- routing

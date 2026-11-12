@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Live · Record a replay</title>
+<link rel="stylesheet" href="app.css?v=13">
+<link rel="stylesheet" href="aerolab.css?v=6">
+<style>
+  html, body { height: 100%; }
+  body { height: 100vh; overflow: hidden; }
+  .r-stage { flex: 1; min-height: 0; margin: 0 12px; position: relative; overflow: hidden; }
+  .r-box { position: absolute; left: 0; top: 0; background: #ffffff; border-radius: 6px; overflow: hidden; }
+  .r-box iframe { position: absolute; left: 0; top: 0; border: 0; width: 100%; height: 100%; }
+  .r-area { position: absolute; inset: 0; pointer-events: none; }
+  .r-area.choosing { pointer-events: auto; cursor: crosshair; }
+  .r-dim { position: absolute; background: rgba(0, 0, 0, .55); }
+  .r-rect { position: absolute; outline: 3px solid #E0B252; }
+  .r-rec .r-rect { outline-color: #D9453B; }
+  .r-player { position: absolute; inset: 0; }
+  .r-msg { margin: 30px auto; max-width: 640px; padding: 22px 26px; font-size: 20px; }
+  .cl-bottom .r-note { font-size: 19px; }
+  .cl-bottom input[type=text] { min-height: 44px; width: 280px; font-size: 18px; }
+  .cl-bottom button { padding: 8px 22px; }
+  select { min-height: 44px; font-size: 18px; max-width: 360px; }
+  .r-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #D9453B; margin-right: 8px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<header class="cl-top aero-header">
+  <h1 class="cl-title">Record a replay</h1>
+  <span class="cl-grow"></span>
+  <select id="simPick" aria-label="Sim to record"><option value="">Choose one of your sims…</option></select>
+  <button class="t-small" id="openFile">Open a file…</button>
+  <input type="file" id="fileIn" accept=".html,.htm,text/html" hidden>
+  <button class="t-small" id="back">Back to lessons</button>
+</header>
+<main class="r-stage" id="stage">
+  <div class="aero-panel r-msg" id="intro">
+    Choose a sim at the top. Then drag a box over the part you want to record, press Start recording and use the sim.
+    Students will see only that part, played back, with Play, Pause and Restart.
+  </div>
+  <div class="r-box" id="box" hidden>
+    <iframe id="frame" title="Sim"></iframe>
+    <div class="r-area" id="area"></div>
+  </div>
+  <div class="r-player" id="playerHost" hidden></div>
+</main>
+<footer class="cl-bottom aero-bar" id="bar">
+  <span class="r-note" id="note"></span>
+  <span class="cl-grow"></span>
+  <span id="buttons" style="display:flex;gap:10px;align-items:center"></span>
+</footer>
+
+<script src="common.js?v=13"></script>
+<script src="replay/player.js?v=1"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const token = store("cl_token");
+const STEP = 1000 / 60;
+let harness = "", playerJs = "";
+let sim = null;            // { name, html }
+let W = 0, H = 0;          // recording size of the sim (CSS pixels)
+let area = null;           // { x, y, w, h } inside the sim
+let mode = "none";         // none | ready | choosing | recording | recorded | watching
+let rec = null;            // { seed, epoch, frames, events }
+let loaded = false, driving = false, acc = 0, last = 0;
+
+const tapi = (path, opts = {}) => api(path, { ...opts, headers: { "x-token": token || "", ...(opts.headers || {}) } });
+$("back").onclick = () => { location.href = "/teacher"; };
+
+async function init() {
+  if (!token) { $("intro").textContent = "Sign in on the teacher page first, then come back here."; return; }
+  [harness, playerJs] = await Promise.all(["replay/harness.js?v=1", "replay/player.js?v=1"].map((u) => fetch(u, { cache: "no-store" }).then((r) => r.text())));
+  try {
+    const sims = await tapi("/api/sims");
+    for (const s of sims) $("simPick").append(el("option", { value: s.id, text: s.name }));
+  } catch (e) { $("note").textContent = "Couldn't load your sims: " + e.message; }
+}
+init();
+
+$("simPick").onchange = async (e) => {
+  const id = e.target.value;
+  if (!id) return;
+  const html = await fetch("/sim/" + id, { cache: "no-store" }).then((r) => r.text());
+  openSim(e.target.selectedOptions[0].textContent, html);
+};
+$("openFile").onclick = () => $("fileIn").click();
+$("fileIn").onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  openSim(f.name.replace(/\.html?$/i, ""), await f.text());
+  e.target.value = "";
+};
+
+function win() { try { return $("frame").contentWindow; } catch { return null; } }
+
+// The sim always runs on the replay clock here, so what you see while recording is what students will see.
+function loadFrame(cfg, after) {
+  loaded = false;
+  $("frame").onload = () => { loaded = true; acc = 0; last = performance.now(); if (after) after(); };
+  $("frame").srcdoc = injectHarness(sim.html, harness, cfg);
+}
+function drive(t) {
+  const w = win();
+  if (loaded && w && w.__rec && mode !== "watching") {
+    acc += Math.min(100, t - last);
+    let n = 0;
+    while (acc >= STEP && n < 4) { w.__rec.step(); acc -= STEP; n++; }
+    if (n === 4) acc = 0;
+    if (mode === "recording") $("note").innerHTML = '<span class="r-dot"></span>Recording ' + mmss(w.__rec.frame() / 60);
+  }
+  last = t;
+  requestAnimationFrame(drive);
+}
+requestAnimationFrame(drive);
+const mmss = (s) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+
+function openSim(name, html) {
+  sim = { name, html };
+  $("intro").hidden = true; $("box").hidden = false; $("playerHost").hidden = true;
+  // the recording size is fixed when the sim opens: the whole space here
+  W = Math.floor($("stage").clientWidth); H = Math.floor($("stage").clientHeight);
+  Object.assign($("box").style, { width: W + "px", height: H + "px" });
+  area = { x: 0, y: 0, w: W, h: H };
+  rec = null;
+  loadFrame({ seed: 1, epoch: Date.now() });
+  setMode("ready");
+}
+
+// ---------- the area to record
+function drawArea() {
+  const a = area, L = $("area");
+  L.replaceChildren();
+  L.classList.toggle("choosing", mode === "choosing");
+  $("box").classList.toggle("r-rec", mode === "recording");
+  const whole = a.x === 0 && a.y === 0 && a.w === W && a.h === H;
+  if (whole && mode !== "choosing") return;
+  const dim = (x, y, w, h) => L.append(el("div", { class: "r-dim", style: `left:${x}px;top:${y}px;width:${w}px;height:${h}px` }));
+  dim(0, 0, W, a.y); dim(0, a.y + a.h, W, H - a.y - a.h); dim(0, a.y, a.x, a.h); dim(a.x + a.w, a.y, W - a.x - a.w, a.h);
+  L.append(el("div", { class: "r-rect", style: `left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px` }));
+}
+let dragFrom = null;
+$("area").addEventListener("pointerdown", (e) => {
+  if (mode !== "choosing") return;
+  const r = $("box").getBoundingClientRect();
+  dragFrom = [e.clientX - r.left, e.clientY - r.top];
+  $("area").setPointerCapture(e.pointerId);
+});
+$("area").addEventListener("pointermove", (e) => {
+  if (!dragFrom) return;
+  const r = $("box").getBoundingClientRect();
+  const x = Math.max(0, Math.min(W, e.clientX - r.left)), y = Math.max(0, Math.min(H, e.clientY - r.top));
+  area = { x: Math.min(x, dragFrom[0]), y: Math.min(y, dragFrom[1]), w: Math.abs(x - dragFrom[0]), h: Math.abs(y - dragFrom[1]) };
+  drawArea();
+});
+$("area").addEventListener("pointerup", () => {
+  dragFrom = null;
+  if (area.w < 40 || area.h < 40) area = { x: 0, y: 0, w: W, h: H };
+  area = { x: Math.round(area.x), y: Math.round(area.y), w: Math.round(area.w), h: Math.round(area.h) };
+  drawArea();
+});
+
+// ---------- modes and buttons
+function btn(text, fn, primary) { return el("button", { class: primary ? "aero-btn-primary" : "", text, onclick: fn }); }
+function setMode(m) {
+  mode = m;
+  const B = $("buttons");
+  $("playerHost").hidden = m !== "watching";
+  $("box").hidden = m === "watching" || !sim;
+  if (m === "ready") {
+    $("note").textContent = "Try the sim if you like. Recording starts it fresh.";
+    B.replaceChildren(btn("Choose the area", () => setMode("choosing")), btn("Start recording", startRec, true));
+  } else if (m === "choosing") {
+    $("note").textContent = "Drag a box over the part to record.";
+    B.replaceChildren(btn("Use the whole sim", () => { area = { x: 0, y: 0, w: W, h: H }; drawArea(); }), btn("Done", () => setMode("ready"), true));
+  } else if (m === "recording") {
+    B.replaceChildren(btn("Stop", stopRec, true));
+  } else if (m === "recorded") {
+    $("note").textContent = "Recorded " + mmss(rec.frames / 60) + ".";
+    const name = el("input", { type: "text", id: "recName", value: sim.name + " replay", "aria-label": "Name" });
+    B.replaceChildren(btn("Record again", startRec), btn("Watch it", watch), name, btn("Download", download), btn("Save to Class Live", save, true));
+  } else if (m === "watching") {
+    $("note").textContent = "This is what students will see.";
+    B.replaceChildren(btn("Back", () => { $("playerHost").replaceChildren(); setMode("recorded"); }, true));
+  }
+  drawArea();
+}
+
+function startRec() {
+  const seed = (Math.random() * 4294967296) >>> 0, epoch = Date.now();
+  rec = { seed, epoch, frames: 0, events: [] };
+  setMode("recording");
+  $("note").innerHTML = '<span class="r-dot"></span>Starting…';
+  loadFrame({ seed, epoch }, () => { win().__rec.record(); $("frame").focus(); });
+}
+function stopRec() {
+  const w = win();
+  if (!w || !w.__rec) return;
+  rec.events = w.__rec.stop();
+  rec.frames = w.__rec.frame();
+  setMode("recorded");
+}
+
+function replayData() {
+  return { html: sim.html, seed: rec.seed, epoch: rec.epoch, w: W, h: H, area, frames: rec.frames, events: rec.events };
+}
+function watch() {
+  setMode("watching");
+  new ReplayPlayer($("playerHost"), replayData(), harness);
+}
+function buildFile(name) {
+  const json = JSON.stringify(replayData()).replace(/</g, "\\u003c");
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  return '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    "<title>" + esc(name) + "</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#12291F}#rp{position:fixed;inset:0}</style></head><body>" +
+    '<div id="rp"></div>\n<script type="application/json" id="rpdata">' + json + "</scr" + "ipt>\n" +
+    '<script type="text/plain" id="rpharness">' + harness.replace(/<\/script/gi, "<\\/script") + "</scr" + "ipt>\n" +
+    "<script>\n" + playerJs.replace(/<\/script/gi, "<\\/script") +
+    '\nnew ReplayPlayer(document.getElementById("rp"), JSON.parse(document.getElementById("rpdata").textContent), document.getElementById("rpharness").textContent);\n</scr' + "ipt>\n</body></html>\n";
+}
+const recName = () => (($("recName") && $("recName").value.trim()) || sim.name + " replay").slice(0, 80);
+function download() {
+  const name = recName();
+  const a = el("a", { href: URL.createObjectURL(new Blob([buildFile(name)], { type: "text/html" })), download: name.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() + ".html" });
+  document.body.append(a); a.click(); a.remove();
+}
+async function save() {
+  const name = recName();
+  const file = buildFile(name);
+  if (new Blob([file]).size > 1_900_000) { $("note").textContent = "That recording is too large to save here. Try a shorter one, or Download it."; return; }
+  $("note").textContent = "Saving…";
+  try {
+    await tapi("/api/sims", { method: "POST", headers: { "content-type": "text/html", "x-name": encodeURIComponent(name) }, body: file });
+    $("note").textContent = "Saved as “" + name + "”. Pick it like any sim in the lesson editor.";
+  } catch (e) { $("note").textContent = "Couldn't save: " + e.message; }
+}
+</script>
+</body>
+</html>
