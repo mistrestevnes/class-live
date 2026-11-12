@@ -67,6 +67,39 @@ async function sha256(text) {
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// When each block's class turns itself off (Central time). The block is found by the first number in its name: "1st Block" -> 1.
+const AUTO_END = { 1: { mt: [10, 13], f: [10, 7] }, 2: { mt: [11, 58], f: [11, 48] }, 5: { mt: [16, 5], f: [16, 5] } };
+const TZ = "America/Chicago";
+function zoneParts(ms) {
+  const o = {};
+  for (const p of new Intl.DateTimeFormat("en-US", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23", weekday: "short" }).formatToParts(ms)) o[p.type] = p.value;
+  return { y: +o.year, mo: +o.month, d: +o.day, h: +o.hour, mi: +o.minute, s: +o.second, wd: o.weekday };
+}
+// a wall-clock time in Central time -> milliseconds
+function zoneTime(y, mo, d, h, mi) {
+  let guess = Date.UTC(y, mo - 1, d, h, mi);
+  for (let k = 0; k < 2; k++) {
+    const p = zoneParts(guess);
+    const shown = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+    guess += Date.UTC(y, mo - 1, d, h, mi) - shown;
+  }
+  return guess;
+}
+// the next end of this block's class on a school day (Monday to Friday), or null for a block without a set time
+function autoEndTime(periodName, now) {
+  const m = String(periodName || "").match(/\d/);
+  const sch = m && AUTO_END[m[0]];
+  if (!sch) return null;
+  for (let k = 0; k < 8; k++) {
+    const p = zoneParts(now + k * 86400000);
+    if (p.wd === "Sat" || p.wd === "Sun") continue;
+    const [h, mi] = p.wd === "Fri" ? sch.f : sch.mt;
+    const t = zoneTime(p.y, p.mo, p.d, h, mi);
+    if (t > now) return t;
+  }
+  return null;
+}
+
 export class Classroom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -429,11 +462,13 @@ export class Classroom extends DurableObject {
         // each block is started on its own: only that block's students move into the lesson
         const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
         if (this.roster.periods.length && !pd) return;
-        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "" };
+        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
+          autoEndAt: pd ? autoEndTime(pd.name, Date.now()) : null };
         this.liveLesson = lesson;
         this.votes = {};
         this.sq = [];
         await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
         break;
       }
       case "end": {
@@ -443,6 +478,7 @@ export class Classroom extends DurableObject {
         this.liveLesson = null;
         this.votes = {};
         await this.ctx.storage.delete("live");
+        await this.setAlarms();
         break;
       }
       case "unlock": {
@@ -990,7 +1026,15 @@ export class Classroom extends DurableObject {
   async putRun() {
     if (this.run) await this.ctx.storage.put("run", this.run);
     else await this.ctx.storage.delete("run");
-    if (this.run && this.run.endsAt !== null && !this.runClosed()) await this.ctx.storage.setAlarm(this.run.endsAt);
+    await this.setAlarms();
+  }
+
+  // One alarm serves both the sky question timer and the automatic end of class.
+  async setAlarms() {
+    const t = [];
+    if (this.run && this.run.endsAt !== null && !this.runClosed()) t.push(this.run.endsAt);
+    if (this.live && this.live.autoEndAt) t.push(this.live.autoEndAt);
+    if (t.length) await this.ctx.storage.setAlarm(Math.min(...t));
     else await this.ctx.storage.deleteAlarm();
   }
 
@@ -1018,6 +1062,10 @@ export class Classroom extends DurableObject {
 
   // The timer ran out: tell everyone.
   async alarm() {
+    if (this.live && this.live.autoEndAt && Date.now() >= this.live.autoEndAt - 1000) {
+      await this.teacherMessage({ t: "end" });
+    }
+    await this.setAlarms();
     this.broadcast();
   }
 
