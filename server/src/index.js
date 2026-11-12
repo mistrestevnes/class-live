@@ -262,7 +262,7 @@ export class Classroom extends DurableObject {
       if (sm && m === "DELETE") return this.deleteSim(sm[1]);
 
       // the teacher's private notes, one set for each lesson in each block
-      if (p === "/api/past" && m === "GET") return json((await this.ctx.storage.get("pastIndex")) || []);
+      if (p === "/api/past" && m === "GET") return json(await this.pastList());
       const pm = p.match(/^\/api\/past\/([a-z0-9]+)$/i);
       if (pm && m === "GET") { const r = await this.pastClass(pm[1]); return r ? json(r) : json({ error: "not found" }, 404); }
       if (pm && m === "DELETE") {
@@ -774,8 +774,44 @@ export class Classroom extends DurableObject {
     if (idx.length > 400) for (const old of idx.splice(400)) await this.ctx.storage.delete("past:" + old.id);
     await this.ctx.storage.put("pastIndex", idx);
   }
+  // Questions asked in classes that ended without a record (before Past lessons existed), grouped by day, block and lesson.
+  async loosePast() {
+    const idx = (await this.ctx.storage.get("pastIndex")) || [];
+    const ids = new Set(idx.map((x) => x.id));
+    const covered = [];
+    for (const x of idx) { const r = await this.ctx.storage.get("past:" + x.id); if (r) covered.push(r); }
+    const inRec = (q) => covered.some((r) => q.sessionId ? q.sessionId === r.id
+      : q.block === r.block && q.lesson === r.title && q.startedAt >= r.startedAt && q.startedAt <= r.endedAt);
+    const groups = new Map();
+    for (const q of this.qs) {
+      if (this.live && (q.sessionId === this.live.sessionId || (!q.sessionId && q.startedAt >= this.live.startedAt))) continue; // the class running now
+      if ((q.sessionId && ids.has(q.sessionId)) || inRec(q)) continue;
+      const p = zoneParts(q.startedAt);
+      const key = p.y + "-" + p.mo + "-" + p.d + "|" + (q.block || "") + "|" + (q.lesson || "");
+      let h = 5381; for (const ch of key) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+      const id = "g" + h.toString(36);
+      const g = groups.get(id) || { id, title: q.lesson || "", block: q.block || "", startedAt: q.startedAt, endedAt: q.startedAt, qs: [], loose: true };
+      g.startedAt = Math.min(g.startedAt, q.startedAt); g.endedAt = Math.max(g.endedAt, q.startedAt + (q.seconds || 0) * 1000);
+      g.qs.push(q);
+      groups.set(id, g);
+    }
+    return [...groups.values()];
+  }
+  async pastList() {
+    const idx = (await this.ctx.storage.get("pastIndex")) || [];
+    const loose = (await this.loosePast()).map(({ qs, ...g }) => g);
+    return [...idx, ...loose].sort((a, b) => b.startedAt - a.startedAt);
+  }
   async pastClass(id) {
-    const rec = await this.ctx.storage.get("past:" + String(id).replace(/[^a-z0-9]/gi, ""));
+    id = String(id).replace(/[^a-z0-9]/gi, "");
+    if (id[0] === "g") {
+      const g = (await this.loosePast()).find((x) => x.id === id);
+      if (!g) return null;
+      const questions = [];
+      for (const q of g.qs.slice().reverse()) questions.push({ ...q, answers: await this.loadQA(q.id) });
+      return { id, title: g.title, block: g.block, startedAt: g.startedAt, endedAt: g.endedAt, pages: null, polls: [], sq: [], act: {}, loose: true, questions };
+    }
+    const rec = await this.ctx.storage.get("past:" + id);
     if (!rec) return null;
     // questions from this class: by session, or (older ones) by block and time
     const qs = this.qs.filter((q) => q.sessionId ? q.sessionId === rec.id

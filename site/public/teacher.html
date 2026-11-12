@@ -1392,7 +1392,8 @@ async function showPast(id) {
     const who = (code) => (named ? shortName(names[code]) || code : code);
     const parts = [el("div", { class: "aero-panel", style: "margin-bottom:12px" },
       el("p", { style: "margin:0", text: when(r.startedAt) + " to " + new Date(r.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
-        " · reached page " + r.pages + (named ? "" : " · open your name file on the Students screen to see names") }))];
+        (r.loose ? " · from before Past lessons existed: questions and answers only" : " · reached page " + r.pages) +
+        (named ? "" : " · open your name file on the Students screen to see names") }))];
     for (const q of r.questions) {
       const ans = Object.entries(q.answers || {}).filter(([, v]) => (v.text || "").trim());
       const nDone = ans.filter(([, v]) => v.done).length;
@@ -1424,7 +1425,7 @@ async function showPast(id) {
         q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null))));
     if (!r.questions.length && !(r.polls || []).length && !(r.sq || []).length) parts.push(el("div", { class: "aero-panel" }, el("p", { text: "No questions, polls or student questions in this class." })));
     parts.push(el("div", { class: "t-row" }, el("span", { class: "cl-grow" }),
-      el("button", { text: "Delete this record", onclick: async () => {
+      r.loose ? null : el("button", { text: "Delete this record", onclick: async () => {
         if (!confirm("Delete this past lesson record? The answers stay in your Questions list.")) return;
         await tapi("/api/past/" + id, { method: "DELETE" }); location.hash = "#/past";
       } })));
