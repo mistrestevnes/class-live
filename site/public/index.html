@@ -250,8 +250,14 @@ function tellSims(cmd) {
 }
 
 // a picture or an animation that goes with a question
+// the same sim that's already on the page isn't squeezed into the question: students switch back to it instead
+function simOnPage(url) {
+  const pg = state.pages && state.pages[page];
+  return !!url && !!pg && (pg.blocks || []).some((b) => b.type === "sim" && b.url === url);
+}
 function setMedia(box, a) {
   box.replaceChildren();
+  if (a.sim && simOnPage(a.sim)) { box.hidden = true; return; }
   if (a.imageId) box.append(el("img", { src: "/img/" + a.imageId, alt: "" }));
   else if (a.sim) box.append(el("iframe", { src: a.sim, title: "Animation", allow: "autoplay; fullscreen" }));
   box.hidden = !box.firstChild;
@@ -293,7 +299,7 @@ function applyCover() {
     if (askId && askDirty) saveAsk(); // paused or closed while typing: keep what they wrote
     askId = null; clearInterval(askTimer); askTimer = null; return;
   }
-  $("askToSim").hidden = !a.allowSim;
+  $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim));
   $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
