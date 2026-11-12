@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=18">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -75,6 +75,12 @@
 
   <!-- a student's own question to the teacher: always available during class, even over the pause screen -->
   <button class="cl-qbtn" id="qBtn" hidden>Ask a question</button>
+  <!-- feedback from the teacher on submitted answers -->
+  <button class="cl-qbtn cl-fbbtn" id="fbBtn" hidden>Feedback</button>
+  <section class="aero-panel cl-qbox cl-fbbox" id="fbBox" hidden>
+    <div class="cl-ask-top"><span class="cl-ask-label">Feedback from your teacher</span><button id="fbClose">Close</button></div>
+    <div id="fbList"></div>
+  </section>
   <section class="aero-panel cl-qbox" id="qBox" hidden>
     <div class="cl-ask-top"><span class="cl-ask-label">Ask your teacher</span><button id="qClose">Close</button></div>
     <div id="qList"></div>
@@ -137,6 +143,7 @@ function apply(s) {
   applyCover();
   renderSp();
   renderQ();
+  renderFb();
   if (!s.live) {
     sessionId = null; lastUnlocked = -1; gotoN = null;
     render();
@@ -551,6 +558,31 @@ $("qSend").onclick = () => {
   setTimeout(() => { $("qNote").textContent = ""; }, 3000);
 };
 setInterval(renderQ, 1000);
+
+// ---------- feedback on answers: opens by itself when something new arrives
+const seenFb = new Set(JSON.parse(store("cl_seenFb") || "[]"));
+const fbId = (x) => x.qid + "@" + x.fb.at;
+function renderFb() {
+  const list = (state.live && state.myFb) || [];
+  const fresh = list.filter((x) => !seenFb.has(fbId(x)));
+  if (fresh.length && $("fbBox").hidden) $("fbBox").hidden = false;   // something new: show it
+  $("fbBtn").hidden = !list.length || !$("fbBox").hidden;
+  if (!list.length) $("fbBox").hidden = true;
+  if ($("fbBox").hidden) return;
+  const key = JSON.stringify(list);
+  if ($("fbList")._key !== key) {
+    $("fbList")._key = key;
+    $("fbList").replaceChildren(...list.slice().reverse().map((x) => el("div", { class: "cl-qitem" },
+      el("div", { class: "aero-muted", text: "Question" + (x.parts > 1 ? " · part " + x.part : "") }),
+      el("div", {}, formatText(x.prompt)),
+      el("div", { class: "cl-qmine", text: "You wrote: " + x.text }),
+      el("div", { class: "cl-qreply" }, x.fb.thumb ? el("span", { class: "cl-thumb", text: "👍 " }) : null, x.fb.text || (x.fb.thumb ? "Nice work." : "")))));
+  }
+  for (const x of fresh) seenFb.add(fbId(x));
+  if (fresh.length) store("cl_seenFb", JSON.stringify([...seenFb].slice(-300)));
+}
+$("fbBtn").onclick = () => { $("fbBox").hidden = false; $("fbList")._key = null; renderFb(); };
+$("fbClose").onclick = () => { $("fbBox").hidden = true; renderFb(); };
 
 // ---------- no pasting into any box: here or in the sims on the page
 function noPaste(doc) {

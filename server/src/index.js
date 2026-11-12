@@ -143,7 +143,7 @@ export class Classroom extends DurableObject {
       if (this.live && this.live.show) await this.loadQA(this.live.show.qid);
       this.sq = this.live ? (await ctx.storage.get("sq:" + this.live.sessionId)) || [] : [];
       this.act = this.live ? (await ctx.storage.get("act:" + this.live.sessionId)) || {} : {};   // code -> { n, away, since, log }   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
-      if (this.live) for (const q of this.qs) if (q.sp && q.sessionId === this.live.sessionId) await this.loadQA(q.id);
+      if (this.live) for (const q of this.qs) if (q.sessionId === this.live.sessionId) await this.loadQA(q.id);
       this.liveLesson = this.live ? withPlan((await ctx.storage.get("lesson:" + this.live.lessonId)) || null) : null;
       if (this.live && !Array.isArray(this.live.plan)) this.live.plan = (this.liveLesson && this.liveLesson.plan) || [];
       this.tokens = (await ctx.storage.get("tokens")) || [];
@@ -687,6 +687,21 @@ export class Classroom extends DurableObject {
         this.sendToCode(q.code);
         break;
       }
+      // feedback on one student's answer: a comment and/or a thumbs up, shown to that student right away
+      case "feedback": {
+        const qid = String(msg.qid || "");
+        if (!this.qs.some((q) => q.id === qid)) return;
+        await this.loadQA(qid);
+        const code = String(msg.code || "");
+        const a = this.qa[qid][code];
+        if (!a) return;
+        const text = String(msg.text ?? (a.fb && a.fb.text) ?? "").trim().slice(0, 1000);
+        const thumb = msg.thumb === undefined ? !!(a.fb && a.fb.thumb) : !!msg.thumb;
+        if (text || thumb) a.fb = { text, thumb, at: Date.now() }; else delete a.fb;
+        await this.ctx.storage.put("qa:" + qid, this.qa[qid]);
+        this.sendToCode(code);
+        break;
+      }
       case "qDelete": {
         const qid = String(msg.qid || "");
         this.qs = this.qs.filter((q) => q.id !== qid);
@@ -916,6 +931,16 @@ export class Classroom extends DurableObject {
     this.broadcast({ teachersOnly: true });
     this.sendToCode(stu.name);
   }
+  // feedback this student has had in this class, newest last
+  myFeedback(stu) {
+    const out = [];
+    for (const q of this.qs) {
+      if (q.sessionId !== this.live.sessionId) continue;
+      const a = (this.qa[q.id] || {})[stu.name];
+      if (a && a.fb) out.push({ qid: q.id, prompt: q.prompt, part: q.part || 1, parts: q.parts || 1, text: a.text, fb: a.fb });
+    }
+    return out.sort((x, y) => x.fb.at - y.fb.at);
+  }
   // push fresh state to every open page of one student
   sendToCode(code) {
     for (const ws of this.ctx.getWebSockets("student")) {
@@ -1017,6 +1042,7 @@ export class Classroom extends DurableObject {
     return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac,
       spMine: inb ? this.spMine(stu) : {},
       spExtra: inb && this.live ? this.live.spExtra || {} : {},
+      myFb: inb && stu && this.live ? this.myFeedback(stu) : [],
       myQs: inb && stu && this.live ? this.sq.filter((x) => x.code === stu.name).slice(-20).map((x) => ({ id: x.id, text: x.text, reply: x.reply, at: x.at })) : [] };
   }
 

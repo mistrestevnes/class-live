@@ -185,3 +185,8 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .t-act th { text-align: left; font-weight: 700; padding: 4px 8px; border-bottom: 1px solid var(--aero-line); }
 .t-act td { padding: 4px 8px; border-bottom: 1px solid var(--aero-line); }
 .t-act tr.away td { color: var(--aero-danger, #D9453B); font-weight: 700; }
+
+/* feedback from the teacher */
+.cl-fbbtn { right: auto; left: 24px; }
+.cl-fbbox { right: auto; left: 24px; z-index: 72; }
+.cl-thumb { font-size: 24px; }
