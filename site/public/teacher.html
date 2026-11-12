@@ -1310,6 +1310,23 @@ async function openSaved(id) {
   try { viewQ = { id, answers: await tapi("/api/answers?q=" + encodeURIComponent(id)) }; } catch { return; }
   renderAsk();
 }
+// ---------- text boxes grow with what's typed, so there's never a scroll bar inside them (except my notes)
+function growBox(t) {
+  if (!t || t.tagName !== "TEXTAREA" || t.id === "notesText" || !t.isConnected) return;
+  t.style.overflow = "hidden";
+  t.style.height = "auto";
+  t.style.height = t.scrollHeight + 2 + "px";
+}
+document.addEventListener("input", (e) => growBox(e.target), true);
+new MutationObserver((list) => {
+  for (const m of list) for (const n of m.addedNodes) {
+    if (n.nodeType !== 1) continue;
+    if (n.tagName === "TEXTAREA") requestAnimationFrame(() => growBox(n));
+    else for (const t of n.querySelectorAll("textarea")) requestAnimationFrame(() => growBox(t));
+  }
+}).observe(document.body, { childList: true, subtree: true });
+window.addEventListener("resize", () => document.querySelectorAll("textarea").forEach(growBox));
+
 // ---------------------------------------------------------------- past lessons
 const when = (t) => new Date(t).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 async function showPast(id) {
