@@ -271,7 +271,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=13"></script>
+<script src="common.js?v=14"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -744,7 +744,7 @@ function questionsPanel(page) {
     }
     q.parts.forEach((p, pi) => box.append(el("div", { class: "t-part" },
       q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
-      el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
+      el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question. **bold**  *italics*", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
       el("div", { class: "t-row", style: "margin:6px 0" },
         own ? null : el("label", { class: "t-row" },
           el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || 2, "aria-label": "Minutes",
@@ -1126,7 +1126,7 @@ function renderAsk() {
     box._key = "draft";
     const many = askDraft.parts.length > 1;
     const rows = askDraft.parts.map((p, i) => {
-      const ta = el("textarea", { id: "askPromptIn" + i, rows: 2, value: p.prompt, placeholder: many ? "Part " + (i + 1) : "Type the question, then press Enter",
+      const ta = el("textarea", { id: "askPromptIn" + i, rows: 2, value: p.prompt, placeholder: (many ? "Part " + (i + 1) : "Type the question, then press Enter") + ". **bold**  *italics*",
         oninput: (e) => (p.prompt = e.target.value),
         onkeydown: (e) => {
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAsk(); }
@@ -1189,7 +1189,7 @@ function renderAsk() {
     el("div", { class: "t-row" },
       el("h3", { style: "flex:1;margin:0", text: (isLive ? (a.paused ? "Question paused" : open ? "Question running" : "Time's up") : "Saved question") + partTxt + (isLive ? "" : " · " + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })) }),
       isLive ? el("span", { class: "t-ask-time", text: fmt(t) }) : null),
-    el("div", { class: "t-ask-prompt", text: q.prompt }),
+    el("div", { class: "t-ask-prompt" }, formatText(q.prompt)),
     el("div", { class: "t-row" },
       el("span", { class: "t-who-count", text: isLive ? nDone + " of " + here + " submitted · " + withText.length + " have written something" : withText.length + " answers" }),
       el("span", { class: "cl-grow" }),
