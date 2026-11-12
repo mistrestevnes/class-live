@@ -166,3 +166,6 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-count { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 60; padding: 22px 46px; text-align: center; font-size: 28px; }
 .cl-count #countNum { font-size: 5rem; font-weight: 700; line-height: 1.1; }
 .cl-toast { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 80; padding: 14px 30px; font-size: 26px; font-weight: 700; }
+
+/* italics the teacher types (*words*) — AeroLab turns italics off everywhere else */
+.cl-text em, .cl-text i { font-style: italic; font-weight: inherit; }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=13">
+<link rel="stylesheet" href="app.css?v=14">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -549,6 +549,59 @@ async function endClass() {
 let ed = null;              // lesson being edited
 let edPage = 0;
 let edPreview = false;
+let pvQ = -1;               // which prepared question (and part) the preview is showing; -1 = none
+
+// ---------- preview: the real student page in a Chromebook-sized frame, fed with this lesson
+function pvQuestions(page) {
+  const out = [];
+  (page.questions || []).forEach((q, qi) => {
+    if (q.mode === "student") return; // those start on their own, from the sim
+    q.parts.forEach((p, pi) => out.push({ q, qi, p, pi }));
+  });
+  return out;
+}
+function pvState() {
+  const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg,
+    questions: (pg.questions || []).filter((q) => q.mode === "student").map((q) => ({ id: q.id, mode: "student",
+      trigger: q.trigger && q.trigger.type === "after" ? { type: "after", afterId: q.trigger.afterId, delay: Number(q.trigger.delay) || 0 } : { type: "sim", event: (q.trigger && q.trigger.event) || "" },
+      command: q.command || "", noSim: !!q.noSim, parts: q.parts.map((p) => ({ prompt: p.prompt || "", imageId: p.imageId || "", sim: p.sim || "" })) })) }));
+  const list = pvQuestions(ed.pages[edPage]);
+  const it = list[pvQ];
+  const ask = it ? { id: "pv" + edPage + "_" + pvQ, prompt: it.p.prompt || "", endsAt: Date.now() + (Number(it.p.min) || 2) * 60000,
+    part: it.pi + 1, parts: it.q.parts.length, allowSim: !it.q.noSim, imageId: it.p.imageId || "", sim: it.p.sim || "" } : null;
+  return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {},
+    now: Date.now(), paused: false, qpaused: false, ask, show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
+}
+let pvFrame = null;
+function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
+window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady) pvSend(); });
+function renderPreview(body) {
+  const list = pvQuestions(ed.pages[edPage]);
+  if (pvQ >= list.length) pvQ = -1;
+  const it = list[pvQ];
+  const nav = (text, fn, dis) => el("button", { class: "t-small", text, disabled: dis, onclick: fn });
+  const bar = el("div", { class: "aero-bar", style: "gap:12px;flex-wrap:wrap" },
+    el("span", { style: "font-weight:700", text: "Page " + (edPage + 1) + " of " + ed.pages.length }),
+    nav("◀ Page", () => { edPage--; pvQ = -1; renderEditor(); }, edPage === 0),
+    nav("Page ▶", () => { edPage++; pvQ = -1; renderEditor(); }, edPage >= ed.pages.length - 1),
+    el("span", { class: "cl-grow" }),
+    el("span", { text: list.length ? (it ? "Question " + (it.qi + 1) + (it.q.parts.length > 1 ? ", part " + (it.pi + 1) + " of " + it.q.parts.length : "") : "No question showing") : "No questions to send on this page" }),
+    list.length ? nav("◀ Question", () => { pvQ = Math.max(-1, pvQ - 1); renderEditor(); }, pvQ < 0) : null,
+    list.length ? nav("Question ▶", () => { pvQ = Math.min(list.length - 1, pvQ + 1); renderEditor(); }, pvQ >= list.length - 1) : null);
+  // the frame is a Chromebook screen (1366 × 768), scaled to fit. It stays in place (moving a frame reloads it).
+  if (!pvFrame) {
+    pvFrame = el("iframe", { src: "/?preview=1", title: "Student screen preview", style: "position:absolute;left:0;top:0;width:1366px;height:768px;border:0;transform-origin:0 0" });
+    renderPreview.holder = el("div", { style: "position:relative;overflow:hidden;border-radius:8px;margin-top:12px" }, pvFrame);
+    renderPreview.bar = el("div");
+    renderPreview.hint = el("p", { class: "t-hint", text: "This is the real student page at Chromebook size. Questions that start on their own appear when you use the sim." });
+    const fit = () => { const h = renderPreview.holder, s = Math.min(1, h.clientWidth / 1366); pvFrame.style.transform = "scale(" + s + ")"; h.style.height = 768 * s + "px"; };
+    new ResizeObserver(fit).observe(renderPreview.holder);
+  }
+  const holder = renderPreview.holder;
+  if (holder.parentNode !== body) body.replaceChildren(renderPreview.bar, holder, renderPreview.hint);
+  renderPreview.bar.replaceChildren(bar);
+  pvSend();
+}
 let edSaveTimer = null;
 
 function newPage() { return { id: randomId(8), name: "", blocks: [{ type: "heading", text: "" }, { type: "text", text: "" }] }; }
@@ -641,12 +694,7 @@ function renderEditor() {
 
   const body = $("edBody");
   const page = ed.pages[edPage];
-  if (edPreview) {
-    body.replaceChildren(
-      el("div", { class: "aero-bar" }, el("span", { text: "Preview of page " + (edPage + 1) + " as students will see it." })),
-      el("div", { class: "aero-panel" }, renderPage(page, { preview: true })));
-    return;
-  }
+  if (edPreview) return renderPreview(body);
 
   const blocks = page.blocks || (page.blocks = []);
   const hasPoll = blocks.some((b) => b.type === "poll");
