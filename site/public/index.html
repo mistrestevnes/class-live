@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=14">
+<link rel="stylesheet" href="app.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -34,7 +34,7 @@
   </main>
   <!-- questions that start on their own: they sit beside the sim, so the sim stays in use -->
   <aside class="aero-panel cl-sp" id="sp" hidden>
-    <div class="cl-ask-top"><span class="cl-ask-label" id="spLabel">Question</span><button id="spMin" aria-label="Hide the question">Hide</button></div>
+    <div class="cl-ask-top"><span class="cl-ask-label" id="spLabel">Question</span><button id="spMin">Go back to the sim</button></div>
     <div class="cl-ask-prompt" id="spPrompt"></div>
     <div id="spMedia" hidden></div>
     <textarea id="spText" rows="6" aria-label="Your answer"></textarea>
@@ -82,7 +82,7 @@
     <div class="cl-ask-foot"><span id="qNote" class="aero-muted"></span><button class="aero-btn-primary" id="qSend">Send</button></div>
   </section>
 
-  <button class="aero-btn-primary cl-sptab" id="spTab" hidden>Show the question</button>
+  <button class="aero-btn-primary cl-sptab" id="spTab" hidden>Back to the question</button>
 
   <!-- when the teacher lets students use the sim while answering -->
   <div class="aero-panel cl-askback" id="askBack" hidden>
