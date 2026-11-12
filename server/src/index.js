@@ -100,6 +100,34 @@ function autoEndTime(periodName, now) {
   return null;
 }
 
+// ---------------------------------------------------------------- lesson plans
+// A lesson has pages (what students see) and a plan: the list of things done in class. A plan item can send students
+// to a page and can hold the questions for that part of the class. Older lessons kept questions on pages; those
+// become plan items the first time the lesson is read.
+function cleanPlan(plan, pages) {
+  const ids = new Set((pages || []).map((p) => p.id));
+  return (Array.isArray(plan) ? plan : []).slice(0, 80).filter((x) => x && typeof x === "object").map((x) => ({
+    id: String(x.id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 20) || rid(8),
+    title: String(x.title || "").slice(0, 200),
+    notes: String(x.notes || "").slice(0, 4000),
+    pageId: ids.has(x.pageId) ? x.pageId : "",
+    questions: Array.isArray(x.questions) ? x.questions.slice(0, 40) : [],
+  }));
+}
+function withPlan(lesson) {
+  if (!lesson) return lesson;
+  if (Array.isArray(lesson.plan)) return lesson;
+  const pages = Array.isArray(lesson.pages) ? lesson.pages : [];
+  const plan = [];
+  pages.forEach((pg, i) => {
+    if (Array.isArray(pg.questions) && pg.questions.length) plan.push({ id: rid(8), title: pg.name || "Page " + (i + 1), notes: "", pageId: pg.id, questions: pg.questions });
+  });
+  return { ...lesson, plan, pages: pages.map(({ questions, ...pg }) => pg) };
+}
+// which level a block teaches: the first number in its name (1st and 5th honors, 2nd enriched)
+const BLOCK_LEVEL = { 1: "honors", 5: "honors", 2: "enriched" };
+function levelOfBlock(name) { const m = String(name || "").match(/\d/); return (m && BLOCK_LEVEL[m[0]]) || ""; }
+
 export class Classroom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -116,7 +144,8 @@ export class Classroom extends DurableObject {
       this.sq = this.live ? (await ctx.storage.get("sq:" + this.live.sessionId)) || [] : [];
       this.act = this.live ? (await ctx.storage.get("act:" + this.live.sessionId)) || {} : {};   // code -> { n, away, since, log }   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
       if (this.live) for (const q of this.qs) if (q.sp && q.sessionId === this.live.sessionId) await this.loadQA(q.id);
-      this.liveLesson = this.live ? (await ctx.storage.get("lesson:" + this.live.lessonId)) || null : null;
+      this.liveLesson = this.live ? withPlan((await ctx.storage.get("lesson:" + this.live.lessonId)) || null) : null;
+      if (this.live && !Array.isArray(this.live.plan)) this.live.plan = (this.liveLesson && this.liveLesson.plan) || [];
       this.tokens = (await ctx.storage.get("tokens")) || [];
       this.sky = (await ctx.storage.get("sky")) || 1;
       this.roster = (await ctx.storage.get("roster")) || { periods: [] };
@@ -248,7 +277,7 @@ export class Classroom extends DurableObject {
       const lm = p.match(/^\/api\/lessons\/([a-z0-9]+)$/);
       if (lm && m === "GET") {
         const l = await this.ctx.storage.get("lesson:" + lm[1]);
-        return l ? json(l) : json({ error: "not found" }, 404);
+        return l ? json(withPlan(l)) : json({ error: "not found" }, 404);
       }
       if (lm && m === "PUT") return this.saveLesson(lm[1], await request.json());
       if (lm && m === "DELETE") return this.deleteLesson(lm[1]);
@@ -362,18 +391,23 @@ export class Classroom extends DurableObject {
 
   // ---------------------------------------------------------------- lessons & images
   async saveLesson(id, lesson) {
+    const srcPlan = Array.isArray(lesson.plan) ? lesson.plan : withPlan({ pages: Array.isArray(lesson.pages) ? lesson.pages : [] }).plan;
     lesson = {
       id,
       title: String(lesson.title || "Untitled lesson").slice(0, 200),
-      pages: Array.isArray(lesson.pages) ? lesson.pages : [],
+      level: lesson.level === "honors" || lesson.level === "enriched" ? lesson.level : "",
+      pages: (Array.isArray(lesson.pages) ? lesson.pages : []).map(({ questions, ...pg }) => pg),
+      plan: lesson.plan,
       updated: Date.now(),
     };
+    lesson.plan = cleanPlan(srcPlan, lesson.pages);
     await this.ctx.storage.put("lesson:" + id, lesson);
     const index = ((await this.ctx.storage.get("lessons")) || []).filter((l) => l.id !== id);
-    index.unshift({ id, title: lesson.title, pages: lesson.pages.length, updated: lesson.updated });
+    index.unshift({ id, title: lesson.title, pages: lesson.pages.length, updated: lesson.updated, level: lesson.level, items: lesson.plan.length });
     await this.ctx.storage.put("lessons", index);
     if (this.live && this.live.lessonId === id) {
       this.liveLesson = lesson;
+      this.live.plan = cleanPlan(this.live.plan, lesson.pages);
       this.live.unlocked = Math.min(this.live.unlocked, Math.max(0, lesson.pages.length - 1));
       await this.ctx.storage.put("live", this.live);
       this.broadcast();
@@ -464,7 +498,7 @@ export class Classroom extends DurableObject {
   async teacherMessage(msg) {
     switch (msg.t) {
       case "start": {
-        const lesson = await this.ctx.storage.get("lesson:" + msg.lessonId);
+        const lesson = withPlan(await this.ctx.storage.get("lesson:" + msg.lessonId));
         if (!lesson) return;
         await this.archiveClass();
         if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
@@ -473,7 +507,9 @@ export class Classroom extends DurableObject {
         const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
         if (this.roster.periods.length && !pd) return;
         this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
-          autoEndAt: pd ? autoEndTime(pd.name, Date.now()) : null };
+          autoEndAt: pd ? autoEndTime(pd.name, Date.now()) : null,
+          // this class's own copy of the plan: changed freely during class; kept in the lesson only if the teacher says so
+          plan: JSON.parse(JSON.stringify(lesson.plan || [])), item: "", planChanged: false };
         this.liveLesson = lesson;
         this.votes = {};
         this.sq = [];
@@ -483,6 +519,10 @@ export class Classroom extends DurableObject {
         break;
       }
       case "end": {
+        if (this.live && msg.keepPlan && this.live.planChanged) {
+          const l = await this.ctx.storage.get("lesson:" + this.live.lessonId);
+          if (l) await this.saveLesson(this.live.lessonId, { ...withPlan(l), plan: this.live.plan, pages: withPlan(l).pages, live: undefined });
+        }
         await this.archiveClass();
         if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
@@ -497,6 +537,28 @@ export class Classroom extends DurableObject {
         if (!this.live) return;
         const n = Math.max(0, Math.min(Number(msg.to) || 0, this.pages().length - 1));
         this.live.unlocked = n;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      // the plan during class: change it, or move to an item (which can send students to its page)
+      case "planSet": {
+        if (!this.live) return;
+        this.live.plan = cleanPlan(msg.plan, this.pages());
+        this.live.planChanged = true;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      case "planGo": {
+        if (!this.live) return;
+        const it = (this.live.plan || []).find((x) => x.id === msg.itemId);
+        if (!it) return;
+        this.live.item = it.id;
+        const idx = it.pageId ? this.pages().findIndex((p) => p.id === it.pageId) : -1;
+        if (idx >= 0) {
+          this.live.unlocked = Math.max(this.live.unlocked, idx);
+          this.live.goto = { page: idx, n: ((this.live.goto && this.live.goto.n) || 0) + 1 };
+          this.live.screenPage = idx;
+        }
         await this.ctx.storage.put("live", this.live);
         break;
       }
@@ -699,8 +761,14 @@ export class Classroom extends DurableObject {
     const out = [];
     if (!this.live) return out;
     for (const pg of this.pages().slice(0, this.live.unlocked + 1)) {
-      for (const q of pg.questions || []) if (q && q.mode === "student" && Array.isArray(q.parts) && q.parts.length) out.push({ pg, q });
+      for (const q of this.pageQs(pg)) if (q && q.mode === "student" && Array.isArray(q.parts) && q.parts.length) out.push({ pg, q });
     }
+    return out;
+  }
+  // questions that belong to a page: those in plan items that go to it
+  pageQs(pg) {
+    const out = [];
+    for (const it of (this.live && this.live.plan) || []) if (it.pageId === pg.id) out.push(...(it.questions || []));
     return out;
   }
   async saveSp(msg, stu, submit, sid) {
@@ -766,7 +834,7 @@ export class Classroom extends DurableObject {
       polls.push({ page: i + 1, question: poll.question || "", options: poll.options || [], counts, total: Object.keys(v).length });
     });
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
-      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [],
+      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
       act: Object.fromEntries(Object.entries(this.act || {}).map(([c, a]) => [c, { ...a, away: a.away + (a.since ? Date.now() - a.since : 0), since: 0 }])) };
     await this.ctx.storage.put("past:" + rec.id, rec);
     const idx = ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== rec.id);
@@ -1361,9 +1429,10 @@ export class Classroom extends DurableObject {
     const unlocked = this.live.unlocked;
     // students only get the questions that run on their own; the ones the teacher sends stay private until sent
     const pages = this.pages().slice(0, unlocked + 1).map((pg) => {
-      if (!pg.questions) return pg;
+      const pq = this.pageQs(pg);
+      if (!pq.length) return pg;
       const word = (v) => (/^[A-Za-z0-9_-]{1,40}$/.test(v || "") ? v : "");
-      const qs = pg.questions.filter((q) => q && q.mode === "student" && Array.isArray(q.parts)).map((q) => ({
+      const qs = pq.filter((q) => q && q.mode === "student" && Array.isArray(q.parts)).map((q) => ({
         id: q.id, mode: "student",
         trigger: q.trigger && q.trigger.type === "after"
           ? { type: "after", afterId: word(q.trigger.afterId), delay: Math.max(0, Math.min(Number(q.trigger.delay) || 0, 600)) }
@@ -1391,6 +1460,7 @@ export class Classroom extends DurableObject {
       pages,
       myVotes,
       closed,
+      goto: this.live.goto || null,
     };
   }
 

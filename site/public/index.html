@@ -104,6 +104,7 @@ let state = { live: false };
 let page = 0;              // which unlocked page this student is looking at
 let sessionId = null;
 let lastUnlocked = -1;
+let gotoN = null;           // last "go to page" from the teacher that this page followed
 let pulse = false;
 
 const $ = (id) => document.getElementById(id);
@@ -137,7 +138,7 @@ function apply(s) {
   renderSp();
   renderQ();
   if (!s.live) {
-    sessionId = null; lastUnlocked = -1;
+    sessionId = null; lastUnlocked = -1; gotoN = null;
     render();
     return;
   }
@@ -154,6 +155,12 @@ function apply(s) {
     reportPage();
   }
   lastUnlocked = s.unlocked;
+  // the teacher moved the class to a plan item's page: everyone goes there
+  if (s.goto && s.goto.n !== gotoN) {
+    const first = gotoN === null;
+    gotoN = s.goto.n;
+    if (!first || page !== s.goto.page) { page = Math.min(s.goto.page, s.unlocked); pulse = false; spKey = null; reportPage(); }
+  }
   if (page > s.unlocked) { page = s.unlocked; reportPage(); }
   render();
 }

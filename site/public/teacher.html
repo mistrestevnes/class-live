@@ -22,6 +22,21 @@
   .t-pages button.locked { color: var(--aero-ink-muted); }
   .t-pages .t-count { flex: none; font-size: .85rem; padding: 2px 10px; color: var(--aero-ink); text-shadow: none; background: #FFFFFF; }
   .t-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* the bar along the top of every teacher page */
+  .t-nav { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; border-radius: 0; }
+  .t-nav button { min-height: 44px; }
+  .t-nav button[aria-current="page"] { background: var(--aero-emerald); color: #FFFFFF; border-color: var(--aero-emerald); }
+  /* plan lists: drag to reorder */
+  .t-plan li { display: flex; gap: 6px; align-items: stretch; }
+  .t-plan li > button:first-child { flex: 1; min-width: 0; }
+  .t-plan .t-label { white-space: normal !important; }
+  .t-plan .t-sub { display: block; font-size: 16px; color: var(--aero-ink-muted); font-weight: 400; }
+  .t-plan .t-num { cursor: grab; }
+  .t-plan button[aria-pressed="true"] .t-sub { color: inherit; opacity: .9; }
+  .t-plan li.dragging { opacity: .4; }
+  .t-plan li.dropover { outline: 3px solid var(--aero-gold, #E0B252); border-radius: var(--aero-radius-sm); }
+  .t-plan .t-edit { flex: none; width: auto !important; padding: 4px 12px; }
+  .t-itembox { width: min(980px, 100%); }
   .t-row.end { justify-content: flex-end; }
   .t-small { min-height: 40px; padding: 4px 14px; font-size: .95rem; }
   .t-block { padding: 14px 18px; }
@@ -120,6 +135,19 @@
 <body>
 
 <!-- sign in -->
+<!-- the bar along the top of every teacher page -->
+<nav class="t-nav aero-bar" id="topNav" hidden>
+  <button id="navLive">Control room</button>
+  <button id="navLessons">Lessons</button>
+  <button id="studentsBtn">Students</button>
+  <button id="pastBtn">Past lessons</button>
+  <button id="recBtn">Record a replay</button>
+  <span class="cl-grow"></span>
+  <span class="aero-chip" id="studentUrl"></span>
+  <button class="t-small" id="accountBtn">Username &amp; passcode</button>
+  <button class="t-small" id="signOutBtn">Sign out</button>
+</nav>
+
 <section id="loginView" hidden>
   <div class="aero-panel t-login">
     <h1 id="loginTitle">Teacher sign in</h1>
@@ -165,13 +193,16 @@
 <!-- students: login codes, name file, printing -->
 <section id="studentsView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
-    <button id="stBack">◀ Lessons</button>
     <h1 class="cl-title">Students</h1>
     <span class="cl-grow"></span>
     <button class="t-small" id="stSignOut">Sign out all students</button>
     <button class="aero-btn-primary" id="stSave">Save</button>
   </header>
   <div class="t-home">
+    <div class="aero-panel" id="homeWho" hidden>
+      <div class="t-row"><h2 style="margin:0;flex:1">Signed in now</h2><span id="homeWhoNote" class="t-who-count"></span></div>
+      <ul class="t-roll" id="homeWhoList"></ul>
+    </div>
     <div class="aero-panel">
       <p>One login code per line, like 504cloud. Only codes are saved on the server. Names never leave this computer.</p>
       <div class="t-row">
@@ -190,21 +221,11 @@
 <!-- lessons list -->
 <section id="homeView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
-    <h1 class="cl-title">Class Live · Lessons</h1>
+    <h1 class="cl-title">Lessons</h1>
     <span class="cl-grow"></span>
-    <span class="aero-chip" id="studentUrl"></span>
-    <button class="t-small" id="pastBtn">Past lessons</button>
-    <button class="t-small" id="recBtn">Record a replay</button>
-    <button class="t-small" id="studentsBtn">Students</button>
-    <button class="t-small" id="accountBtn">Username &amp; passcode</button>
-    <button class="t-small" id="signOutBtn">Sign out</button>
   </header>
   <div class="t-home">
     <div class="aero-panel" id="liveCard" hidden></div>
-    <div class="aero-panel" id="homeWho" hidden>
-      <div class="t-row"><h2 style="margin:0;flex:1">Students</h2><span id="homeWhoNote" class="t-who-count"></span></div>
-      <ul class="t-roll" id="homeWhoList"></ul>
-    </div>
     <div class="aero-panel">
       <div class="t-row" style="margin-bottom:12px">
         <h2 style="margin:0;flex:1">Your lessons</h2>
@@ -220,6 +241,7 @@
   <header class="cl-top aero-header">
     <button id="edBack">◀ Lessons</button>
     <input type="text" id="edTitle" class="t-title-input" aria-label="Lesson title">
+    <select id="edLevel" aria-label="Level"><option value="">No level</option><option value="honors">Honors (1st, 5th)</option><option value="enriched">Enriched (2nd)</option></select>
     <span class="aero-chip" id="saveState">Saved</span>
     <button id="edModeEdit" aria-pressed="true">Edit</button>
     <button id="edModePreview" aria-pressed="false">Preview</button>
@@ -227,7 +249,14 @@
   </header>
   <div class="t-cols">
     <aside class="aero-panel t-side">
-      <h3>Pages</h3>
+      <h3>Plan</h3>
+      <ul class="t-pages t-plan" id="edPlan"></ul>
+      <div class="t-row" style="flex-wrap:wrap">
+        <button class="t-small" id="itAdd">+ Item</button>
+        <button class="t-small" id="itIntro">+ Intro</button>
+        <button class="t-small" id="itExit">+ Exit Ticket</button>
+      </div>
+      <h3 style="margin-top:18px">Pages</h3>
       <ul class="t-pages" id="edPages"></ul>
       <div class="t-row">
         <button class="t-small" id="pgAdd">+ Page</button>
@@ -250,12 +279,20 @@
     <span class="aero-chip" id="lvStudents"></span>
     <span class="aero-chip cl-status" id="lvStatus"></span>
     <button class="t-small" id="lvEdit">Edit lesson</button>
-    <button class="t-small" id="lvHome">Lessons</button>
     <button class="t-small" id="lvEnd">End class</button>
   </header>
   <div class="t-cols">
     <aside class="aero-panel t-side">
-      <h3>Pages</h3>
+      <div id="lvPlanBox">
+        <h3>Plan</h3>
+        <ul class="t-pages t-plan" id="lvPlan"></ul>
+        <div class="t-row" style="flex-wrap:wrap">
+          <button class="t-small" id="lvItAdd">+ Item</button>
+          <button class="t-small" id="lvItIntro">+ Intro</button>
+          <button class="t-small" id="lvItExit">+ Exit Ticket</button>
+        </div>
+        <h3 style="margin-top:18px">Pages</h3>
+      </div>
       <ul class="t-pages" id="lvPages"></ul>
       <p class="t-hint" id="lvUrlHint"></p>
       <h3 style="margin-top:18px">Questions</h3>
@@ -296,6 +333,7 @@ let tstateAt = 0;           // when it arrived (for ticking away timers)
 let lvSelected = 0;         // page the teacher is looking at while live
 let lvLastUnlocked = -1;
 let lvSession = null;
+let lvGotoN = null;
 
 const authHeaders = (extra = {}) => ({ "x-token": token || "", ...extra });
 const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts.headers) }).catch((e) => {
@@ -304,11 +342,18 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
 });
 
 const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView", "pastView"];
-function show(v) { for (const id of VIEWS) $(id).hidden = id !== v; }
+const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", accountView: "accountBtn" };
+function show(v) {
+  for (const id of VIEWS) $(id).hidden = id !== v;
+  $("topNav").hidden = v === "loginView";
+  for (const b of $("topNav").querySelectorAll("button")) b.setAttribute("aria-current", NAV[v] === b.id ? "page" : "false");
+}
+$("navLive").onclick = () => (location.hash = "#/");
+$("navLessons").onclick = () => (location.hash = "#/lessons");
 
 $("recBtn").onclick = () => { location.href = "/recorder"; };
 $("pastBtn").onclick = () => (location.hash = "#/past");
-$("paBack").onclick = () => (location.hash = location.hash.match(/^#\/past\/./) ? "#/past" : "#/");
+$("paBack").onclick = () => (location.hash = "#/past");
 $("studentUrl").textContent = "Students go to: " + location.host;
 
 // ---------------------------------------------------------------- routing
@@ -318,12 +363,12 @@ async function route() {
   const h = location.hash;
   const m = h.match(/^#\/edit\/([a-z0-9]+)/);
   if (m) return openEditor(m[1]);
-  if (h === "#/live") return showLive();
+  if (h === "#/lessons") return showHome();
   if (h === "#/account") return showAccount();
   if (h === "#/students") return showStudents();
   const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
   if (pm) return showPast(pm[1]);
-  return showHome();
+  return showLive(); // the control room is the teacher's home
 }
 window.addEventListener("hashchange", route);
 
@@ -438,7 +483,8 @@ function onTState(s) {
   if (!s || !("presence" in s)) return;
   tstate = s;
   tstateAt = Date.now();
-  if (!$("homeView").hidden) { renderLiveCard(); renderHomeWho(); }
+  if (!$("homeView").hidden) renderLiveCard();
+  if (!$("studentsView").hidden) renderHomeWho();
   if (!$("liveView").hidden) renderLive();
 }
 
@@ -446,7 +492,6 @@ function onTState(s) {
 async function showHome() {
   show("homeView");
   renderLiveCard();
-  renderHomeWho();
   const list = $("lessonList");
   list.replaceChildren(el("p", { class: "aero-muted", text: "Loading…" }));
   let lessons = [];
@@ -457,7 +502,8 @@ async function showHome() {
   }
   list.replaceChildren(...lessons.map((l) => el("div", { class: "t-lesson" },
     el("span", { class: "t-ltitle", text: l.title }),
-    el("span", { class: "aero-muted", text: l.pages + (l.pages === 1 ? " page" : " pages") }),
+    el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
+    el("span", { class: "aero-muted", text: l.pages + (l.pages === 1 ? " page" : " pages") + (l.items ? " · " + l.items + (l.items === 1 ? " plan item" : " plan items") : "") }),
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
     el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
@@ -499,21 +545,25 @@ function renderLiveCard() {
     el("div", { style: "flex:1;min-width:240px" },
       el("h2", { style: "margin:0", text: "Class running: " + tstate.lesson.title + (tstate.live.periodName ? " · " + tstate.live.periodName : "") }),
       el("span", { class: "aero-muted", text: p.count + (p.count === 1 ? " student connected" : " students connected") })),
-    el("button", { class: "aero-btn-primary", text: "Go to class", onclick: () => (location.hash = "#/live") }),
+    el("button", { class: "aero-btn-primary", text: "Go to the control room", onclick: () => (location.hash = "#/") }),
     el("button", { text: "End class", onclick: endClass }),
   ));
 }
 
+const LEVELS = { honors: "Honors", enriched: "Enriched" };
 $("newLesson").onclick = async () => {
   const id = randomId(10);
-  const lesson = { title: "New lesson", pages: [newPage()] };
+  const lesson = { title: "New lesson", level: "", pages: [newPage()], plan: [] };
   await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(lesson) });
   location.hash = "#/edit/" + id;
 };
 
 async function copyLesson(id) {
   const l = await tapi("/api/lessons/" + id);
-  const copy = { title: l.title + " (copy)", pages: l.pages.map((p) => ({ ...JSON.parse(JSON.stringify(p)), id: randomId(8) })) };
+  const newId = {};
+  const pages = l.pages.map((p) => { const c = JSON.parse(JSON.stringify(p)); newId[p.id] = c.id = randomId(8); return c; });
+  const plan = (l.plan || []).map((x) => ({ ...JSON.parse(JSON.stringify(x)), id: randomId(8), pageId: newId[x.pageId] || "" }));
+  const copy = { title: l.title + " (copy)", level: l.level || "", pages, plan };
   await tapi("/api/lessons/" + randomId(10), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(copy) });
   showHome();
 }
@@ -555,12 +605,27 @@ async function startLesson(id) {
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
   await link.send({ t: "start", lessonId: id, periodId: pick.id });
-  location.hash = "#/live";
+  location.hash = "#/";
+  if (!$("liveView").hidden) renderLive();
 }
 
 async function endClass() {
-  if (!confirm("End class? Students go back to the waiting screen and votes are cleared.")) return;
-  await link.send({ t: "end" });
+  let keepPlan = false;
+  if (tstate && tstate.live && tstate.live.planChanged) {
+    const pick = await new Promise((resolve) => {
+      const done = (v) => { ov.remove(); resolve(v); };
+      const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": "End class" },
+        el("section", { class: "aero-panel cl-cover-box t-pick" },
+          el("h2", { text: "End class. You changed the plan during this class." }),
+          el("button", { class: "aero-btn-primary", text: "Keep the changes in the lesson's plan", onclick: () => done("keep") }),
+          el("button", { text: "Use them for this class only", onclick: () => done("this") }),
+          el("button", { text: "Cancel", onclick: () => done(null) })));
+      document.body.append(ov);
+    });
+    if (!pick) return;
+    keepPlan = pick === "keep";
+  } else if (!confirm("End class? Students go back to the waiting screen and votes are cleared.")) return;
+  await link.send({ t: "end", keepPlan });
   location.hash = "#/";
 }
 
@@ -571,9 +636,10 @@ let edPreview = false;
 let pvQ = -1;               // which prepared question (and part) the preview is showing; -1 = none
 
 // ---------- preview: the real student page in a Chromebook-sized frame, fed with this lesson
+const planQs = (lesson, pageId) => (lesson.plan || []).filter((x) => x.pageId === pageId).flatMap((x) => x.questions || []);
 function pvQuestions(page) {
   const out = [];
-  (page.questions || []).forEach((q, qi) => {
+  planQs(ed, page.id).forEach((q, qi) => {
     if (q.mode === "student") return; // those start on their own, from the sim
     q.parts.forEach((p, pi) => out.push({ q, qi, p, pi }));
   });
@@ -581,7 +647,7 @@ function pvQuestions(page) {
 }
 function pvState() {
   const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg,
-    questions: (pg.questions || []).filter((q) => q.mode === "student").map((q) => ({ id: q.id, mode: "student",
+    questions: planQs(ed, pg.id).filter((q) => q.mode === "student").map((q) => ({ id: q.id, mode: "student",
       trigger: q.trigger && q.trigger.type === "after" ? { type: "after", afterId: q.trigger.afterId, delay: Number(q.trigger.delay) || 0 } : { type: "sim", event: (q.trigger && q.trigger.event) || "" },
       command: q.command || "", noSim: !!q.noSim, parts: q.parts.map((p) => ({ prompt: p.prompt || "", imageId: p.imageId || "", sim: p.sim || "", min: Number(p.min) || 3 })) })) }));
   const list = pvQuestions(ed.pages[edPage]);
@@ -637,12 +703,14 @@ function pageLabel(p, i) {
 async function openEditor(id) {
   show("editView");
   if (!ed || ed.id !== id) {
-    try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/"; return; }
+    try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/lessons"; return; }
     edPage = 0;
   }
   $("edNotesSlot").append(notesBox);
   if (notes.lesson !== id) notesShow(id);
   $("edTitle").value = ed.title;
+  $("edLevel").value = ed.level || "";
+  ed.plan ||= [];
   setSave("Saved");
   renderEditor();
 }
@@ -677,7 +745,29 @@ function saveNow() {
 window.addEventListener("beforeunload", (e) => { if (edSaveTimer) { saveNow(); e.preventDefault(); } });
 
 $("edTitle").oninput = () => { ed.title = $("edTitle").value; changed(); };
-$("edBack").onclick = async () => { if (edSaveTimer) saveNow(); await saveChain; ed = null; location.hash = "#/"; };
+$("edLevel").onchange = () => { ed.level = $("edLevel").value; changed(); };
+let edItem = null;          // the plan item open in the editor (its id), or null when a page is open
+const newItem = (title) => ({ id: randomId(8), title, notes: "", pageId: "", questions: [] });
+function addItem(title) { const it = newItem(title); ed.plan.push(it); edItem = it.id; edPreview = false; changed(); renderEditor(); }
+$("itAdd").onclick = () => addItem("New item");
+$("itIntro").onclick = () => addItem("Intro");
+$("itExit").onclick = () => addItem("Exit Ticket");
+const EDH = { changed: () => changed(), render: () => renderEditor() };
+
+// a list you can drag to put in order; onMove(from, to)
+function dragList(ul, onMove) {
+  let from = -1;
+  [...ul.children].forEach((li, i) => {
+    li.draggable = true;
+    li.ondragstart = (e) => { from = i; li.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(i)); } catch {} };
+    li.ondragend = () => li.classList.remove("dragging");
+    li.ondragover = (e) => { e.preventDefault(); li.classList.add("dropover"); };
+    li.ondragleave = () => li.classList.remove("dropover");
+    li.ondrop = (e) => { e.preventDefault(); li.classList.remove("dropover"); if (from >= 0 && from !== i) onMove(from, i); from = -1; };
+  });
+}
+const pageName = (lesson, pageId) => { const i = (lesson.pages || []).findIndex((p) => p.id === pageId); return i < 0 ? "" : (i + 1) + ". " + pageLabel(lesson.pages[i], i); };
+$("edBack").onclick = async () => { if (edSaveTimer) saveNow(); await saveChain; ed = null; location.hash = "#/lessons"; };
 $("edStart").onclick = () => startLesson(ed.id);
 $("edModeEdit").onclick = () => { edPreview = false; renderEditor(); };
 $("edModePreview").onclick = () => { edPreview = true; renderEditor(); };
@@ -704,8 +794,16 @@ function movePage(d) {
 function renderEditor() {
   $("edModeEdit").setAttribute("aria-pressed", String(!edPreview));
   $("edModePreview").setAttribute("aria-pressed", String(edPreview));
+  $("edPlan").replaceChildren(...ed.plan.map((it) => el("li", {},
+    el("button", { "aria-pressed": it.id === edItem ? "true" : "false", onclick: () => { edItem = it.id; edPreview = false; renderEditor(); } },
+      el("span", { class: "t-num", text: "⋮⋮" }),
+      el("span", { class: "t-label" }, it.title || "Untitled item",
+        it.pageId ? el("span", { class: "t-sub", text: "→ " + pageName(ed, it.pageId) }) : null,
+        (it.questions || []).length ? el("span", { class: "t-sub", text: it.questions.length + (it.questions.length === 1 ? " question" : " questions") }) : null)))));
+  if (!ed.plan.length) $("edPlan").append(el("li", { class: "t-hint", text: "Nothing planned yet." }));
+  else dragList($("edPlan"), (a, b) => { const [x] = ed.plan.splice(a, 1); ed.plan.splice(b, 0, x); changed(); renderEditor(); });
   $("edPages").replaceChildren(...ed.pages.map((p, i) => el("li", {},
-    el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; renderEditor(); } },
+    el("button", { "aria-pressed": !edItem && i === edPage ? "true" : "false", onclick: () => { edItem = null; edPage = i; renderEditor(); } },
       el("span", { class: "t-num", text: i + 1 }),
       el("span", { class: "t-label", text: pageLabel(p, i) })))));
   $("pgUp").disabled = edPage === 0;
@@ -713,6 +811,10 @@ function renderEditor() {
 
   const body = $("edBody");
   const page = ed.pages[edPage];
+  const item = edItem && ed.plan.find((x) => x.id === edItem);
+  if (edItem && !item) edItem = null;
+  if (item && !edPreview) return body.replaceChildren(...itemEditor(item, ed, EDH, () => {
+    ed.plan = ed.plan.filter((x) => x !== item); edItem = null; changed(); renderEditor(); }));
   if (edPreview) return renderPreview(body);
 
   const blocks = page.blocks || (page.blocks = []);
@@ -730,29 +832,54 @@ function renderEditor() {
       el("button", { class: "t-small", text: "+ " + label, disabled: type === "poll" && hasPoll,
         title: type === "poll" && hasPoll ? "One poll per page" : "",
         onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
-  items.push(questionsPanel(page));
+  const usedBy = ed.plan.filter((x) => x.pageId === page.id);
+  items.push(el("div", { class: "aero-panel t-block" },
+    el("h3", { style: "margin:0 0 6px", text: "Plan items that go to this page" }),
+    usedBy.length ? el("div", { class: "t-row", style: "flex-wrap:wrap" }, ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item",
+      onclick: () => { edItem = x.id; renderEditor(); } })))
+      : el("p", { class: "t-hint", style: "margin:0", text: "None yet. Questions live in plan items: add an item, choose this page, and add its questions there." })));
   body.replaceChildren(...items);
 }
 
-// ---------- questions prepared for a page: sent from the class view with one click
+// ---------- one plan item: what it's called, notes for me, where it sends students, and its questions
+// H = { changed, render } so the same editor works in the lesson editor and in the control room during class
+function itemEditor(item, lesson, H, onDelete) {
+  item.questions ||= [];
+  const pageSel = el("select", { "aria-label": "Page", onchange: (e) => { item.pageId = e.target.value; H.changed(); H.render(); } },
+    el("option", { value: "", text: "Don't send students anywhere" }),
+    ...(lesson.pages || []).map((p, i) => el("option", { value: p.id, text: "Send students to page " + (i + 1) + ": " + pageLabel(p, i), selected: p.id === item.pageId })));
+  return [
+    el("div", { class: "aero-panel t-block" },
+      el("div", { class: "t-block-head" }, el("h3", { text: "Plan item" }),
+        onDelete ? el("button", { class: "t-small", text: "Remove item", onclick: () => { if (confirm("Remove “" + (item.title || "this item") + "”?")) onDelete(); } }) : null),
+      el("label", { class: "cl-field" }, el("span", { text: "Name" }),
+        el("input", { type: "text", value: item.title || "", oninput: (e) => { item.title = e.target.value; H.changed(); } })),
+      el("label", { class: "cl-field" }, el("span", { text: "Notes for me (students never see these)" }),
+        el("textarea", { rows: 2, value: item.notes || "", oninput: (e) => { item.notes = e.target.value; H.changed(); } })),
+      el("div", { class: "t-row" }, pageSel)),
+    questionsPanel(item, H),
+  ];
+}
+
+// ---------- questions prepared for a plan item: sent from the control room with one click
 function newPrepared() {
   return { id: randomId(6), parts: [{ prompt: "", min: Number(store("cl_askMin")) || 2, imageId: "", sim: "" }] };
 }
 
 // a picture or an animation (an uploaded .html file) that goes with one part of a question
-function partMedia(p) {
+function partMedia(p, H = EDH) {
   const status = el("span", { class: "aero-muted" });
   const pic = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
     const f = pic.files[0]; if (!f) return;
     status.textContent = "Uploading…";
-    try { p.imageId = await uploadImage(f); p.sim = ""; changed(); renderEditor(); } catch (e) { status.textContent = e.message; }
+    try { p.imageId = await uploadImage(f); p.sim = ""; H.changed(); H.render(); } catch (e) { status.textContent = e.message; }
   } });
   const anim = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
     const f = anim.files[0]; if (!f) return;
     status.textContent = "Uploading…";
-    try { const r = await uploadSim(f, null); p.sim = "/sim/" + r.id; p.imageId = ""; changed(); renderEditor(); } catch (e) { status.textContent = e.message; }
+    try { const r = await uploadSim(f, null); p.sim = "/sim/" + r.id; p.imageId = ""; H.changed(); H.render(); } catch (e) { status.textContent = e.message; }
   } });
-  const pick = el("select", { "aria-label": "Animation", onchange: (e) => { p.sim = e.target.value ? "/sim/" + e.target.value : ""; if (p.sim) p.imageId = ""; changed(); renderEditor(); } },
+  const pick = el("select", { "aria-label": "Animation", onchange: (e) => { p.sim = e.target.value ? "/sim/" + e.target.value : ""; if (p.sim) p.imageId = ""; H.changed(); H.render(); } },
     el("option", { value: "", text: "Loading…" }));
   loadSims().then((list) => {
     pick.replaceChildren(el("option", { value: "", text: "No animation" }), ...list.map((x) => el("option", { value: x.id, text: "Animation: " + x.name })));
@@ -761,23 +888,23 @@ function partMedia(p) {
   return el("div", { class: "t-media" },
     p.imageId ? el("img", { class: "t-thumb", src: "/img/" + p.imageId, alt: "" }) : null,
     el("button", { class: "t-small", text: p.imageId ? "Replace picture" : "Add a picture", onclick: () => pic.click() }),
-    p.imageId ? el("button", { class: "t-small", text: "Remove picture", onclick: () => { p.imageId = ""; changed(); renderEditor(); } }) : null,
+    p.imageId ? el("button", { class: "t-small", text: "Remove picture", onclick: () => { p.imageId = ""; H.changed(); H.render(); } }) : null,
     pick,
     el("button", { class: "t-small", text: "Upload animation file", onclick: () => anim.click() }),
     status, pic, anim);
 }
 
-function questionsPanel(page) {
+function questionsPanel(page, H = EDH) {
   const qs = page.questions || [];
-  const panel = el("div", { class: "aero-panel t-block" }, el("div", { class: "t-block-head" }, el("h3", { text: "Questions for this page" })));
-  if (!qs.length) panel.append(el("p", { class: "t-hint", text: "Questions you add here show up in the class view when you are on this page, ready to send with one click." }));
+  const panel = el("div", { class: "aero-panel t-block" }, el("div", { class: "t-block-head" }, el("h3", { text: "Questions" })));
+  if (!qs.length) panel.append(el("p", { class: "t-hint", text: "Questions you add here show up in the control room when this item is the one you're on, ready to send with one click." }));
   qs.forEach((q, qi) => {
-    const move = (d) => { const j = qi + d; [qs[j], qs[qi]] = [qs[qi], qs[j]]; changed(); renderEditor(); };
+    const move = (d) => { const j = qi + d; [qs[j], qs[qi]] = [qs[qi], qs[j]]; H.changed(); H.render(); };
     const box = el("div", { class: "t-pq" }, el("div", { class: "t-block-head" },
       el("h3", { text: "Question " + (qi + 1) }),
       el("button", { class: "t-small", text: "▲", "aria-label": "Move up", disabled: qi === 0, onclick: () => move(-1) }),
       el("button", { class: "t-small", text: "▼", "aria-label": "Move down", disabled: qi === qs.length - 1, onclick: () => move(1) }),
-      el("button", { class: "t-small", text: "Remove", onclick: () => { if (!confirm("Remove question " + (qi + 1) + "?")) return; qs.splice(qi, 1); changed(); renderEditor(); } })));
+      el("button", { class: "t-small", text: "Remove", onclick: () => { if (!confirm("Remove question " + (qi + 1) + "?")) return; qs.splice(qi, 1); H.changed(); H.render(); } })));
     const own = q.mode === "student";
     const earlier = qs.slice(0, qi).filter((x) => x.mode === "student");
     box.append(el("div", { class: "t-row", style: "margin:6px 0" },
@@ -785,7 +912,7 @@ function questionsPanel(page) {
         el("select", { "aria-label": "How it starts", onchange: (e) => {
           q.mode = e.target.value === "own" ? "student" : "";
           if (q.mode && !q.trigger) q.trigger = { type: "sim", event: "" };
-          changed(); renderEditor(); } },
+          H.changed(); H.render(); } },
           el("option", { value: "teacher", text: "I send it", selected: !own }),
           el("option", { value: "own", text: "Starts on its own", selected: own })))));
     if (own) {
@@ -794,45 +921,45 @@ function questionsPanel(page) {
         el("select", { "aria-label": "What starts it", onchange: (e) => {
           const v = e.target.value;
           q.trigger = v === "sim" ? { type: "sim", event: "" } : { type: "after", afterId: v, delay: 3 };
-          changed(); renderEditor(); } },
+          H.changed(); H.render(); } },
           el("option", { value: "sim", text: "When the sim reports an event", selected: q.trigger.type === "sim" }),
           ...earlier.map((x) => el("option", { value: x.id, text: "After question " + (qs.indexOf(x) + 1) + " is submitted", selected: q.trigger.type === "after" && q.trigger.afterId === x.id }))),
         q.trigger.type === "sim"
           ? el("input", { type: "text", style: "width:200px", value: q.trigger.event || "", placeholder: "Event name, like dataSubmitted", "aria-label": "Sim event name",
-              oninput: (e) => { q.trigger.event = e.target.value.trim(); changed(); } })
+              oninput: (e) => { q.trigger.event = e.target.value.trim(); H.changed(); } })
           : el("label", { class: "t-row" },
               el("input", { type: "number", min: "0", max: "600", step: "1", style: "width:80px", value: q.trigger.delay ?? 3, "aria-label": "Seconds to wait",
-                oninput: (e) => { q.trigger.delay = Number(e.target.value) || 0; changed(); } }),
+                oninput: (e) => { q.trigger.delay = Number(e.target.value) || 0; H.changed(); } }),
               el("span", { text: "seconds later" }))));
       box.append(el("div", { class: "t-row", style: "margin:6px 0" },
         el("label", { class: "t-row" }, el("span", { text: "When the last part is submitted, tell the sim" }),
           el("input", { type: "text", style: "width:200px", value: q.command || "", placeholder: "Command name (optional)", "aria-label": "Sim command",
-            oninput: (e) => { q.command = e.target.value.trim(); changed(); } }))));
+            oninput: (e) => { q.command = e.target.value.trim(); H.changed(); } }))));
     }
     q.parts.forEach((p, pi) => box.append(el("div", { class: "t-part" },
       q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
-      el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question. **bold**  *italics*", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
+      el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question. **bold**  *italics*", oninput: (e) => { p.prompt = e.target.value; H.changed(); } }),
       el("div", { class: "t-row", style: "margin:6px 0" },
         el("label", { class: "t-row" },
           el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || (own ? 3 : 2), "aria-label": "Minutes",
-            oninput: (e) => { p.min = e.target.value; changed(); } }),
+            oninput: (e) => { p.min = e.target.value; H.changed(); } }),
           el("span", { text: "minutes" })),
-        q.parts.length > 1 ? el("button", { class: "t-small", text: "Remove part", onclick: () => { q.parts.splice(pi, 1); changed(); renderEditor(); } }) : null),
-      partMedia(p))));
+        q.parts.length > 1 ? el("button", { class: "t-small", text: "Remove part", onclick: () => { q.parts.splice(pi, 1); H.changed(); H.render(); } }) : null),
+      partMedia(p, H))));
     box.append(el("div", { class: "t-row" },
       el("button", { class: "t-small", text: "Add a part", disabled: q.parts.length >= 8,
-        onclick: () => { q.parts.push({ prompt: "", min: q.parts[q.parts.length - 1].min || 2, imageId: "", sim: "" }); changed(); renderEditor(); } }),
+        onclick: () => { q.parts.push({ prompt: "", min: q.parts[q.parts.length - 1].min || 2, imageId: "", sim: "" }); H.changed(); H.render(); } }),
       (() => {
         const b = el("button", { class: "t-small", "aria-pressed": String(!q.noSim) });
         const label = () => { b.textContent = "Students can use the sim while answering: " + (q.noSim ? "Off" : "On"); b.setAttribute("aria-pressed", String(!q.noSim)); };
         label();
-        b.onclick = () => { q.noSim = !q.noSim; changed(); label(); };
+        b.onclick = () => { q.noSim = !q.noSim; H.changed(); label(); };
         return b;
       })()));
     panel.append(box);
   });
   panel.append(el("div", { class: "t-row" }, el("button", { class: "t-small", text: "+ Add a question",
-    onclick: () => { (page.questions ||= []).push(newPrepared()); changed(); renderEditor(); } })));
+    onclick: () => { (page.questions ||= []).push(newPrepared()); H.changed(); H.render(); } })));
   return panel;
 }
 
@@ -965,13 +1092,13 @@ async function uploadImage(file) {
 // ---------------------------------------------------------------- teaching live
 function showLive() {
   show("liveView");
+  renderStart.data = null; $("lvPage")._startKey = null;
   $("lvNotesSlot").append(notesBox);
   $("lvUrlHint").textContent = "Students go to: " + location.host;
   renderLive();
 }
 
 $("lvEdit").onclick = () => { if (tstate && tstate.live) { ed = null; location.hash = "#/edit/" + tstate.live.lessonId; } };
-$("lvHome").onclick = () => (location.hash = "#/");
 $("lvEnd").onclick = endClass;
 $("lvUnlock").onclick = () => {
   if (!tstate || !tstate.live) return;
@@ -985,12 +1112,13 @@ $("lvRelock").onclick = () => {
 function renderLive() {
   if (!tstate) return;
   const { live, lesson, presence, tallies } = tstate;
+  $("lvPlanBox").hidden = !live;
   if (!live || !lesson || !lesson.pages.length) {
-    $("lvTitle").textContent = "No class running";
+    $("lvTitle").textContent = "Control room";
     $("lvPages").replaceChildren();
     $("lvPollBar").hidden = true;
     notesBox.hidden = true;
-    $("lvPage").replaceChildren(el("p", { text: "Start a lesson from the Lessons screen." }));
+    renderStart();
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
     $("lvStudents").textContent = presence.count + " connected";
     renderWho();
@@ -1001,10 +1129,13 @@ function renderLive() {
   if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; notesShow(live.lessonId, live.periodId || ""); }
   else if (notes.lesson !== live.lessonId) notesShow(live.lessonId, live.periodId || "");
   if (live.unlocked > lvLastUnlocked) lvSelected = live.unlocked; // follow the page just unlocked
+  if (live.goto && live.goto.n !== lvGotoN) { if (lvGotoN !== null || lvSession === live.sessionId) lvSelected = live.goto.page; lvGotoN = live.goto.n; } // went to a plan item's page
   lvLastUnlocked = live.unlocked;
   lvSelected = Math.min(lvSelected, lesson.pages.length - 1);
 
-  $("lvTitle").textContent = lesson.title + (live.periodName ? " · " + live.periodName : "");
+  $("lvPage")._startKey = null;
+  $("lvTitle").textContent = "Control room · " + lesson.title + (live.periodName ? " · " + live.periodName : "");
+  renderPlan();
   $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
     (presence.polling ? " (" + presence.polling + " checking every few seconds)" : "");
 
@@ -1050,6 +1181,96 @@ function renderLive() {
   renderAsk();
   $("lvPause").setAttribute("aria-pressed", live.paused ? "true" : "false");
   $("lvPause").textContent = live.paused ? "Resume students" : "Pause students";
+}
+
+// ---------- starting a class: pick the block, then one of that block's lessons
+let startBlock = store("cl_startBlock") || "";
+const levelOfBlock = (name) => { const m = String(name || "").match(/\d/); return m ? ({ 1: "honors", 5: "honors", 2: "enriched" })[m[0]] || "" : ""; };
+async function renderStart(force) {
+  const box = $("lvPage");
+  if (force || !renderStart.data || Date.now() - renderStart.at > 20000) {
+    renderStart.at = Date.now();
+    try {
+      const [r, l] = await Promise.all([tapi("/api/roster"), tapi("/api/lessons")]);
+      renderStart.data = { periods: r.periods || [], lessons: l || [] };
+    } catch (e) { box.replaceChildren(el("p", { text: e.message })); return; }
+  }
+  if (tstate && tstate.live) return;
+  const { periods, lessons } = renderStart.data;
+  if (!periods.find((p) => p.id === startBlock)) startBlock = periods.length ? periods[0].id : "";
+  const pd = periods.find((p) => p.id === startBlock);
+  const lvl = pd ? levelOfBlock(pd.name) : "";
+  const key = JSON.stringify([startBlock, lessons.map((l) => [l.id, l.title, l.level])]);
+  if (box._startKey === key) return;
+  box._startKey = key;
+  const mine = lessons.filter((l) => !lvl || l.level === lvl);
+  const other = lessons.filter((l) => lvl && l.level !== lvl);
+  const row = (l) => el("div", { class: "t-lesson" },
+    el("span", { class: "t-ltitle", text: l.title }),
+    el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
+    el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
+    el("button", { class: "aero-btn-primary", text: "Start", onclick: async () => {
+      lvSession = null;
+      await link.send({ t: "start", lessonId: l.id, periodId: pd ? pd.id : null });
+    } }));
+  box.replaceChildren(...[
+    el("h2", { style: "margin-top:0", text: "Start a class" }),
+    periods.length ? el("div", { class: "t-row", style: "flex-wrap:wrap;margin-bottom:14px" },
+      ...periods.map((p) => el("button", { "aria-pressed": String(p.id === startBlock), class: p.id === startBlock ? "aero-btn-primary" : "",
+        text: p.name + (levelOfBlock(p.name) ? " · " + LEVELS[levelOfBlock(p.name)] : ""),
+        onclick: () => { startBlock = p.id; store("cl_startBlock", p.id); renderStart(); } }))) : null,
+    el("div", { class: "t-lessons" }, ...mine.map(row)),
+    !mine.length ? el("p", { class: "t-hint", text: lvl ? "No " + LEVELS[lvl] + " lessons yet. Set a lesson's level in the lesson editor." : "No lessons yet." }) : null,
+    other.length ? el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:19px", text: "Other lessons (" + other.length + ")" }),
+      el("div", { class: "t-lessons" }, ...other.map(row))) : null].filter(Boolean));
+}
+
+// ---------- the plan during class: the current item is highlighted; click one to go to it, drag to reorder
+function sendPlan(plan) { link.send({ t: "planSet", plan }); }
+function renderPlan() {
+  const live = tstate.live, lesson = tstate.lesson;
+  const plan = live.plan || [];
+  const ul = $("lvPlan");
+  const key = JSON.stringify([plan, live.item]);
+  if (ul._key === key) return;
+  ul._key = key;
+  ul.replaceChildren(...plan.map((it) => el("li", {},
+    el("button", { "aria-pressed": it.id === live.item ? "true" : "false", title: it.pageId ? "Go to this item and send students to its page" : "Go to this item",
+      onclick: () => link.send({ t: "planGo", itemId: it.id }) },
+      el("span", { class: "t-num", text: it.id === live.item ? "▶" : "⋮⋮" }),
+      el("span", { class: "t-label" }, it.title || "Untitled item",
+        it.pageId ? el("span", { class: "t-sub", text: "→ " + pageName(lesson, it.pageId) }) : null,
+        (it.questions || []).length ? el("span", { class: "t-sub", text: it.questions.length + (it.questions.length === 1 ? " question" : " questions") }) : null)),
+    el("button", { class: "t-small t-edit", text: "✎", "aria-label": "Change " + (it.title || "item"), onclick: () => editLiveItem(it.id) }))));
+  if (!plan.length) ul.append(el("li", { class: "t-hint", text: "No plan for this lesson yet." }));
+  else dragList(ul, (a, b) => { const p = JSON.parse(JSON.stringify(plan)); const [x] = p.splice(a, 1); p.splice(b, 0, x); sendPlan(p); });
+}
+function addLiveItem(title) {
+  const p = JSON.parse(JSON.stringify((tstate.live && tstate.live.plan) || []));
+  const it = newItem(title); p.push(it); sendPlan(p);
+  setTimeout(() => editLiveItem(it.id), 400);
+}
+$("lvItAdd").onclick = () => addLiveItem("New item");
+$("lvItIntro").onclick = () => addLiveItem("Intro");
+$("lvItExit").onclick = () => addLiveItem("Exit Ticket");
+// change an item during class: a box over the control room; changes go to this class's copy of the plan
+function editLiveItem(id) {
+  if (!tstate || !tstate.live) return;
+  const plan = JSON.parse(JSON.stringify(tstate.live.plan || []));
+  const item = plan.find((x) => x.id === id);
+  if (!item) return;
+  let t = null;
+  const H = { changed: () => { clearTimeout(t); t = setTimeout(() => sendPlan(plan), 500); }, render: () => draw() };
+  const panel = el("section", { class: "aero-panel cl-cover-box t-itembox" });
+  const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": "Change plan item" }, panel);
+  const close = () => { clearTimeout(t); sendPlan(plan); ov.remove(); };
+  function draw() {
+    panel.replaceChildren(...itemEditor(item, tstate.lesson, H, () => {
+      plan.splice(plan.indexOf(item), 1); clearTimeout(t); sendPlan(plan); ov.remove(); }),
+      el("div", { class: "t-row" }, el("span", { class: "cl-grow" }), el("button", { class: "aero-btn-primary", text: "Done", onclick: close })));
+  }
+  draw();
+  document.body.append(ov);
 }
 
 // ---------- pause and pushed questions
@@ -1102,18 +1323,21 @@ function sendPrepared(q, editFirst) {
 }
 function renderPrep() {
   const box = $("lvPrep");
-  const live = tstate && tstate.live, lesson = tstate && tstate.lesson;
-  const page = live && lesson && lesson.pages[lvSelected];
-  const qs = (page && page.questions) || [];
-  if (!qs.length) { box.hidden = true; box._key = null; return; }
+  const live = tstate && tstate.live;
+  const item = live && (live.plan || []).find((x) => x.id === live.item);
+  const qs = (item && item.questions) || [];
+  if (!item) { box.hidden = true; box._key = null; return; }
+  const page = { id: item.id };
   box.hidden = false;
   const sent = live.sent || {}, busy = !!live.ask;
-  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs), JSON.stringify((tstate && tstate.spCounts) || {}), JSON.stringify((tstate && tstate.live && tstate.live.spExtra) || {})].join("|");
+  const key = [page.id, busy, item.title, item.notes, JSON.stringify(sent), JSON.stringify(qs), JSON.stringify((tstate && tstate.spCounts) || {}), JSON.stringify((tstate && tstate.live && tstate.live.spExtra) || {})].join("|");
   if (box._key === key) return;
   box._key = key;
-  box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Questions for this page" }),
+  box.replaceChildren(...[el("h3", { style: "margin:0 0 6px", text: "Now: " + (item.title || "Untitled item") }),
+    item.notes ? el("p", { class: "t-hint", style: "margin:0 0 8px;white-space:pre-wrap", text: item.notes }) : null,
+    !qs.length ? el("p", { class: "t-hint", style: "margin:0", text: "No questions in this item. ✎ in the plan adds some." }) : null,
     ...qs.map((q) => {
-      const first = ((q.parts[0] || {}).prompt || "").trim() || "(empty question)";
+      const first = ((q.parts[0] || {}).prompt || "").replace(/\*+/g, "").trim() || "(empty question)";
       const at = sent[q.id];
       if (q.mode === "student") {
         const sc = (tstate && tstate.spCounts) || {};
@@ -1138,7 +1362,7 @@ function renderPrep() {
           at ? el("div", { class: "t-hint", text: "Asked at " + new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null),
         el("button", { class: "t-small", text: "Edit first", disabled: busy, onclick: () => sendPrepared(q, true) }),
         el("button", { class: "aero-btn-primary", text: at ? "Send again" : "Send", disabled: busy, title: busy ? "Close the running question first" : "", onclick: () => sendPrepared(q, false) }));
-    }));
+    })].filter(Boolean));
 }
 
 // ---------- questions students sent me: a flash when a new one comes in, and a reply goes back to that student only
@@ -1365,7 +1589,8 @@ const when = (t) => new Date(t).toLocaleString([], { weekday: "short", month: "s
 async function showPast(id) {
   show("pastView");
   const B = $("paBody");
-  $("paBack").textContent = id ? "◀ Past lessons" : "◀ Lessons";
+  $("paBack").textContent = "◀ Past lessons";
+  $("paBack").hidden = !id;
   B.replaceChildren(el("p", { class: "t-hint", text: "Loading…" }));
   try {
     if (!id) {
@@ -1394,6 +1619,9 @@ async function showPast(id) {
       el("p", { style: "margin:0", text: when(r.startedAt) + " to " + new Date(r.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
         (r.loose ? " · from before Past lessons existed: questions and answers only" : " · reached page " + r.pages) +
         (named ? "" : " · open your name file on the Students screen to see names") }))];
+    if ((r.plan || []).length) parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
+      el("h3", { style: "margin:0 0 6px", text: "Plan this class used" }),
+      el("ol", { style: "margin:0;font-size:19px" }, ...r.plan.map((x) => el("li", { text: (x.title || "Untitled item") + (x.questions ? " · " + x.questions + (x.questions === 1 ? " question" : " questions") : "") })))));
     for (const q of r.questions) {
       const ans = Object.entries(q.answers || {}).filter(([, v]) => (v.text || "").trim());
       const nDone = ans.filter(([, v]) => v.done).length;
@@ -1567,6 +1795,7 @@ function drawNamesNote() {
 }
 async function showStudents() {
   show("studentsView");
+  renderHomeWho();
   stMsg(""); drawNamesNote();
   try {
     const r = await tapi("/api/roster");
@@ -1594,7 +1823,6 @@ function printLogins(p) {
     el("div", { class: "cls", text: p.name }))));
   print();
 }
-$("stBack").onclick = () => (location.hash = "#/");
 $("stAdd").onclick = () => { stDraft.push({ name: "", text: "", count: 0 }); drawClasses(); };
 $("stSave").onclick = async () => {
   stMsg("Saving…");
