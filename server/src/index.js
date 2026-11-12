@@ -261,6 +261,14 @@ export class Classroom extends DurableObject {
       if (sm && m === "DELETE") return this.deleteSim(sm[1]);
 
       // the teacher's private notes, one set for each lesson in each block
+      if (p === "/api/past" && m === "GET") return json((await this.ctx.storage.get("pastIndex")) || []);
+      const pm = p.match(/^\/api\/past\/([a-z0-9]+)$/i);
+      if (pm && m === "GET") { const r = await this.pastClass(pm[1]); return r ? json(r) : json({ error: "not found" }, 404); }
+      if (pm && m === "DELETE") {
+        await this.ctx.storage.delete("past:" + pm[1]);
+        await this.ctx.storage.put("pastIndex", ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== pm[1]));
+        return json({ ok: true });
+      }
       if (p === "/api/notes" && m === "GET") {
         const n = await this.ctx.storage.get(this.notesKey(url.searchParams.get("lesson"), url.searchParams.get("period")));
         return json({ text: n ? n.text : "" });
@@ -457,6 +465,7 @@ export class Classroom extends DurableObject {
       case "start": {
         const lesson = await this.ctx.storage.get("lesson:" + msg.lessonId);
         if (!lesson) return;
+        await this.archiveClass();
         if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
         // each block is started on its own: only that block's students move into the lesson
@@ -472,6 +481,7 @@ export class Classroom extends DurableObject {
         break;
       }
       case "end": {
+        await this.archiveClass();
         if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
         this.watch = {};
         this.live = null;
@@ -641,7 +651,7 @@ export class Classroom extends DurableObject {
     this.live.show = null; // a new question takes the middle of the screen
     this.qa[id] = {};
     this.qs.unshift({ id, prompt: p.prompt, seconds: p.seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "",
-      block: this.live.periodName || "", part: i + 1, parts: set.parts.length, setId: set.setId });
+      block: this.live.periodName || "", part: i + 1, parts: set.parts.length, setId: set.setId, sessionId: this.live.sessionId });
     if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
     await this.ctx.storage.put("qs", this.qs);
     await this.ctx.storage.put("live", this.live);
@@ -724,6 +734,40 @@ export class Classroom extends DurableObject {
       });
     }
     return out;
+  }
+
+  // ---------------------------------------------------------------- past classes
+  // When a class ends, keep a record: the lesson, the block, when, poll results and the questions students sent.
+  // Written answers are already kept with each question; they are found again by the class's session.
+  async archiveClass() {
+    const L = this.live;
+    if (!L || !this.liveLesson) return;
+    const polls = [];
+    this.pages().forEach((pg, i) => {
+      const poll = (pg.blocks || []).find((b) => b.type === "poll");
+      if (!poll || i > L.unlocked) return;
+      const counts = (poll.options || []).map(() => 0);
+      const v = this.votes[pg.id] || {};
+      for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
+      polls.push({ page: i + 1, question: poll.question || "", options: poll.options || [], counts, total: Object.keys(v).length });
+    });
+    const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
+      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [] };
+    await this.ctx.storage.put("past:" + rec.id, rec);
+    const idx = ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== rec.id);
+    idx.unshift({ id: rec.id, title: rec.title, block: rec.block, startedAt: rec.startedAt, endedAt: rec.endedAt });
+    if (idx.length > 400) for (const old of idx.splice(400)) await this.ctx.storage.delete("past:" + old.id);
+    await this.ctx.storage.put("pastIndex", idx);
+  }
+  async pastClass(id) {
+    const rec = await this.ctx.storage.get("past:" + String(id).replace(/[^a-z0-9]/gi, ""));
+    if (!rec) return null;
+    // questions from this class: by session, or (older ones) by block and time
+    const qs = this.qs.filter((q) => q.sessionId ? q.sessionId === rec.id
+      : q.block === rec.block && q.lesson === rec.title && q.startedAt >= rec.startedAt && q.startedAt <= rec.endedAt);
+    const questions = [];
+    for (const q of qs.slice().reverse()) questions.push({ ...q, answers: await this.loadQA(q.id) });
+    return { ...rec, questions };
   }
 
   // A question a student sends the teacher. Only while their block's class is running.

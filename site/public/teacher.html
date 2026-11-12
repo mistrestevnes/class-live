@@ -152,6 +152,16 @@
   </div>
 </section>
 
+<!-- past lessons: what each class did, with every answer -->
+<section id="pastView" class="t-wrap" hidden>
+  <header class="cl-top aero-header">
+    <button id="paBack">◀ Lessons</button>
+    <h1 class="cl-title" id="paTitle">Past lessons</h1>
+    <span class="cl-grow"></span>
+  </header>
+  <div class="t-home" id="paBody"></div>
+</section>
+
 <!-- students: login codes, name file, printing -->
 <section id="studentsView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
@@ -183,6 +193,7 @@
     <h1 class="cl-title">Class Live · Lessons</h1>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="studentUrl"></span>
+    <button class="t-small" id="pastBtn">Past lessons</button>
     <button class="t-small" id="recBtn">Record a replay</button>
     <button class="t-small" id="studentsBtn">Students</button>
     <button class="t-small" id="accountBtn">Username &amp; passcode</button>
@@ -291,10 +302,12 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
   throw e;
 });
 
-const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView"];
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView", "pastView"];
 function show(v) { for (const id of VIEWS) $(id).hidden = id !== v; }
 
 $("recBtn").onclick = () => { location.href = "/recorder"; };
+$("pastBtn").onclick = () => (location.hash = "#/past");
+$("paBack").onclick = () => (location.hash = location.hash.match(/^#\/past\/./) ? "#/past" : "#/");
 $("studentUrl").textContent = "Students go to: " + location.host;
 
 // ---------------------------------------------------------------- routing
@@ -307,6 +320,8 @@ async function route() {
   if (h === "#/live") return showLive();
   if (h === "#/account") return showAccount();
   if (h === "#/students") return showStudents();
+  const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
+  if (pm) return showPast(pm[1]);
   return showHome();
 }
 window.addEventListener("hashchange", route);
@@ -1295,6 +1310,76 @@ async function openSaved(id) {
   try { viewQ = { id, answers: await tapi("/api/answers?q=" + encodeURIComponent(id)) }; } catch { return; }
   renderAsk();
 }
+// ---------------------------------------------------------------- past lessons
+const when = (t) => new Date(t).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+async function showPast(id) {
+  show("pastView");
+  const B = $("paBody");
+  $("paBack").textContent = id ? "◀ Past lessons" : "◀ Lessons";
+  B.replaceChildren(el("p", { class: "t-hint", text: "Loading…" }));
+  try {
+    if (!id) {
+      $("paTitle").textContent = "Past lessons";
+      const list = await tapi("/api/past");
+      if (!list.length) return B.replaceChildren(el("div", { class: "aero-panel" }, el("p", { text: "Classes show up here after they end." })));
+      // grouped by day, newest first
+      const days = new Map();
+      for (const x of list) {
+        const d = new Date(x.startedAt).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+        (days.get(d) || days.set(d, []).get(d)).push(x);
+      }
+      B.replaceChildren(...[...days].map(([d, xs]) => el("div", { class: "aero-panel", style: "margin-bottom:12px" },
+        el("h2", { style: "margin:0 0 8px", text: d }),
+        ...xs.map((x) => el("div", { class: "t-row", style: "padding:6px 0;border-top:1px solid var(--aero-line)" },
+          el("span", { style: "flex:1;font-size:19px" }, el("strong", { text: x.title || "Lesson" }), " · " + (x.block || "No block") + " · " +
+            new Date(x.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "–" + new Date(x.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })),
+          el("button", { class: "aero-btn-primary", text: "Open", onclick: () => (location.hash = "#/past/" + x.id) }))))));
+      return;
+    }
+    const r = await tapi("/api/past/" + id);
+    $("paTitle").textContent = (r.title || "Lesson") + " · " + (r.block || "No block");
+    const named = Object.keys(names).length > 0;
+    const who = (code) => (named ? shortName(names[code]) || code : code);
+    const parts = [el("div", { class: "aero-panel", style: "margin-bottom:12px" },
+      el("p", { style: "margin:0", text: when(r.startedAt) + " to " + new Date(r.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
+        " · reached page " + r.pages + (named ? "" : " · open your name file on the Students screen to see names") }))];
+    for (const q of r.questions) {
+      const ans = Object.entries(q.answers || {}).filter(([, v]) => (v.text || "").trim());
+      const nDone = ans.filter(([, v]) => v.done).length;
+      parts.push(el("div", { class: "aero-panel t-ask", style: "margin-bottom:12px" },
+        el("div", { class: "t-row" },
+          el("h3", { style: "flex:1;margin:0", text: "Question" + (q.parts > 1 ? " · part " + q.part + " of " + q.parts : "") + (q.sp ? " · started on its own" : "") + " · " + new Date(q.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }),
+          el("span", { class: "t-who-count", text: ans.length + " answers · " + nDone + " submitted" }),
+          named ? el("button", { text: "Download", onclick: () => downloadAnswers(q, q.answers || {}) }) : null),
+        el("div", { class: "t-ask-prompt" }, formatText(q.prompt)),
+        el("ul", { class: "t-answers", style: "max-height:none" }, ...ans
+          .map(([code, v]) => ({ name: who(code), text: v.text, done: !!v.done }))
+          .sort((x, y) => x.name.localeCompare(y.name))
+          .map((x) => el("li", { class: x.done ? "done" : "" },
+            el("div", { class: "t-ans-text" }, el("span", { class: "t-who-name" }, x.name, x.done ? el("span", { class: "t-done", text: " · ✓ Submitted" }) : null), x.text))))));
+    }
+    for (const p of r.polls || []) {
+      parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
+        el("h3", { style: "margin:0 0 6px", text: "Poll on page " + p.page + " · " + p.total + " votes" }),
+        p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
+        ...p.options.map((o, i) => el("div", { style: "font-size:19px;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
+    }
+    if ((r.sq || []).length) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" },
+      el("h3", { style: "margin:0 0 6px", text: "Questions from students (" + r.sq.length + ")" }),
+      ...r.sq.map((q) => el("div", { class: "t-sqitem" },
+        el("div", { class: "t-hint", text: who(q.code) + " · " + new Date(q.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }),
+        el("div", { style: "font-weight:700", text: q.text }),
+        q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null))));
+    if (!r.questions.length && !(r.polls || []).length && !(r.sq || []).length) parts.push(el("div", { class: "aero-panel" }, el("p", { text: "No questions, polls or student questions in this class." })));
+    parts.push(el("div", { class: "t-row" }, el("span", { class: "cl-grow" }),
+      el("button", { text: "Delete this record", onclick: async () => {
+        if (!confirm("Delete this past lesson record? The answers stay in your Questions list.")) return;
+        await tapi("/api/past/" + id, { method: "DELETE" }); location.hash = "#/past";
+      } })));
+    B.replaceChildren(...parts);
+  } catch (e) { B.replaceChildren(el("div", { class: "aero-panel" }, el("p", { text: "Couldn't load: " + e.message }))); }
+}
+
 function downloadAnswers(q, answers) {
   const c = (v) => '"' + String(v).replace(/"/g, '""') + '"';
   const rows = [["Name", "Code", "Answer"].map(c).join(",")];
