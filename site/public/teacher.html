@@ -1342,7 +1342,7 @@ function renderPrep() {
       if (q.mode === "student") {
         const sc = (tstate && tstate.spCounts) || {};
         return el("div", { class: "t-prepq", style: "flex-direction:column;align-items:stretch" },
-          el("div", { style: "font-size:19px" }, first.length > 110 ? first.slice(0, 108) + "…" : first),
+          ...q.parts.map((p, i) => el("div", { style: "font-size:19px;white-space:pre-wrap" }, q.parts.length > 1 ? el("strong", { text: "Part " + (i + 1) + ": " }) : null, formatText(p.prompt || ""))),
           el("div", { class: "t-row", style: "gap:8px" },
             el("span", { class: "t-hint", style: "flex:1", text: "Starts on its own · each student's clock" +
               ((((tstate && tstate.live && tstate.live.spExtra) || {})[q.id] || 0) ? " · " + (((tstate.live.spExtra[q.id]) > 0 ? "+" : "") + Math.round(tstate.live.spExtra[q.id] / 60 * 10) / 10) + " min changed" : "") }),
@@ -1358,7 +1358,7 @@ function renderPrep() {
       }
       return el("div", { class: "t-prepq" },
         el("div", { style: "flex:1;font-size:19px" },
-          (at ? "✓ " : "") + (first.length > 110 ? first.slice(0, 108) + "…" : first) + (q.parts.length > 1 ? " · " + q.parts.length + " parts" : ""),
+          ...q.parts.map((p, i) => el("div", { style: "white-space:pre-wrap" }, i === 0 && at ? "✓ " : "", q.parts.length > 1 ? el("strong", { text: "Part " + (i + 1) + ": " }) : null, formatText(p.prompt || "(empty question)"))),
           at ? el("div", { class: "t-hint", text: "Asked at " + new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null),
         el("button", { class: "t-small", text: "Edit first", disabled: busy, onclick: () => sendPrepared(q, true) }),
         el("button", { class: "aero-btn-primary", text: at ? "Send again" : "Send", disabled: busy, title: busy ? "Close the running question first" : "", onclick: () => sendPrepared(q, false) }));
@@ -1556,7 +1556,7 @@ function renderQs() {
     "aria-pressed": (viewQ ? viewQ.id === q.id : a && a.id === q.id) ? "true" : "false",
     onclick: () => openSaved(q.id),
   },
-    el("span", { text: (q.parts > 1 ? "Part " + q.part + "/" + q.parts + ": " : "") + (q.prompt.length > 70 ? q.prompt.slice(0, 68) + "…" : q.prompt) }),
+    el("span", { text: (q.parts > 1 ? "Part " + q.part + "/" + q.parts + ": " : "") + q.prompt, style: "white-space:pre-wrap" }),
     el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
     : [el("li", { class: "t-hint", text: "Questions you ask show up here." })]));
 }
