@@ -1301,7 +1301,8 @@ export class Classroom extends DurableObject {
           : { type: "sim", event: word(q.trigger && q.trigger.event) },
         command: word(q.command),
         noSim: !!q.noSim,
-        parts: q.parts.slice(0, 8).map((p) => ({ prompt: String((p && p.prompt) || "").slice(0, 2000), imageId: (p && p.imageId) || "", sim: (p && p.sim) || "" })),
+        parts: q.parts.slice(0, 8).map((p) => ({ prompt: String((p && p.prompt) || "").slice(0, 2000), imageId: (p && p.imageId) || "", sim: (p && p.sim) || "",
+          min: Math.max(0.5, Math.min(Number(p && p.min) || 3, 60)) })),
       }));
       return { ...pg, questions: qs };
     });

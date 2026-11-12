@@ -582,7 +582,7 @@ function pvState() {
   const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg,
     questions: (pg.questions || []).filter((q) => q.mode === "student").map((q) => ({ id: q.id, mode: "student",
       trigger: q.trigger && q.trigger.type === "after" ? { type: "after", afterId: q.trigger.afterId, delay: Number(q.trigger.delay) || 0 } : { type: "sim", event: (q.trigger && q.trigger.event) || "" },
-      command: q.command || "", noSim: !!q.noSim, parts: q.parts.map((p) => ({ prompt: p.prompt || "", imageId: p.imageId || "", sim: p.sim || "" })) })) }));
+      command: q.command || "", noSim: !!q.noSim, parts: q.parts.map((p) => ({ prompt: p.prompt || "", imageId: p.imageId || "", sim: p.sim || "", min: Number(p.min) || 3 })) })) }));
   const list = pvQuestions(ed.pages[edPage]);
   const it = list[pvQ];
   const ask = it ? { id: "pv" + edPage + "_" + pvQ, prompt: it.p.prompt || "", endsAt: Date.now() + (Number(it.p.min) || 2) * 60000,
@@ -812,8 +812,8 @@ function questionsPanel(page) {
       q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
       el("textarea", { rows: 2, style: "width:100%", value: p.prompt || "", placeholder: "Type the question. **bold**  *italics*", oninput: (e) => { p.prompt = e.target.value; changed(); } }),
       el("div", { class: "t-row", style: "margin:6px 0" },
-        own ? null : el("label", { class: "t-row" },
-          el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || 2, "aria-label": "Minutes",
+        el("label", { class: "t-row" },
+          el("input", { type: "number", min: "0.5", max: "60", step: "0.5", style: "width:90px", value: p.min || (own ? 3 : 2), "aria-label": "Minutes",
             oninput: (e) => { p.min = e.target.value; changed(); } }),
           el("span", { text: "minutes" })),
         q.parts.length > 1 ? el("button", { class: "t-small", text: "Remove part", onclick: () => { q.parts.splice(pi, 1); changed(); renderEditor(); } }) : null),
