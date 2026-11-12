@@ -49,7 +49,14 @@
       <div class="cl-ask-prompt" id="askPrompt"></div>
       <div id="askMedia" hidden></div>
       <span class="cl-ask-time" id="askTime"></span>
+      <div><button id="tvToSim" style="margin-top:14px;min-height:52px;padding:8px 26px;font-size:1.1rem">Show the sim</button></div>
     </section>
+  </div>
+  <!-- the question's animation plays full size behind it; the teacher can switch to it and back -->
+  <div class="cl-animstage" id="animStage" hidden></div>
+  <div class="aero-panel cl-askback" id="tvBack" hidden>
+    <span id="tvBackTime" class="cl-ask-time"></span>
+    <button class="aero-btn-primary" id="tvBackBtn">Back to the question</button>
   </div>
 
 <script src="common.js?v=14"></script>
@@ -59,6 +66,7 @@ let state = { live: false };
 let skew = 0;
 let timer = null;
 let askShown = null;
+let tvMin = false;          // the teacher switched from the question to the sim or animation
 
 const link = new Link({
   wsUrl: () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?role=screen",
@@ -91,7 +99,16 @@ function apply(s) {
   }
   // the middle window: answers on display, else the running question, else paused
   const a = live ? s.ask : null, sh = live ? s.show : null, paused = live && s.paused;
-  $("cover").hidden = !(a || sh || paused);
+  if (!a || a.id !== askShown) tvMin = false;
+  const onPage = (u) => !!u && live && (s.page.blocks || []).some((b) => b.type === "sim" && b.url === u);
+  const anim = a && a.sim && !onPage(a.sim) ? a.sim : "";
+  const st = $("animStage");
+  if (!anim || sh || paused) { st.replaceChildren(); st.hidden = true; }
+  else if (!st.firstChild || st.firstChild.dataset.url !== anim) { const f = el("iframe", { src: anim, title: "Animation", allow: "autoplay; fullscreen" }); f.dataset.url = anim; st.replaceChildren(f); st.hidden = false; }
+  else st.hidden = false;
+  $("tvToSim").textContent = anim ? "Watch the animation" : "Show the sim";
+  $("tvBack").hidden = !(a && tvMin && !sh && !paused);
+  $("cover").hidden = !(a || sh || paused) || (!!a && tvMin && !sh && !paused);
   $("showBox").hidden = !sh;
   $("askBox").hidden = !a || !!sh;
   $("pausedBox").hidden = !paused || !!a || !!sh;
@@ -107,7 +124,6 @@ function apply(s) {
       const md = $("askMedia");
       md.replaceChildren();
       if (a.imageId) md.append(el("img", { src: "/img/" + a.imageId, alt: "" }));
-      else if (a.sim) md.append(el("iframe", { src: a.sim, title: "Animation", allow: "autoplay; fullscreen" }));
       md.hidden = !md.firstChild;
     }
   } else askShown = null;
@@ -119,8 +135,10 @@ function tick() {
   if (!a) return;
   const left = a.endsAt - (Date.now() + skew);
   const t = Math.max(0, Math.ceil(left / 1000));
-  $("askTime").textContent = left > 0 ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "Time's up";
+  $("askTime").textContent = $("tvBackTime").textContent = left > 0 ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "Time's up";
 }
+$("tvToSim").onclick = () => { tvMin = true; apply(state); };
+$("tvBackBtn").onclick = () => { tvMin = false; apply(state); };
 </script>
 </body>
 </html>
