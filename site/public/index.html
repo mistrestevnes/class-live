@@ -470,7 +470,8 @@ function renderSp() {
   // the clock for this part
   let left = 0;
   if (!finished) {
-    left = spStartOf(sessionId + "." + key) + (Number(part.min) || 3) * 60000 - serverNow();
+    left = spStartOf(sessionId + "." + key) + (Number(part.min) || 3) * 60000 + ((state.spExtra || {})[q.id] || 0) * 1000 - serverNow();
+    if (left > 11000 && spWarned === key) spWarned = "";   // time was added: warn again at 10 seconds
     const t = Math.max(0, Math.ceil(left / 1000));
     $("spTime").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
     $("spTab").textContent = "Back to the question · " + $("spTime").textContent;

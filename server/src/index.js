@@ -562,7 +562,19 @@ export class Classroom extends DurableObject {
         const a = this.live && this.live.ask;
         if (!a || a.paused) return;
         const now = Date.now();
-        a.endsAt = Math.max(a.endsAt, now) + Math.max(10, Math.min(Number(msg.seconds) || 30, 600)) * 1000;
+        const sec = Math.max(-600, Math.min(Number(msg.seconds) || 30, 600));
+        // adding time counts from now if time had run out; taking time away never goes below 5 seconds left
+        a.endsAt = sec > 0 ? Math.max(a.endsAt, now) + sec * 1000 : Math.max(now + 5000, a.endsAt + sec * 1000);
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      // more or less time on a question that runs on its own: applies to every student's clock for that question
+      case "spTime": {
+        if (!this.live) return;
+        const qid = String(msg.qid || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+        if (!qid) return;
+        const ex = (this.live.spExtra ||= {});
+        ex[qid] = Math.max(-3600, Math.min((ex[qid] || 0) + (Number(msg.seconds) || 0), 3600));
         await this.ctx.storage.put("live", this.live);
         break;
       }
@@ -880,6 +892,7 @@ export class Classroom extends DurableObject {
     if (a) { a.mine = mine ? mine.text : ""; a.done = !!(mine && mine.done); }
     return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac,
       spMine: inb ? this.spMine(stu) : {},
+      spExtra: inb && this.live ? this.live.spExtra || {} : {},
       myQs: inb && stu && this.live ? this.sq.filter((x) => x.code === stu.name).slice(-20).map((x) => ({ id: x.id, text: x.text, reply: x.reply, at: x.at })) : [] };
   }
 

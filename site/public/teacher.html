@@ -1107,7 +1107,7 @@ function renderPrep() {
   if (!qs.length) { box.hidden = true; box._key = null; return; }
   box.hidden = false;
   const sent = live.sent || {}, busy = !!live.ask;
-  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs), JSON.stringify((tstate && tstate.spCounts) || {})].join("|");
+  const key = [page.id, busy, JSON.stringify(sent), JSON.stringify(qs), JSON.stringify((tstate && tstate.spCounts) || {}), JSON.stringify((tstate && tstate.live && tstate.live.spExtra) || {})].join("|");
   if (box._key === key) return;
   box._key = key;
   box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Questions for this page" }),
@@ -1118,7 +1118,12 @@ function renderPrep() {
         const sc = (tstate && tstate.spCounts) || {};
         return el("div", { class: "t-prepq", style: "flex-direction:column;align-items:stretch" },
           el("div", { style: "font-size:19px" }, first.length > 110 ? first.slice(0, 108) + "…" : first),
-          el("div", { class: "t-hint", text: "Starts on its own" }),
+          el("div", { class: "t-row", style: "gap:8px" },
+            el("span", { class: "t-hint", style: "flex:1", text: "Starts on its own · each student's clock" +
+              ((((tstate && tstate.live && tstate.live.spExtra) || {})[q.id] || 0) ? " · " + (((tstate.live.spExtra[q.id]) > 0 ? "+" : "") + Math.round(tstate.live.spExtra[q.id] / 60 * 10) / 10) + " min changed" : "") }),
+            el("button", { class: "t-small", text: "−30 s", onclick: () => link.send({ t: "spTime", qid: q.id, seconds: -30 }) }),
+            el("button", { class: "t-small", text: "+30 s", onclick: () => link.send({ t: "spTime", qid: q.id, seconds: 30 }) }),
+            el("button", { class: "t-small", text: "+1 min", onclick: () => link.send({ t: "spTime", qid: q.id, seconds: 60 }) })),
           ...q.parts.map((p, i) => {
             const c = sc[q.id + "." + i];
             return el("div", { class: "t-row", style: "gap:10px" },
@@ -1264,7 +1269,9 @@ function renderAsk() {
       el("span", { class: "cl-grow" }),
       shown.length ? btn("Hide all (" + shown.length + ")", () => link.send({ t: "hideAll" })) : null,
       isLive ? btn(a.paused ? "Resume question" : "Pause question", () => link.send({ t: "askPause", on: !a.paused }), a.paused ? "aero-btn-primary" : "") : null,
+      open && !a.paused ? btn("−30 seconds", () => link.send({ t: "askMore", seconds: -30 })) : null,
       isLive && !a.paused ? btn(open ? "+30 seconds" : "Reopen 1 minute", () => link.send({ t: "askMore", seconds: open ? 30 : 60 })) : null,
+      open && !a.paused ? btn("+1 minute", () => link.send({ t: "askMore", seconds: 60 })) : null,
       open && !a.paused ? btn("End now", () => link.send({ t: "askEnd" })) : null,
       hasNext ? btn("Next part (" + (set.i + 2) + " of " + set.parts.length + ")", () => link.send({ t: "askNext" }), "aero-btn-primary") : null,
       !open && named ? btn("Download", () => downloadAnswers(q, answers)) : null,
