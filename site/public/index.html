@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=15">
+<link rel="stylesheet" href="app.css?v=16">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -85,6 +85,9 @@
   <button class="aero-btn-primary cl-sptab" id="spTab" hidden>Back to the question</button>
 
   <!-- when the teacher lets students use the sim while answering -->
+  <!-- an animation attached to a question plays full size behind it -->
+  <div class="cl-animstage" id="animStage" hidden></div>
+
   <div class="aero-panel cl-askback" id="askBack" hidden>
     <span id="askBackTime" class="cl-ask-time"></span>
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
@@ -255,9 +258,24 @@ function simOnPage(url) {
   const pg = state.pages && state.pages[page];
   return !!url && !!pg && (pg.blocks || []).some((b) => b.type === "sim" && b.url === url);
 }
+// an animation (not the page's own sim) goes full size behind the question instead of inside it
+const animOf = (a) => (a && a.sim && !simOnPage(a.sim) ? a.sim : "");
+let spAnim = "";
+function updateStage() {
+  const a = state.live && !(state.paused || state.qpaused) ? state.ask : null;
+  const url = animOf(a) || spAnim;
+  const st = $("animStage");
+  if (!url) { if (st.firstChild) st.replaceChildren(); st.hidden = true; return; }
+  st.hidden = false;
+  if (!st.firstChild || st.firstChild.dataset.url !== url) {
+    const f = el("iframe", { src: url, title: "Animation", allow: "autoplay; fullscreen" });
+    f.dataset.url = url;
+    st.replaceChildren(f);
+  }
+}
 function setMedia(box, a) {
   box.replaceChildren();
-  if (a.sim && simOnPage(a.sim)) { box.hidden = true; return; }
+  if (a.sim) { box.hidden = true; return; } // sims and animations are never squeezed into the question box
   if (a.imageId) box.append(el("img", { src: "/img/" + a.imageId, alt: "" }));
   else if (a.sim) box.append(el("iframe", { src: a.sim, title: "Animation", allow: "autoplay; fullscreen" }));
   box.hidden = !box.firstChild;
@@ -288,6 +306,7 @@ function applyCover() {
   $("showBox").hidden = !sh;
   $("askBox").hidden = !askUp || !!sh; // answers on display take the middle; the question comes back after
   $("askBack").hidden = !(a && askMin && !frozen);
+  updateStage();
   if (sh) {
     $("showPrompt").replaceChildren(formatText(sh.prompt));
     $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
@@ -299,7 +318,8 @@ function applyCover() {
     if (askId && askDirty) saveAsk(); // paused or closed while typing: keep what they wrote
     askId = null; clearInterval(askTimer); askTimer = null; return;
   }
-  $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim));
+  $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim) || animOf(a));
+  $("askToSim").textContent = animOf(a) ? "Watch the animation" : "Go back to the sim";
   $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
@@ -423,6 +443,9 @@ function renderSp() {
   $("sp").hidden = !showing || spMinimized;
   $("spTab").hidden = !showing || !spMinimized;
   document.body.classList.toggle("sp-open", showing && !spMinimized);
+  spAnim = showing ? animOf(use.q.parts[cur ? use.q.parts.findIndex((_, i) => !(mine[use.q.id + "." + i] || {}).done) : use.q.parts.length - 1]) : "";
+  updateStage();
+  if (spAnim) $("spMin").hidden = false; // students can always go and watch the animation
   if (!showing) { spKey = null; return; }
   const q = use.q;
   const idx = cur ? q.parts.findIndex((_, i) => !(mine[q.id + "." + i] || {}).done) : q.parts.length - 1;
@@ -434,6 +457,7 @@ function renderSp() {
     $("spLabel").textContent = q.parts.length > 1 ? "Question · part " + (idx + 1) + " of " + q.parts.length : "Question";
     $("spPrompt").replaceChildren(formatText(part.prompt));
     setMedia($("spMedia"), part);
+    $("spMin").textContent = animOf(part) ? "Watch the animation" : "Go back to the sim";
     $("spText").value = (mine[q.id + "." + idx] || {}).text || "";
   }
   $("spText").readOnly = finished;
