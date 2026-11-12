@@ -145,6 +145,61 @@
     .slip .cls { font-size: 11pt; margin-top: 0.2in; color: #444; }
   }
   @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
+  /* ---- Control room: compact, so more fits on the laptop screen (Joseph's own screen; student pages stay large) ---- */
+  #topNav { padding: 4px 10px; gap: 6px; font-size: 15px; }
+  #topNav button { min-height: 32px; padding: 2px 12px; font-size: 15px; }
+  #topNav .aero-chip { font-size: 14px; }
+  #liveView { font-size: 15px; }
+  #liveView .cl-top { padding: 8px 14px 6px; gap: 8px; }
+  #liveView .cl-top .cl-title { font-size: 18px; }
+  #liveView .cl-top .aero-chip { font-size: 14px; }
+  #liveView button { font-size: 15px; }
+  #liveView .t-small { min-height: 30px; padding: 2px 10px; font-size: 14px; }
+  #liveView .t-tabs { padding: 0 12px; gap: 4px; }
+  #liveView .t-tabs button { min-height: 34px; padding: 0 16px; font-size: 15px; }
+  #liveView .t-badge { min-width: 22px; height: 22px; font-size: 13px; }
+  #liveView .t-cols { grid-template-columns: 240px 1fr; gap: 8px; padding: 0 8px 2px; }
+  #liveView .t-side { padding: 10px; }
+  #liveView .t-side h3 { font-size: 15px; margin: 0 0 6px; }
+  #liveView .t-pages { gap: 4px; margin-bottom: 8px; }
+  #liveView .t-pages button { padding: 4px 8px; min-height: 32px; font-size: 14px; }
+  #liveView .t-plan .t-sub { font-size: 13px; }
+  #liveView .t-pages button .t-num { width: 22px; height: 22px; font-size: 13px; }
+  #liveView .t-pages .t-count { font-size: 12px; padding: 1px 6px; }
+  #liveView .t-body { display: flex; flex-direction: column; gap: 8px; }
+  #liveView .t-body > * { margin: 0; }
+  #liveView .t-prep, #liveView .t-ask, #liveView .t-sq { padding: 10px 14px; }
+  #liveView .t-prep h3, #liveView .t-ask h3, #liveView .t-sq h3 { font-size: 15px; }
+  #liveView .t-prep .t-prepq { padding: 5px 0; gap: 8px; }
+  #liveView .t-prep [style*="font-size:19px"], #liveView .t-prep [style*="font-size:18px"] { font-size: 15px !important; }
+  #liveView .t-ask .t-ask-prompt { font-size: 17px; margin-bottom: 6px; }
+  #liveView .t-ask .t-ask-time { font-size: 24px; }
+  #liveView .t-ask textarea, #liveView .t-ask input[type=number] { font-size: 15px; }
+  #liveView .t-who-count { font-size: 14px; }
+  #liveView .t-timeup { padding: 6px 12px; font-size: 15px; }
+  #liveView .t-answers { gap: 5px; }
+  #liveView .t-answers li { padding: 6px 10px; font-size: 15px; }
+  #liveView .t-answers .t-who-name { font-size: 13px; margin-bottom: 2px; }
+  #liveView .t-qs button { font-size: 14px; padding: 5px 8px; }
+  #liveView .t-qs .t-q-when { font-size: 12px; }
+  #liveView .t-sqitem { font-size: 15px; padding: 5px 0; }
+  #liveView .t-act { font-size: 14px; }
+  #liveView .t-act th, #liveView .t-act td { padding: 2px 6px; }
+  #liveView .t-resp { grid-template-columns: 240px 1fr 300px; gap: 8px; padding: 8px; margin: 0 8px 8px; }
+  #liveView .t-notes-tab { padding: 10px; margin: 0 8px 8px; }
+  #liveView .t-notesbox textarea, #liveView .t-notesbox select { font-size: 15px; }
+  #liveView .t-hint { font-size: 13px; }
+  #liveView #lvPage { padding: 10px 14px; font-size: 15px; }
+  #liveView #lvPage h1 { font-size: 22px; }
+  #liveView #lvPage h2 { font-size: 18px; }
+  #liveView .t-lesson { padding: 6px 10px; }
+  #liveView .t-lesson .t-ltitle { font-size: 15px; }
+  #liveView .cl-bottom { margin: 6px 8px 10px; padding: 6px 10px; }
+  #liveView .cl-bottom button { min-height: 36px; padding: 4px 16px; font-size: 15px; }
+  #liveView .t-unlock { min-height: 40px !important; font-size: 16px !important; padding: 4px 22px !important; }
+  #liveView .t-fb textarea { min-width: 180px; font-size: 14px; }
+  #liveView .t-fb button { min-height: 30px; padding: 2px 10px; }
+  .t-itembox { font-size: 15px; }
 </style>
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
