@@ -85,6 +85,9 @@
   .t-qs .t-q-when { display: block; font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-ink-muted); }
   .t-answers li { display: flex; gap: 12px; align-items: flex-start; }
   .t-answers .t-ans-text { flex: 1; }
+  .t-answers li.done { border-left: 6px solid var(--aero-jade); }
+  .t-answers .t-done { color: var(--aero-jade); font-weight: 700; }
+  .t-answers .t-writing { color: var(--aero-ink-muted); }
   .t-answers li.shown { border-color: var(--aero-jade); box-shadow: 0 0 0 2px var(--aero-jade); }
   .t-answers button { flex: none; min-width: 84px; }
   .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
@@ -1233,6 +1236,9 @@ function renderAsk() {
   if (box._key === key) return;
   box._key = key;
   const btn = (text, onclick, cls) => el("button", { text, onclick, class: cls || "" });
+  // keep the teacher's place while answers come in
+  const oldList = box.querySelector(".t-answers"), listTop = oldList ? oldList.scrollTop : 0;
+  const body = box.closest(".t-body"), bodyTop = body ? body.scrollTop : 0;
   box.replaceChildren(
     el("div", { class: "t-row" },
       el("h3", { style: "flex:1;margin:0", text: (isLive ? (a.paused ? "Question paused" : open ? "Question running" : "Time's up") : "Saved question") + partTxt + (isLive ? "" : " · " + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })) }),
@@ -1251,15 +1257,20 @@ function renderAsk() {
       isLive && (!open || hasNext) && !a.paused ? btn("Close question", () => link.send({ t: "askClose" }), hasNext ? "" : "aero-btn-primary") : null,
       !isLive ? btn("Done", () => { viewQ = null; renderAsk(); }, "aero-btn-primary") : null),
     el("ul", { class: "t-answers" }, ...withText
-      .map(([code, v]) => ({ code, name: named ? shortName(names[code]) || code : "", text: v.text }))
+      .map(([code, v]) => ({ code, name: named ? shortName(names[code]) || code : "", text: v.text, done: !!v.done }))
       .sort((x, y) => x.name.localeCompare(y.name) || 0)
       .map((x) => {
         const on = shown.includes(x.code);
-        return el("li", { class: on ? "shown" : "" },
-          el("div", { class: "t-ans-text" }, x.name ? el("span", { class: "t-who-name", text: x.name }) : null, x.text),
+        return el("li", { class: (on ? "shown " : "") + (x.done ? "done" : "") },
+          el("div", { class: "t-ans-text" },
+            el("span", { class: "t-who-name" }, x.name || "", x.done ? el("span", { class: "t-done", text: (x.name ? " · " : "") + "✓ Submitted" }) : (isLive ? el("span", { class: "t-writing", text: (x.name ? " · " : "") + "still writing" }) : null)),
+            x.text),
           live ? el("button", { class: on ? "aero-btn-primary" : "", text: on ? "Showing" : "Show", "aria-pressed": on ? "true" : "false",
             onclick: () => link.send({ t: "show", qid: q.id, code: x.code, on: !on }) }) : null);
       })));
+  const newList = box.querySelector(".t-answers");
+  if (newList) newList.scrollTop = listTop;
+  if (body) body.scrollTop = bodyTop;
 }
 
 // the Questions list: every question asked, newest first; click to see its answers again
