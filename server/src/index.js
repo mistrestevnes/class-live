@@ -113,7 +113,8 @@ export class Classroom extends DurableObject {
       this.qa = {};                                       // qid -> { code: { text, at } }, loaded as needed from "qa:<qid>"
       if (this.live && this.live.ask) await this.loadQA(this.live.ask.id);
       if (this.live && this.live.show) await this.loadQA(this.live.show.qid);
-      this.sq = this.live ? (await ctx.storage.get("sq:" + this.live.sessionId)) || [] : [];   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
+      this.sq = this.live ? (await ctx.storage.get("sq:" + this.live.sessionId)) || [] : [];
+      this.act = this.live ? (await ctx.storage.get("act:" + this.live.sessionId)) || {} : {};   // code -> { n, away, since, log }   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
       if (this.live) for (const q of this.qs) if (q.sp && q.sessionId === this.live.sessionId) await this.loadQA(q.id);
       this.liveLesson = this.live ? (await ctx.storage.get("lesson:" + this.live.lessonId)) || null : null;
       this.tokens = (await ctx.storage.get("tokens")) || [];
@@ -476,6 +477,7 @@ export class Classroom extends DurableObject {
         this.liveLesson = lesson;
         this.votes = {};
         this.sq = [];
+        this.act = {};
         await this.ctx.storage.put("live", this.live);
         await this.setAlarms();
         break;
@@ -764,7 +766,8 @@ export class Classroom extends DurableObject {
       polls.push({ page: i + 1, question: poll.question || "", options: poll.options || [], counts, total: Object.keys(v).length });
     });
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
-      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [] };
+      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [],
+      act: Object.fromEntries(Object.entries(this.act || {}).map(([c, a]) => [c, { ...a, away: a.away + (a.since ? Date.now() - a.since : 0), since: 0 }])) };
     await this.ctx.storage.put("past:" + rec.id, rec);
     const idx = ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== rec.id);
     idx.unshift({ id: rec.id, title: rec.title, block: rec.block, startedAt: rec.startedAt, endedAt: rec.endedAt });
@@ -780,6 +783,22 @@ export class Classroom extends DurableObject {
     const questions = [];
     for (const q of qs.slice().reverse()) questions.push({ ...q, answers: await this.loadQA(q.id) });
     return { ...rec, questions };
+  }
+
+  // When a student leaves the Class Live window (another tab or window, or the screen goes off) and comes back.
+  async saveAct(msg, stu) {
+    if (!stu || !this.live || !this.inBlock(stu)) return;
+    const now = Date.now();
+    const a = (this.act ||= {})[stu.name] ||= { n: 0, away: 0, since: 0, log: [] };
+    if (msg.kind === "away" && !a.since) { a.since = now; a.n++; a.log.push([now, 0]); }
+    else if (msg.kind === "back" && a.since) {
+      a.away += now - a.since;
+      const last = a.log[a.log.length - 1]; if (last && !last[1]) last[1] = now;
+      a.since = 0;
+    } else return;
+    if (a.log.length > 60) a.log.splice(0, a.log.length - 60);
+    await this.ctx.storage.put("act:" + this.live.sessionId, this.act);
+    this.broadcast({ teachersOnly: true });
   }
 
   // A question a student sends the teacher. Only while their block's class is running.
@@ -848,6 +867,7 @@ export class Classroom extends DurableObject {
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
     if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
     if (msg.t === "sqSend") return this.saveSq(msg, stu);
+    if (msg.t === "act") return this.saveAct(msg, stu);
     if (msg.t === "spAnswer") return this.saveSp(msg, stu, false, sid);
     if (msg.t === "spSubmit") return this.saveSp(msg, stu, true, sid);
     if (msg.t === "away") {
@@ -1407,6 +1427,7 @@ export class Classroom extends DurableObject {
       qs: this.qs,
       spCounts: this.spCounts(),
       sq: this.live ? this.sq : [],
+      act: this.live ? this.act || {} : {},
       sky: await this.skyTeacherState(),
     };
   }

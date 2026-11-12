@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=16">
+<link rel="stylesheet" href="app.css?v=17">
 <style>
   /* teacher-only layout */
   .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -264,6 +264,7 @@
     </aside>
     <div class="t-body">
       <div class="aero-panel t-sq" id="lvSq" hidden></div>
+      <div class="aero-panel t-sq" id="lvAct" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
@@ -1179,6 +1180,30 @@ function renderSq() {
     }));
 }
 
+// ---------- activity: who left the Class Live window, how often, and for how long
+const fmtDur = (ms) => { const s = Math.round(ms / 1000); return s < 60 ? s + " s" : Math.floor(s / 60) + " min " + (s % 60) + " s"; };
+function actTable(act, live) {
+  const now = Date.now();
+  const named = Object.keys(names).length > 0;
+  const rows = Object.entries(act || {}).map(([code, a]) => ({ who: named ? shortName(names[code]) || code : code, n: a.n,
+    away: a.away + (a.since ? now - a.since : 0), now: !!a.since })).filter((x) => x.n > 0)
+    .sort((x, y) => (y.now - x.now) || (y.away - x.away));
+  if (!rows.length) return null;
+  return el("table", { class: "t-act" },
+    el("tr", {}, el("th", { text: "Student" }), el("th", { text: "Times left" }), el("th", { text: "Time away" }), live ? el("th", { text: "Now" }) : null),
+    ...rows.map((x) => el("tr", { class: x.now ? "away" : "" },
+      el("td", { text: x.who }), el("td", { text: String(x.n) }), el("td", { text: fmtDur(x.away) }),
+      live ? el("td", { text: x.now ? "Away" : "Here" }) : null)));
+}
+function renderAct() {
+  const box = $("lvAct");
+  const t = tstate && tstate.live ? actTable(tstate.act, true) : null;
+  if (!t) { box.hidden = true; return; }
+  box.hidden = false;
+  box.replaceChildren(el("h3", { style: "margin:0 0 6px", text: "Left the window" }), t);
+}
+setInterval(() => { if (!$("liveView").hidden) renderAct(); }, 1000);
+
 function renderAsk() {
   const box = $("lvAsk");
   const live = tstate && tstate.live;
@@ -1188,6 +1213,7 @@ function renderAsk() {
   renderQs();
   renderPrep();
   renderSq();
+  renderAct();
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live below
   if (!a && !askDraft && !viewQ) { box.hidden = true; box._key = null; return; }
   box.hidden = false;
@@ -1388,6 +1414,8 @@ async function showPast(id) {
         p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
         ...p.options.map((o, i) => el("div", { style: "font-size:19px;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
     }
+    const at = actTable(r.act, false);
+    if (at) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" }, el("h3", { style: "margin:0 0 6px", text: "Left the window" }), at));
     if ((r.sq || []).length) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" },
       el("h3", { style: "margin:0 0 6px", text: "Questions from students (" + r.sq.length + ")" }),
       ...r.sq.map((q) => el("div", { class: "t-sqitem" },

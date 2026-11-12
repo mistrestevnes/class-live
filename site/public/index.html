@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=16">
+<link rel="stylesheet" href="app.css?v=17">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -544,6 +544,32 @@ $("qSend").onclick = () => {
   setTimeout(() => { $("qNote").textContent = ""; }, 3000);
 };
 setInterval(renderQ, 1000);
+
+// ---------- no pasting into any box: here or in the sims on the page
+function noPaste(doc) {
+  for (const t of ["paste", "drop"]) doc.addEventListener(t, (e) => {
+    const n = e.target;
+    if (n && (n.tagName === "TEXTAREA" || n.tagName === "INPUT" || n.isContentEditable)) e.preventDefault();
+  }, true);
+}
+noPaste(document);
+document.addEventListener("load", (e) => {
+  if (e.target.tagName !== "IFRAME") return;
+  try { if (e.target.contentDocument) noPaste(e.target.contentDocument); } catch {}
+}, true);
+
+// ---------- leaving the window: tell the teacher when the student goes to another tab or window, and when they come back
+let actAway = false;
+function actCheck() {
+  if (!state.live || PREVIEW) return;
+  // focus inside a sim on this page still counts as here
+  const away = document.visibilityState === "hidden" || !document.hasFocus();
+  if (away !== actAway) { actAway = away; link.send({ t: "act", kind: away ? "away" : "back" }); }
+}
+document.addEventListener("visibilitychange", actCheck);
+window.addEventListener("blur", () => setTimeout(actCheck, 300));
+window.addEventListener("focus", actCheck);
+setInterval(actCheck, 3000);
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }
