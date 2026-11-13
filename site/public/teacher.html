@@ -134,7 +134,7 @@
     <span class="aero-chip" id="saveState">Saved</span>
     <button id="edModeEdit" aria-pressed="true">Edit</button>
     <button id="edModePreview" aria-pressed="false">Preview</button>
-    <button class="aero-btn-primary" id="edStart">Start with class</button>
+    <button class="aero-btn-primary" id="edStart">Start with this page</button>
   </header>
   <div class="t-cols">
     <aside class="aero-panel t-side">
@@ -378,7 +378,7 @@ async function showHome() {
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
     el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
-    el("button", { class: "t-small aero-btn-primary", text: "Start with class", onclick: () => startLesson(l.id) }),
+    el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; location.hash = "#/edit/" + l.id; } }),
   )));
 }
 
@@ -477,6 +477,7 @@ async function startLesson(id, from) {
   }
   const pick = await pickBlock();
   if (!pick) return;
+  if (from !== undefined && !confirm("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\" with the class on page " + (from + 1) + "? Students will see only that page until you unlock the next."))  return;
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
   await link.send({ t: "start", lessonId: id, periodId: pick.id, from: from || 0 });
@@ -575,8 +576,10 @@ function pageLabel(p, i) {
   return "Page " + (i + 1);
 }
 
+let openInPreview = false;
 async function openEditor(id) {
   show("editView");
+  if (openInPreview) { openInPreview = false; edPreview = true; }
   if (!ed || ed.id !== id) {
     try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/lessons"; return; }
     edPage = 0;
@@ -699,7 +702,6 @@ function renderEditor() {
     el("button", { "aria-pressed": !edItem && i === edPage ? "true" : "false", onclick: () => { edItem = null; edPage = i; renderEditor(); } },
       el("span", { class: "t-num", text: i + 1 }),
       el("span", { class: "t-label", text: pageLabel(p, i) })))));
-  $("edStart").textContent = edPage > 0 ? "Start class on page " + (edPage + 1) : "Start with class";
   $("pgUp").disabled = edPage === 0;
   $("pgDown").disabled = edPage === ed.pages.length - 1;
 
