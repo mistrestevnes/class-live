@@ -208,7 +208,8 @@ export class Classroom extends DurableObject {
       if (this.live && this.live.ask) await this.loadQA(this.live.ask.id);
       if (this.live && this.live.show) await this.loadQA(this.live.show.qid);
       this.sq = this.live ? (await ctx.storage.get("sq:" + this.live.sessionId)) || [] : [];
-      this.act = this.live ? (await ctx.storage.get("act:" + this.live.sessionId)) || {} : {};   // code -> { n, away, since, log }   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
+      this.act = this.live ? (await ctx.storage.get("act:" + this.live.sessionId)) || {} : {};
+      this.sev = this.live ? (await ctx.storage.get("sev:" + this.live.sessionId)) || {} : {}; // code -> pageId -> event name -> first time the sim reported it   // code -> { n, away, since, log }   // questions students sent the teacher this class: { id, code, text, at, reply, replyAt }
       if (this.live) for (const q of this.qs) if (q.sessionId === this.live.sessionId) await this.loadQA(q.id);
       this.liveLesson = this.live ? withPlan((await ctx.storage.get("lesson:" + this.live.lessonId)) || null) : null;
       if (this.live && !Array.isArray(this.live.plan)) this.live.plan = (this.liveLesson && this.liveLesson.plan) || [];
@@ -646,8 +647,9 @@ export class Classroom extends DurableObject {
       if (l) await this.saveLesson(this.live.lessonId, { ...withPlan(l), plan: this.live.plan, pages: withPlan(l).pages, live: undefined });
     }
     await this.archiveClass();
-    await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
+    await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId, "sev:" + this.live.sessionId]);
     this.watch = {};
+    this.sev = {};
     this.liveLesson = null;
     this.votes = {};
   }
@@ -660,7 +662,7 @@ export class Classroom extends DurableObject {
         const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
         if (this.roster.periods.length && !pd) return;
         this.live = this.newLive(pd, null, 0, null);
-        this.sq = []; this.act = {};
+        this.sq = []; this.act = {}; this.sev = {};
         await this.ctx.storage.put("live", this.live);
         await this.setAlarms();
         break;
@@ -682,6 +684,7 @@ export class Classroom extends DurableObject {
         this.live = this.newLive(pd, lesson, from, keep);
         this.liveLesson = lesson;
         if (!keep) { this.sq = []; this.act = {}; }
+        this.sev = {};
         await this.ctx.storage.put("live", this.live);
         // questions from students and who left the window carry on through the class
         await this.ctx.storage.put("sq:" + this.live.sessionId, this.sq);
@@ -1011,6 +1014,18 @@ export class Classroom extends DurableObject {
     await this.ctx.storage.put("live", this.live);
     this.broadcast({ teachersOnly: true });
   }
+  // a sim on a lesson page reported an event (e.g. "level2Done"): remember it for the teacher's progress table
+  async noteSimEvent(msg, stu) {
+    if (!stu || !this.live || !this.inBlock(stu)) return;
+    const name = String(msg.name || "");
+    if (!/^[A-Za-z][\w-]{0,40}$/.test(name) || !this.pages().some((pg) => pg.id === msg.pageId)) return;
+    const mine = ((this.sev ||= {})[stu.name] ||= {});
+    const pg = (mine[msg.pageId] ||= {});
+    if (pg[name] || Object.keys(pg).length >= 40) return;
+    pg[name] = Date.now();
+    await this.ctx.storage.put("sev:" + this.live.sessionId, this.sev);
+    this.broadcast({ teachersOnly: true });
+  }
   spCounts() {
     const out = {};
     for (const { pg, q } of this.spQuestions()) {
@@ -1045,6 +1060,19 @@ export class Classroom extends DurableObject {
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
       startedAt: L.lessonAt || L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
       act: Object.fromEntries(Object.entries(this.act || {}).map(([c, a]) => [c, { ...a, away: a.away + (a.since ? Date.now() - a.since : 0), since: 0 }])) };
+    // sim progress per page: the events each sim says it reports (its own list first), and who reported which
+    const sims = await this.simIndex().catch(() => []);
+    rec.sims = [];
+    this.pages().forEach((pg, i) => {
+      const ids = (pg.blocks || []).map((b) => b && b.type === "sim" && ((b.url || "").match(/^\/sim\/([a-z0-9]+)$/) || [])[1]).filter(Boolean);
+      const got = Object.fromEntries(Object.entries(this.sev || {}).filter(([, v]) => v[pg.id]).map(([c, v]) => [c, v[pg.id]]));
+      if (!ids.length && !Object.keys(got).length) return;
+      const evs = [];
+      for (const id of ids) { const sm = sims.find((x) => x.id === id); for (const e of (sm && sm.events) || []) if (!evs.some((x) => x.name === e.name)) evs.push({ name: e.name, says: e.says }); }
+      for (const v of Object.values(got)) for (const n of Object.keys(v)) if (!evs.some((x) => x.name === n)) evs.push({ name: n, says: "" });
+      if (!evs.length) return;
+      rec.sims.push({ page: i + 1, sim: ids.map((id) => (sims.find((x) => x.id === id) || {}).name || "").filter(Boolean).join(", "), events: evs, got });
+    });
     await this.ctx.storage.put("past:" + rec.id, rec);
     const idx = ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== rec.id);
     idx.unshift({ id: rec.id, title: rec.title, block: rec.block, startedAt: rec.startedAt, endedAt: rec.endedAt });
@@ -1188,6 +1216,7 @@ export class Classroom extends DurableObject {
     if (msg.t === "answer") return this.saveAnswer(msg, stu);
     if (msg.t === "work") return this.saveWork(msg, stu);
     if (msg.t === "spStart") return this.noteSpStart(msg, stu);
+    if (msg.t === "simEv") return this.noteSimEvent(msg, stu);
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
     if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
     if (msg.t === "sqSend") return this.saveSq(msg, stu);
@@ -1765,6 +1794,7 @@ export class Classroom extends DurableObject {
       spCounts: this.spCounts(),
       sq: this.live ? this.sq : [],
       act: this.live ? this.act || {} : {},
+      sev: this.live ? this.sev || {} : {},
       sky: await this.skyTeacherState(),
     };
   }

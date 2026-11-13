@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=24">
-<link rel="stylesheet" href="teacher.css?v=5">
+<link rel="stylesheet" href="teacher.css?v=6">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -211,6 +211,7 @@
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
+      <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
   </div>
   <footer class="cl-bottom aero-bar" id="lvFoot">
@@ -1215,6 +1216,7 @@ function renderLive() {
         onclick: () => { if (confirm("Clear the votes on this page so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id }); } }));
   }
   mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null });
+  renderSimProg(page);
 
   const next = live.unlocked + 1;
   const more = next < lesson.pages.length;
@@ -1473,6 +1475,40 @@ function actTable(act, live) {
     ...rows.map((x) => el("tr", { class: x.now ? "away" : "" },
       el("td", { text: x.who }), el("td", { text: String(x.n) }), el("td", { text: fmtDur(x.away) }),
       live ? el("td", { text: x.now ? "Away" : "Here" }) : null)));
+}
+// ---------- sim progress: which students' sims on this page reported which events (e.g. level1Done)
+let simProgAsked = false;
+// "level2Done" -> "Level 2 done"
+const evLabel = (n) => { const w = n.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/([0-9])([A-Za-z])/g, "$1 $2").toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
+function simProgTable(events, got, codes) {
+  const named = Object.keys(names).length > 0;
+  const who = (c) => (named ? shortName(names[c]) || c : c);
+  const sortKey = (c) => (named && names[c] ? lastFirst(names[c]) : c);
+  const rows = [...new Set([...codes, ...Object.keys(got)])].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const all = rows.filter((c) => events.every((e) => got[c] && got[c][e.name])).length;
+  return [
+    el("h3", { style: "margin:0 0 6px", text: "Sim progress · " + all + " of " + rows.length + " finished everything" }),
+    el("table", { class: "t-act t-simprog" },
+      el("tr", {}, el("th", { text: "Student" }), ...events.map((e) => el("th", { text: evLabel(e.name), title: e.says || e.name }))),
+      ...rows.map((c) => el("tr", {}, el("td", { text: who(c) }),
+        ...events.map((e) => el("td", { class: got[c] && got[c][e.name] ? "yes" : "", text: got[c] && got[c][e.name] ? "✓" : "" })))))];
+}
+function renderSimProg(page) {
+  const box = $("lvSimProg");
+  const ids = pageSimIds(page);
+  if (!ids.length) { box.hidden = true; box._key = null; return; }
+  if (!simsCache) { if (!simProgAsked) { simProgAsked = true; loadSims().then(() => renderLive()); } return; }
+  const got = Object.fromEntries(Object.entries(tstate.sev || {}).filter(([, v]) => v[page.id]).map(([c, v]) => [c, v[page.id]]));
+  const events = [];
+  for (const id of ids) { const sm = simsCache.find((x) => x.id === id); for (const e of (sm && sm.events) || []) if (!events.some((x) => x.name === e.name)) events.push(e); }
+  for (const v of Object.values(got)) for (const n of Object.keys(v)) if (!events.some((x) => x.name === n)) events.push({ name: n, says: "" });
+  if (!events.length) { box.hidden = true; return; }
+  const codes = blockStudents().map((x) => x.code);
+  const key = JSON.stringify([page.id, events.map((e) => e.name), got, codes, Object.keys(names).length]);
+  box.hidden = false;
+  if (box._key === key) return;
+  box._key = key;
+  box.replaceChildren(...simProgTable(events, got, codes));
 }
 function renderAct() {
   const box = $("lvAct");
@@ -1852,6 +1888,8 @@ async function showPast(id) {
         p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
         ...p.options.map((o, i) => el("div", { style: "font-size:inherit;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
     }
+    for (const sp of r.sims || []) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" },
+      el("div", { class: "t-hint", text: "Page " + sp.page + (sp.sim ? " · " + sp.sim : "") }), ...simProgTable(sp.events, sp.got || {}, [])));
     const at = actTable(r.act, false);
     if (at) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" }, el("h3", { style: "margin:0 0 6px", text: "Left the window" }), at));
     if ((r.sq || []).length) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" },

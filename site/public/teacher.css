@@ -239,3 +239,11 @@ html.teacher #liveView .t-cols.idle > aside { display: none; }
 .t-livestate.on { color: #ffffff; padding: 4px 14px 4px 10px; border-radius: 999px; background: #c0392b; }
 .t-livestate.on::before { background: #ffffff; animation: t-blink 1.6s ease-in-out infinite; }
 @keyframes t-blink { 50% { opacity: 0.25; } }
+
+/* sim progress table under the page in the Control room, and in Past lessons */
+.t-simprog td.yes { color: #1E5E46; font-weight: 800; text-align: center; }
+.t-simprog td, .t-simprog th { padding: 3px 12px; text-align: left; }
+.t-simprog td.yes { text-align: center; font-size: 16px; }
+.t-simprog th:not(:first-child) { text-align: center; }
+#lvSimProg { margin-top: 10px; flex: 0 0 auto; max-height: 40%; overflow: auto; }
+#liveView #lvPage { min-height: 0; }

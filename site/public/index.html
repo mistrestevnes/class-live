@@ -491,7 +491,10 @@ window.addEventListener("message", (e) => {
   const pg = state.pages[page];
   if (!pg) return;
   if (name === "ready") { for (const k of [...cmdSent]) if (k.startsWith(pg.id + ".")) cmdSent.delete(k); }
-  else (simEvents[pg.id] ||= {})[name.slice(0, 40)] = true;
+  else {
+    (simEvents[pg.id] ||= {})[name.slice(0, 40)] = true;
+    if (!PREVIEW && state.live) link.send({ t: "simEv", pageId: pg.id, name: name.slice(0, 40) }); // for the teacher's progress table
+  }
   renderSp();
 });
 
