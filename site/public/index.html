@@ -672,7 +672,7 @@ document.addEventListener("load", (e) => {
 // ---------- leaving the window: tell the teacher when the student goes to another tab or window, and when they come back
 let actAway = false, actSentAt = 0;
 function actCheck() {
-  if (!state.live || PREVIEW) return;
+  if (!(state.live || state.inClass) || PREVIEW) return;
   // focus inside a sim on this page still counts as here
   const away = document.visibilityState === "hidden" || !document.hasFocus();
   // send on every change, and repeat it every 10 seconds: a lost message, a reload or a dropped connection

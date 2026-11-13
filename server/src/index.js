@@ -628,41 +628,82 @@ export class Classroom extends DurableObject {
     return (this.liveLesson && this.liveLesson.pages) || [];
   }
 
+  // a fresh "live" record: a class (keeping the running one's start time and block), with or without a lesson
+  newLive(pd, lesson, from, keep) {
+    const now = Date.now();
+    return { sessionId: rid(8), classId: keep ? keep.classId || keep.sessionId : rid(8), lessonId: lesson ? lesson.id : "",
+      unlocked: from, from, revealed: {}, startedAt: keep ? keep.startedAt : now, lessonAt: now,
+      periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
+      autoEndAt: keep ? keep.autoEndAt : pd ? autoEndTime(pd.name, now) : null,
+      // this lesson's own copy of the plan: changed freely during class; kept in the lesson only if the teacher says so
+      plan: lesson ? JSON.parse(JSON.stringify(lesson.plan || [])) : [], item: "", planChanged: false };
+  }
+  // the running lesson ends: keep plan changes if asked, record it in Past lessons, clear its votes
+  async finishLesson(keepPlan) {
+    if (!this.live) return;
+    if (keepPlan && this.live.planChanged && this.live.lessonId) {
+      const l = await this.ctx.storage.get("lesson:" + this.live.lessonId);
+      if (l) await this.saveLesson(this.live.lessonId, { ...withPlan(l), plan: this.live.plan, pages: withPlan(l).pages, live: undefined });
+    }
+    await this.archiveClass();
+    await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
+    this.watch = {};
+    this.liveLesson = null;
+    this.votes = {};
+  }
+
   async teacherMessage(msg) {
     switch (msg.t) {
-      case "start": {
-        const lesson = withPlan(await this.ctx.storage.get("lesson:" + msg.lessonId));
-        if (!lesson) return;
-        await this.archiveClass();
-        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
-        this.watch = {};
-        // each block is started on its own: only that block's students move into the lesson
+      // start the class for a block: students in that block are in class (waiting screen) until a lesson starts
+      case "classStart": {
+        await this.finishLesson(false);
         const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
         if (this.roster.periods.length && !pd) return;
-        const from = Math.max(0, Math.min(Math.floor(Number(msg.from)) || 0, lesson.pages.length - 1)); // the page this class starts on
-        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: from, from, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
-          autoEndAt: pd ? autoEndTime(pd.name, Date.now()) : null,
-          // this class's own copy of the plan: changed freely during class; kept in the lesson only if the teacher says so
-          plan: JSON.parse(JSON.stringify(lesson.plan || [])), item: "", planChanged: false };
-        this.liveLesson = lesson;
-        this.votes = {};
-        this.sq = [];
-        this.act = {};
+        this.live = this.newLive(pd, null, 0, null);
+        this.sq = []; this.act = {};
         await this.ctx.storage.put("live", this.live);
         await this.setAlarms();
         break;
       }
-      case "end": {
-        if (this.live && msg.keepPlan && this.live.planChanged) {
-          const l = await this.ctx.storage.get("lesson:" + this.live.lessonId);
-          if (l) await this.saveLesson(this.live.lessonId, { ...withPlan(l), plan: this.live.plan, pages: withPlan(l).pages, live: undefined });
+      // start a lesson: inside the running class if there is one (the class keeps going), else a class starts with it
+      case "start": {
+        const lesson = withPlan(await this.ctx.storage.get("lesson:" + msg.lessonId));
+        if (!lesson) return;
+        const keep = this.live;
+        await this.finishLesson(!!msg.keepPlan);
+        let pd;
+        if (keep) pd = keep.periodId ? { id: keep.periodId, name: keep.periodName } : null;
+        else {
+          // each block is started on its own: only that block's students move into the lesson
+          pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
+          if (this.roster.periods.length && !pd) return;
         }
-        await this.archiveClass();
-        if (this.live) await this.ctx.storage.delete(["votes:" + this.live.sessionId, "watch:" + this.live.sessionId]);
-        this.watch = {};
+        const from = Math.max(0, Math.min(Math.floor(Number(msg.from)) || 0, lesson.pages.length - 1)); // the page this lesson starts on
+        this.live = this.newLive(pd, lesson, from, keep);
+        this.liveLesson = lesson;
+        if (!keep) { this.sq = []; this.act = {}; }
+        await this.ctx.storage.put("live", this.live);
+        // questions from students and who left the window carry on through the class
+        await this.ctx.storage.put("sq:" + this.live.sessionId, this.sq);
+        await this.ctx.storage.put("act:" + this.live.sessionId, this.act);
+        await this.setAlarms();
+        break;
+      }
+      // the lesson ends; the class keeps running and students go back to the waiting screen
+      case "endLesson": {
+        if (!this.live || !this.live.lessonId) return;
+        const keep = this.live;
+        await this.finishLesson(!!msg.keepPlan);
+        this.live = this.newLive(keep.periodId ? { id: keep.periodId, name: keep.periodName } : null, null, 0, keep);
+        await this.ctx.storage.put("live", this.live);
+        await this.ctx.storage.put("sq:" + this.live.sessionId, this.sq);
+        await this.ctx.storage.put("act:" + this.live.sessionId, this.act);
+        await this.setAlarms();
+        break;
+      }
+      case "end": {
+        await this.finishLesson(!!msg.keepPlan);
         this.live = null;
-        this.liveLesson = null;
-        this.votes = {};
         await this.ctx.storage.delete("live");
         await this.setAlarms();
         break;
@@ -1002,7 +1043,7 @@ export class Classroom extends DurableObject {
       polls.push({ page: i + 1, question: poll.question || "", options: poll.options || [], counts, total: Object.keys(v).length });
     });
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
-      startedAt: L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
+      startedAt: L.lessonAt || L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
       act: Object.fromEntries(Object.entries(this.act || {}).map(([c, a]) => [c, { ...a, away: a.away + (a.since ? Date.now() - a.since : 0), since: 0 }])) };
     await this.ctx.storage.put("past:" + rec.id, rec);
     const idx = ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== rec.id);
@@ -1614,7 +1655,7 @@ export class Classroom extends DurableObject {
   }
 
   lessonState(sid, inBlock = true) {
-    if (!this.live || !this.liveLesson || !inBlock) return { live: false };
+    if (!this.live || !this.liveLesson || !inBlock) return { live: false, inClass: !!this.live && inBlock };
     const unlocked = this.live.unlocked;
     // students only get the questions that run on their own; the ones the teacher sends stay private until sent
     const pages = this.pages().slice(0, unlocked + 1).map((pg) => {

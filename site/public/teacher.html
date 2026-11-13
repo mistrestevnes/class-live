@@ -169,6 +169,7 @@
     <span class="aero-chip" id="lvStudents"></span>
     <span class="aero-chip cl-status" id="lvStatus"></span>
     <button class="t-small" id="lvEdit">Edit lesson</button>
+    <button class="t-small" id="lvEndLesson">End lesson</button>
     <button class="t-small" id="lvEnd">End class</button>
   </header>
   <div class="t-tabs" id="lvTabs" role="tablist" hidden>
@@ -469,13 +470,18 @@ async function pickBlock() {
 }
 
 async function startLesson(id, from) {
-  if (tstate && tstate.live) {
-    const who = tstate.live.periodName ? tstate.live.periodName + " is in a class right now. " : "";
-    const same = tstate.live.lessonId === id;
-    const ok = confirm(who + (same
-      ? "Start this lesson fresh for a new class? The running class ends, pages lock again, and the current votes are cleared."
-      : "Start this one instead? The running class ends and its votes are cleared."));
-    if (!ok) return;
+  const L = tstate && tstate.live;
+  if (L) { // a class is running: the lesson starts inside it
+    const title = ed && ed.id === id ? ed.title : "this lesson";
+    const pg = (from || 0) + 1;
+    let keepPlan = false;
+    if (L.lessonId && L.planChanged) { keepPlan = await askKeepPlan("End the current lesson"); if (keepPlan === null) return; }
+    if (!(await askYesNo((L.lessonId ? "End the current lesson and start \"" : "Start \"") + title + "\" on page " + pg + "? Students will see only that page until you unlock the next.", "Start on page " + pg))) return;
+    if (edSaveTimer) saveNow(); await saveChain;
+    lvSession = null; openForBlock = null;
+    await link.send({ t: "start", lessonId: id, from: from || 0, keepPlan });
+    location.hash = "#/";
+    return;
   }
   const pick = openForBlock !== null ? { id: openForBlock } : await pickBlock();
   openForBlock = null;
@@ -500,10 +506,32 @@ function askYesNo(text, yes) {
     document.body.append(ov);
   });
 }
+// ending a lesson (or the class) after the plan was changed: keep the changes?  null = cancelled
+async function askKeepPlan(title) {
+  if (!(tstate && tstate.live && tstate.live.planChanged && tstate.live.lessonId)) return false;
+  const pick = await new Promise((resolve) => {
+    const done = (v) => { ov.remove(); resolve(v); };
+    const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": title },
+      el("section", { class: "aero-panel cl-cover-box t-pick" },
+        el("h2", { text: title + ". You changed the plan during this lesson." }),
+        el("button", { class: "aero-btn-primary", text: "Keep the changes in the lesson's plan", onclick: () => done("keep") }),
+        el("button", { text: "Use them for this class only", onclick: () => done("this") }),
+        el("button", { text: "Cancel", onclick: () => done(null) })));
+    document.body.append(ov);
+  });
+  return pick === null ? null : pick === "keep";
+}
+async function endLesson() {
+  if (!tstate || !tstate.live || !tstate.live.lessonId) return;
+  let keepPlan = false;
+  if (tstate.live.planChanged) { keepPlan = await askKeepPlan("End lesson"); if (keepPlan === null) return; }
+  else if (!(await askYesNo("End the lesson? The class keeps running and students go back to the waiting screen.", "End lesson"))) return;
+  await link.send({ t: "endLesson", keepPlan });
+}
 async function endClass() {
   if (!tstate || !tstate.live) return;
   let keepPlan = false;
-  if (tstate && tstate.live && tstate.live.planChanged) {
+  if (tstate && tstate.live && tstate.live.planChanged && tstate.live.lessonId) {
     const pick = await new Promise((resolve) => {
       const done = (v) => { ov.remove(); resolve(v); };
       const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": "End class" },
@@ -1105,6 +1133,7 @@ function showLive() {
 
 $("lvEdit").onclick = () => { if (tstate && tstate.live) { ed = null; location.hash = "#/edit/" + tstate.live.lessonId; } };
 $("lvEnd").onclick = endClass;
+$("lvEndLesson").onclick = endLesson;
 $("lvUnlock").onclick = () => {
   if (!tstate || !tstate.live) return;
   link.send({ t: "unlock", to: tstate.live.unlocked + 1 });
@@ -1117,20 +1146,25 @@ $("lvRelock").onclick = () => {
 function renderLive() {
   if (!tstate) return;
   const { live, lesson, presence, tallies } = tstate;
-  $("lvPlanBox").hidden = !live;
-  $("lvTabs").hidden = !live;
-  $("lvClassTab").classList.toggle("idle", !live);
-  if (!live && lvTab !== "class") setTab("class");
-  if (!live || !lesson || !lesson.pages.length) {
-    $("lvTitle").textContent = "Control room";
-    $("lvLive").className = "t-livestate"; $("lvLive").textContent = "No class running";
-    $("lvEnd").hidden = $("lvEdit").hidden = true;
+  const inLesson = !!(live && lesson && lesson.pages.length);
+  $("lvPlanBox").hidden = !inLesson;
+  $("lvTabs").hidden = !inLesson;
+  $("lvClassTab").classList.toggle("idle", !inLesson);
+  if (!inLesson && lvTab !== "class") setTab("class");
+  const started = live ? "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+  $("lvEnd").hidden = !live;
+  $("lvEndLesson").hidden = !inLesson;
+  $("lvEdit").hidden = !inLesson;
+  if (!inLesson) {
+    $("lvTitle").textContent = "Control room" + (live && live.periodName ? " · " + live.periodName : "");
+    $("lvLive").className = live ? "t-livestate on" : "t-livestate";
+    $("lvLive").textContent = live ? started + " · no lesson yet" : "No class running";
     $("lvPages").replaceChildren();
     $("lvPollBar").hidden = true;
     notesBox.hidden = true;
     renderStart();
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
-    $("lvStudents").textContent = presence.count + " connected";
+    $("lvStudents").textContent = presence.count + (live ? (presence.count === 1 ? " student" : " students") : " connected");
     askDraft = null; renderAsk();
     return;
   }
@@ -1145,8 +1179,7 @@ function renderLive() {
   $("lvPage")._startKey = null;
   $("lvTitle").textContent = "Control room · " + lesson.title + (live.periodName ? " · " + live.periodName : "");
   $("lvLive").className = "t-livestate on";
-  $("lvEnd").hidden = $("lvEdit").hidden = false;
-  $("lvLive").textContent = "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  $("lvLive").textContent = started;
   renderPlan();
   $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
     (presence.polling ? " (" + presence.polling + " checking every few seconds)" : "") +
@@ -1207,35 +1240,44 @@ async function renderStart(force) {
       renderStart.data = { periods: r.periods || [], lessons: l || [] };
     } catch (e) { box.replaceChildren(el("p", { text: e.message })); return; }
   }
-  if (tstate && tstate.live) return;
+  if (tstate && tstate.live && tstate.lesson) return;
   const { periods, lessons } = renderStart.data;
+  const live = tstate && tstate.live;
+  if (live) {
+    // the class is running with no lesson: pick a lesson, open it, and start it on any page
+    const pd = periods.find((p) => p.id === live.periodId);
+    const lvl = pd ? levelOfBlock(pd.name) : "";
+    const key = JSON.stringify(["in", live.sessionId, lessons.map((l) => [l.id, l.title, l.level])]);
+    if (box._startKey === key) return;
+    box._startKey = key;
+    const mine = lessons.filter((l) => !lvl || l.level === lvl);
+    const other = lessons.filter((l) => lvl && l.level !== lvl);
+    const row = (l) => el("div", { class: "t-lesson" },
+      el("span", { class: "t-ltitle", text: l.title }),
+      el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
+      el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
+      el("button", { class: "aero-btn-primary", text: "Open", title: "Look through the lesson and start it on any page", onclick: () => { openInPreview = true; location.hash = "#/edit/" + l.id; } }));
+    box.replaceChildren(...[
+      el("h2", { style: "margin-top:0", text: "Start a lesson" }),
+      el("p", { class: "t-hint", style: "margin-top:0", text: "Students are on the waiting screen. Open a lesson, go to the page you want, and press Start with this page." }),
+      el("div", { class: "t-lessons" }, ...mine.map(row)),
+      !mine.length ? el("p", { class: "t-hint", text: lvl ? "No " + LEVELS[lvl] + " lessons yet. Set a lesson's level in the lesson editor." : "No lessons yet." }) : null,
+      other.length ? (() => { const d = el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:inherit", text: "Other lessons (" + other.length + ")" }),
+        el("div", { class: "t-lessons" }, ...other.map(row))); d.open = !mine.length; return d; })() : null].filter(Boolean));
+    return;
+  }
+  // no class: pick the block and start the class (students wait on the waiting screen until a lesson starts)
   if (!periods.find((p) => p.id === startBlock)) startBlock = periods.length ? periods[0].id : "";
-  const pd = periods.find((p) => p.id === startBlock);
-  const lvl = pd ? levelOfBlock(pd.name) : "";
-  const key = JSON.stringify([startBlock, lessons.map((l) => [l.id, l.title, l.level])]);
+  const key = JSON.stringify(["out", startBlock, periods.map((p) => p.id + p.name)]);
   if (box._startKey === key) return;
   box._startKey = key;
-  const mine = lessons.filter((l) => !lvl || l.level === lvl);
-  const other = lessons.filter((l) => lvl && l.level !== lvl);
-  const row = (l) => el("div", { class: "t-lesson" },
-    el("span", { class: "t-ltitle", text: l.title }),
-    el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
-    el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
-    el("button", { text: "Open", title: "Look through the lesson and start on any page", onclick: () => { openInPreview = true; openForBlock = pd ? pd.id : null; location.hash = "#/edit/" + l.id; } }),
-    el("button", { class: "aero-btn-primary", text: "Start class", onclick: async () => {
-      try { if (!ed || ed.id !== l.id) ed = await tapi("/api/lessons/" + l.id); } catch {}
-      openForBlock = pd ? pd.id : null; startLesson(l.id, 0);
-    } }));
   box.replaceChildren(...[
     el("h2", { style: "margin-top:0", text: "Start a class" }),
     periods.length ? el("div", { class: "t-row", style: "flex-wrap:wrap;margin-bottom:14px" },
       ...periods.map((p) => el("button", { "aria-pressed": String(p.id === startBlock), class: p.id === startBlock ? "aero-btn-primary" : "",
         text: p.name + (levelOfBlock(p.name) ? " · " + LEVELS[levelOfBlock(p.name)] : ""),
         onclick: () => { startBlock = p.id; store("cl_startBlock", p.id); renderStart(); } }))) : null,
-    el("div", { class: "t-lessons" }, ...mine.map(row)),
-    !mine.length ? el("p", { class: "t-hint", text: lvl ? "No " + LEVELS[lvl] + " lessons yet. Set a lesson's level in the lesson editor." : "No lessons yet." }) : null,
-    other.length ? (() => { const d = el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:inherit", text: "Other lessons (" + other.length + ")" }),
-      el("div", { class: "t-lessons" }, ...other.map(row))); d.open = !mine.length; return d; })() : null].filter(Boolean));
+    el("button", { class: "aero-btn-primary", text: "Start class" + (periods.length ? " for " + (periods.find((p) => p.id === startBlock) || {}).name : ""), onclick: () => link.send({ t: "classStart", periodId: startBlock || null }) })].filter(Boolean));
 }
 
 // ---------- the plan during class: the current item is highlighted; click one to go to it, drag to reorder
