@@ -190,3 +190,6 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-fbbtn { right: auto; left: 24px; }
 .cl-fbbox { right: auto; left: 24px; z-index: 72; }
 .cl-thumb { font-size: 24px; }
+
+/* videos on a lesson page */
+.cl-video video { display: block; width: 100%; max-height: calc(100vh - 220px); background: #000; border-radius: var(--aero-radius-sm); }

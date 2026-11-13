@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=19">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -99,7 +99,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=14"></script>
+<script src="common.js?v=15"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -263,6 +263,7 @@ const clock = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2,
 
 // Sims that know Class Live freeze when they get {classlive:"pause"} and carry on with {classlive:"resume"}.
 function tellSims(cmd) {
+  if (cmd === "pause") for (const v of document.querySelectorAll(".cl-video video")) { try { v.pause(); } catch {} }
   for (const f of document.querySelectorAll(".cl-sim iframe")) { try { f.contentWindow.postMessage({ classlive: cmd }, "*"); } catch {} }
 }
 
@@ -411,6 +412,15 @@ function spStartOf(key) {
 const spAnswers = () => state.spMine || (state.spMine = {});
 const spDone = (q, mine) => q.parts.every((_, i) => (mine[q.id + "." + i] || {}).done);
 const spDoneAt = (q, mine) => Math.max(0, ...q.parts.map((_, i) => (mine[q.id + "." + i] || {}).at || 0));
+
+// a finished video counts as the event "videoEnded" for that page
+document.addEventListener("ended", (e) => {
+  if (!(e.target instanceof HTMLVideoElement) || !e.target.closest(".cl-video") || !state.pages) return;
+  const pg = state.pages[page];
+  if (!pg) return;
+  (simEvents[pg.id] ||= {}).videoEnded = true;
+  renderSp();
+}, true);
 
 window.addEventListener("message", (e) => {
   const d = e.data, name = d && d.classliveEvent;

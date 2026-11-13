@@ -7,5 +7,7 @@
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "Classroom" }]
   },
+  // short videos Joseph uploads on the Videos tab. The bucket must exist: Cloudflare dashboard > R2 > Create bucket "class-live-videos".
+  "r2_buckets": [{ "binding": "VIDEOS", "bucket_name": "class-live-videos" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Classroom"] }]
 }

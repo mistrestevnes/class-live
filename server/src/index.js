@@ -15,13 +15,41 @@ export default {
       const stub = env.ROOM.get(env.ROOM.idFromName("main"));
       return stub.fetch(request);
     }
+    if (p.startsWith("/video/") && ["GET", "HEAD"].includes(request.method)) return serveVideo(request, env, p.slice(7));
     return new Response("Class Live server. Students use classlive.scienceworks.xyz.", { status: 404 });
   },
 };
 
+// A video from the R2 bucket. Range requests are answered so the player can skip around and start quickly.
+async function serveVideo(request, env, rawId) {
+  const id = rawId.replace(/\.[a-z0-9]+$/, "");
+  if (!env.VIDEOS || !/^[a-z0-9]{6,24}$/.test(id)) return new Response("not found", { status: 404 });
+  const range = request.headers.get("range");
+  const obj = request.method === "HEAD" ? await env.VIDEOS.head("v/" + id) : await env.VIDEOS.get("v/" + id, range ? { range: request.headers } : undefined);
+  if (!obj) return new Response("not found", { status: 404 });
+  const size = obj.size;
+  const headers = new Headers({
+    "content-type": (obj.httpMetadata && obj.httpMetadata.contentType) || "video/mp4",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=86400",
+    etag: obj.httpEtag,
+  });
+  const r = obj.range;
+  if (range && r && "offset" in r) {
+    const start = r.offset ?? 0, len = r.length ?? size - start;
+    headers.set("content-range", "bytes " + start + "-" + (start + len - 1) + "/" + size);
+    headers.set("content-length", String(len));
+    return new Response(request.method === "HEAD" ? null : obj.body, { status: 206, headers });
+  }
+  headers.set("content-length", String(size));
+  return new Response(request.method === "HEAD" ? null : obj.body, { headers });
+}
+
 const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this long after each check
 const MAX_IMAGE_BYTES = 1_800_000;
 const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
+const MAX_VIDEO_BYTES = 90_000_000; // one uploaded video (the site passes requests up to 100 MB)
+const VIDEO_TYPES = { "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov" };
 const LATE_MS = 4000;        // a student's last save may arrive this long after the timer hits zero
 const MAX_ANSWER = 3000;     // characters
 const MAX_STUDENT_TOKENS = 600;
@@ -313,6 +341,13 @@ export class Classroom extends DurableObject {
       if (sm && m === "PUT") return this.saveSim(request, sm[1]);
       if (sm && m === "DELETE") return this.deleteSim(sm[1]);
 
+      // short videos kept in the R2 bucket, played from /video/<id>
+      if (p === "/api/videos" && m === "GET") return json({ ready: !!this.env.VIDEOS, videos: (await this.ctx.storage.get("videos")) || [] });
+      if (p === "/api/videos" && m === "POST") return this.saveVideo(request);
+      const vm = p.match(/^\/api\/videos\/([a-z0-9]+)$/);
+      if (vm && m === "PATCH") return this.renameVideo(vm[1], await request.json());
+      if (vm && m === "DELETE") return this.deleteVideo(vm[1]);
+
       // the teacher's private notes, one set for each lesson in each block
       if (p === "/api/past" && m === "GET") return json(await this.pastList());
       const pm = p.match(/^\/api\/past\/([a-z0-9]+)$/i);
@@ -489,6 +524,38 @@ export class Classroom extends DurableObject {
     }
     if (changed) await this.ctx.storage.put("sims", index);
     return index;
+  }
+
+  async saveVideo(request) {
+    if (!this.env.VIDEOS) return json({ error: "The video storage isn't connected yet (the class-live-videos bucket is missing)." }, 503);
+    const type = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!VIDEO_TYPES[type]) return json({ error: "Use an .mp4 file (.webm and .mov also work)." }, 400);
+    const len = Number(request.headers.get("content-length") || 0);
+    if (!len || !request.body) return json({ error: "That upload didn't say how big it is. Try again." }, 411);
+    if (len > MAX_VIDEO_BYTES) return json({ error: "That video is " + Math.round(len / 1e6) + " MB. The limit is " + Math.round(MAX_VIDEO_BYTES / 1e6) + " MB. A short clip squeezed to 720p is usually 10 to 30 MB." }, 413);
+    let name = "";
+    try { name = decodeURIComponent(request.headers.get("x-name") || ""); } catch { name = request.headers.get("x-name") || ""; }
+    name = name.replace(/\.(mp4|webm|mov|m4v)$/i, "").replace(/\s+/g, " ").trim().slice(0, 80) || "Video";
+    const id = rid(12);
+    await this.env.VIDEOS.put("v/" + id, request.body, { httpMetadata: { contentType: type } });
+    const entry = { id, name, size: len, type, updated: Date.now() };
+    await this.ctx.storage.put("videos", [entry, ...((await this.ctx.storage.get("videos")) || [])]);
+    return json(entry);
+  }
+
+  async renameVideo(id, body) {
+    const list = (await this.ctx.storage.get("videos")) || [];
+    const v = list.find((x) => x.id === id);
+    if (!v) return json({ error: "That video isn't there any more." }, 404);
+    v.name = String((body && body.name) || "").replace(/\s+/g, " ").trim().slice(0, 80) || v.name;
+    await this.ctx.storage.put("videos", list);
+    return json(v);
+  }
+
+  async deleteVideo(id) {
+    if (this.env.VIDEOS) await this.env.VIDEOS.delete("v/" + id);
+    await this.ctx.storage.put("videos", ((await this.ctx.storage.get("videos")) || []).filter((x) => x.id !== id));
+    return json({ ok: true });
   }
 
   async deleteSim(id) {

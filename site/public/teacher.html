@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=18">
-<link rel="stylesheet" href="teacher.css?v=1">
+<link rel="stylesheet" href="app.css?v=19">
+<link rel="stylesheet" href="teacher.css?v=2">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -15,6 +15,7 @@
 <nav class="t-nav t-tabs" id="topNav" role="tablist" hidden>
   <button role="tab" id="navLive">Control room</button>
   <button role="tab" id="navLessons">Lessons</button>
+  <button role="tab" id="videosBtn">Videos</button>
   <button role="tab" id="studentsBtn">Students</button>
   <button role="tab" id="pastBtn">Past lessons</button>
   <button role="tab" id="recBtn">Record a replay</button>
@@ -73,6 +74,23 @@
   </div>
 </section>
 <div id="printArea"></div>
+
+<!-- videos: short clips kept on the site, played without ads -->
+<section id="videosView" class="t-wrap" hidden>
+  <header class="cl-top aero-header">
+    <h1 class="cl-title">Videos</h1>
+    <span class="cl-grow"></span>
+    <button class="aero-btn-primary" id="vdUpload">+ Upload a video</button>
+    <input type="file" id="vdFile" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" multiple hidden>
+  </header>
+  <div class="t-home">
+    <div class="aero-panel" id="vdDrop">
+      <p id="vdNote" style="margin:0">Upload a short .mp4 (up to 90 MB). Students watch it on the lesson page with no ads. Add it to a lesson with <strong>+ Video</strong> on a page.</p>
+      <div class="t-hint" id="vdStatus" role="status"></div>
+    </div>
+    <div class="t-lessons" id="vdList"></div>
+  </div>
+</section>
 
 <!-- lessons list -->
 <section id="homeView" class="t-wrap" hidden>
@@ -189,7 +207,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=14"></script>
+<script src="common.js?v=15"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -207,8 +225,8 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
   throw e;
 });
 
-const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", "pastView"];
-const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn" };
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", "pastView", "videosView"];
+const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", videosView: "videosBtn" };
 function show(v) {
   for (const id of VIEWS) $(id).hidden = id !== v;
   $("topNav").hidden = v === "loginView";
@@ -230,6 +248,7 @@ async function route() {
   if (m) return openEditor(m[1]);
   if (h === "#/lessons") return showHome();
   if (h === "#/students") return showStudents();
+  if (h === "#/videos") return showVideos();
   const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
   if (pm) return showPast(pm[1]);
   return showLive(); // the control room is the teacher's home
@@ -289,6 +308,7 @@ async function showLogin(mode) {
 
 // ---------------------------------------------------------------- account
 $("studentsBtn").onclick = () => (location.hash = "#/students");
+$("videosBtn").onclick = () => (location.hash = "#/videos");
 $("signOutBtn").onclick = () => {
   token = null;
   store("cl_token", null);
@@ -685,7 +705,7 @@ function renderEditor() {
   blocks.forEach((b, i) => items.push(blockEditor(page, b, i)));
   items.push(el("div", { class: "aero-bar t-addbar" },
     el("span", { text: "Add:" }),
-    ...[["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["poll", "Poll"], ["sim", "Sim"]].map(([type, label]) =>
+    ...[["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["poll", "Poll"], ["sim", "Sim"], ["video", "Video"]].map(([type, label]) =>
       el("button", { class: "t-small", text: "+ " + label, disabled: type === "poll" && hasPoll,
         title: type === "poll" && hasPoll ? "One poll per page" : "",
         onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
@@ -754,20 +774,24 @@ function partMedia(p, H = EDH) {
 
 // Events a sim can report / commands it accepts, for the pickers in the question editor.
 // Looks at the sims on the question's page first; if the page has none, at every uploaded sim.
-function pageSimIds(page) {
+function pageBlocks(page) {
   const lesson = (ed && ed.pages ? ed : null) || (tstate && tstate.lesson) || { pages: [] };
-  let blocks = page.blocks || [];
-  if (page.pageId) { const pg = lesson.pages.find((x) => x.id === page.pageId); blocks = (pg && pg.blocks) || []; }
+  if (page.pageId) { const pg = lesson.pages.find((x) => x.id === page.pageId); return (pg && pg.blocks) || []; }
+  return page.blocks || [];
+}
+function pageSimIds(page) {
   const ids = [];
-  for (const b of blocks) { const m = b && b.type === "sim" && (b.url || "").match(/^\/sim\/([a-z0-9]+)$/); if (m) ids.push(m[1]); }
+  for (const b of pageBlocks(page)) { const m = b && b.type === "sim" && (b.url || "").match(/^\/sim\/([a-z0-9]+)$/); if (m) ids.push(m[1]); }
   return ids;
 }
 async function simChoices(page, kind) {
   const list = await loadSims();
   const ids = pageSimIds(page);
-  const from = ids.length ? list.filter((x) => ids.includes(x.id)) : list;
+  const hasVideo = pageBlocks(page).some((b) => b && b.type === "video" && b.videoId);
+  const from = ids.length ? list.filter((x) => ids.includes(x.id)) : hasVideo ? [] : list;
   const seen = new Map();
   for (const sim of from) for (const it of sim[kind] || []) if (!seen.has(it.name)) seen.set(it.name, { ...it, sim: sim.name });
+  if (hasVideo && kind === "events" && !seen.has("videoEnded")) seen.set("videoEnded", { name: "videoEnded", says: "the student's video finished playing", sim: "Video" });
   return { items: [...seen.values()], scoped: ids.length > 0 };
 }
 // A menu of what the sim offers, plus "Something else" for a name typed by hand.
@@ -892,10 +916,11 @@ function newBlock(type) {
   if (type === "poll") return { type, question: "", options: ["", ""] };
   if (type === "image") return { type, imageId: "", caption: "", size: "medium" };
   if (type === "sim") return { type, url: "", height: "tall" };
+  if (type === "video") return { type, videoId: "", caption: "" };
   return { type, text: "" };
 }
 
-const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Image", poll: "Poll", sim: "Sim" };
+const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Image", poll: "Poll", sim: "Sim", video: "Video" };
 
 function blockEditor(page, b, i) {
   const blocks = page.blocks;
@@ -945,6 +970,23 @@ function blockEditor(page, b, i) {
       el("input", { type: "text", value: b.caption || "", oninput: set("caption") })));
     box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Size" }),
       sizeSelect(b, "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"]])));
+  } else if (b.type === "video") {
+    const status = el("span", { class: "aero-muted" });
+    const pick = el("select", { "aria-label": "Uploaded video", onchange: (e) => { b.videoId = e.target.value; changed(); renderEditor(); } }, el("option", { value: "", text: "Loading…" }));
+    loadVideos().then((d) => {
+      pick.replaceChildren(el("option", { value: "", text: d.videos.length ? "Choose an uploaded video" : "No videos uploaded yet" }), ...d.videos.map((x) => el("option", { value: x.id, text: x.name })));
+      pick.value = b.videoId || "";
+    });
+    const up = el("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v", hidden: true, onchange: async () => {
+      const f = up.files[0]; if (!f) return;
+      try { const r = await uploadVideo(f, (p) => { status.textContent = "Uploading " + Math.round(p * 100) + "%"; }); videosCache = null; b.videoId = r.id; changed(); renderEditor(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    box.append(el("label", { class: "cl-field" }, el("span", { text: "Uploaded video" }), pick),
+      el("div", { class: "t-row", style: "margin-bottom:10px" }, el("button", { class: "t-small", text: "Upload a video", onclick: () => up.click() }), status, up),
+      b.videoId ? el("video", { src: "/video/" + b.videoId, controls: true, preload: "metadata", playsinline: true, style: "max-width:360px;max-height:220px;background:#000;border-radius:6px;margin-bottom:10px" }) : null,
+      el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Caption (optional)" }), el("input", { type: "text", value: b.caption || "", oninput: set("caption") })),
+      el("p", { class: "t-hint", text: "A question can start when the video ends: choose \u201cvideoEnded\u201d under \u201cWhen the sim reports an event\u201d." }));
   } else if (b.type === "sim") {
     const cur = (b.url || "").match(/^\/sim\/([a-z0-9]+)$/);
     const status = el("span", { class: "aero-muted" });
@@ -1736,6 +1778,59 @@ async function notesShow(lessonId, period) {
     notesState.textContent = "Saved";
   } catch { notesState.textContent = "Couldn't load your notes."; }
 }
+
+// ---------------------------------------------------------------- videos
+let videosCache = null;
+async function loadVideos(force) {
+  if (!videosCache || force) { try { videosCache = await tapi("/api/videos"); } catch { videosCache = { ready: false, videos: [] }; } }
+  return videosCache;
+}
+const mb = (n) => (n / 1e6 >= 10 ? Math.round(n / 1e6) : (n / 1e6).toFixed(1)) + " MB";
+function uploadVideo(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/api/videos");
+    x.setRequestHeader("x-token", token || "");
+    x.setRequestHeader("content-type", file.type || ({ mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime" }[file.name.split(".").pop().toLowerCase()] || ""));
+    x.setRequestHeader("x-name", encodeURIComponent(file.name));
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {} x.status < 300 ? resolve(j) : reject(new Error(j.error || "Upload failed (" + x.status + ").")); };
+    x.onerror = () => reject(new Error("The upload didn't go through. Check the connection and try again."));
+    x.send(file);
+  });
+}
+async function showVideos() {
+  show("videosView");
+  const d = await loadVideos(true);
+  if (!d.ready) $("vdStatus").textContent = "Video storage isn't connected yet, so uploads won't work. (The class-live-videos bucket needs to exist in Cloudflare.)";
+  renderVideos();
+}
+function renderVideos() {
+  const list = (videosCache && videosCache.videos) || [];
+  $("vdList").replaceChildren(...(list.length ? list.map((v) => {
+    const player = el("video", { src: "/video/" + v.id, controls: true, preload: "none", playsinline: true, style: "width:260px;max-height:150px;background:#000;border-radius:6px" });
+    const nameIn = el("input", { type: "text", value: v.name, style: "flex:1;min-width:160px", "aria-label": "Video name",
+      onchange: async (e) => { try { Object.assign(v, await tapi("/api/videos/" + v.id, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: e.target.value }) })); } catch {} nameIn.value = v.name; } });
+    return el("div", { class: "t-lesson" }, player,
+      el("div", { style: "flex:1;min-width:200px;display:grid;gap:6px" }, nameIn, el("span", { class: "aero-muted", text: mb(v.size) + " · " + (v.type || "").replace("video/", "") })),
+      el("button", { class: "t-small", text: "Delete", onclick: async () => {
+        if (!confirm("Delete “" + v.name + "”? Any lesson page that uses it will show nothing there. This can't be undone.")) return;
+        try { await tapi("/api/videos/" + v.id, { method: "DELETE" }); videosCache.videos = videosCache.videos.filter((x) => x.id !== v.id); renderVideos(); } catch (e) { $("vdStatus").textContent = e.message; }
+      } }));
+  }) : [el("p", { class: "aero-muted", text: "No videos yet." })]));
+}
+$("vdUpload").onclick = () => $("vdFile").click();
+$("vdFile").onchange = async () => {
+  const files = [...$("vdFile").files]; $("vdFile").value = "";
+  for (const f of files) {
+    $("vdStatus").textContent = "Uploading " + f.name + " (" + mb(f.size) + ")…";
+    try {
+      await uploadVideo(f, (p) => { $("vdStatus").textContent = "Uploading " + f.name + ": " + Math.round(p * 100) + "%"; });
+      $("vdStatus").textContent = "Uploaded " + f.name + ".";
+      await loadVideos(true); renderVideos();
+    } catch (e) { $("vdStatus").textContent = f.name + ": " + e.message; break; }
+  }
+};
 
 // ---------- uploaded sims
 let simsCache = null;

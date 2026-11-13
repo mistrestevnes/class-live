@@ -249,6 +249,15 @@ function renderPage(page, opts = {}) {
         );
       root.append(sim);
       if (opts.fullscreen) root.append(fullscreenButton(sim));
+    } else if (b.type === "video") {
+      if (!/^[a-z0-9]{6,24}$/.test(b.videoId || "")) {
+        if (opts.preview) root.append(el("p", { class: "aero-muted", text: "(No video chosen yet)" }));
+        continue;
+      }
+      const fig = el("figure", { class: "cl-figure cl-video" },
+        el("video", { src: "/video/" + b.videoId, controls: true, controlsList: "nodownload", disablePictureInPicture: true, playsinline: true, preload: "metadata", "data-video-id": b.videoId }),
+        b.caption ? el("figcaption", {}, inline(b.caption)) : null);
+      root.append(fig);
     } else if (b.type === "poll") {
       root.append(renderPoll(b, opts));
     }
