@@ -477,7 +477,7 @@ async function startLesson(id, from) {
   }
   const pick = await pickBlock();
   if (!pick) return;
-  if (from !== undefined && !confirm("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\" with the class on page " + (from + 1) + "? Students will see only that page until you unlock the next."))  return;
+  if (from !== undefined && !(await askYesNo("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\" with the class on page " + (from + 1) + "? Students will see only that page until you unlock the next.", "Start on page " + (from + 1)))) return;
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
   await link.send({ t: "start", lessonId: id, periodId: pick.id, from: from || 0 });
@@ -485,6 +485,18 @@ async function startLesson(id, from) {
   if (!$("liveView").hidden) renderLive();
 }
 
+// a yes/no box on the page itself (the browser's own confirm pop-up can be switched off, which makes buttons seem dead)
+function askYesNo(text, yes) {
+  return new Promise((resolve) => {
+    const done = (v) => { ov.remove(); resolve(v); };
+    const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": yes },
+      el("section", { class: "aero-panel cl-cover-box t-pick" },
+        el("h2", { text }),
+        el("button", { class: "aero-btn-primary", text: yes, onclick: () => done(true) }),
+        el("button", { text: "Cancel", onclick: () => done(false) })));
+    document.body.append(ov);
+  });
+}
 async function endClass() {
   let keepPlan = false;
   if (tstate && tstate.live && tstate.live.planChanged) {
@@ -500,7 +512,7 @@ async function endClass() {
     });
     if (!pick) return;
     keepPlan = pick === "keep";
-  } else if (!confirm("End class? Students go back to the waiting screen and votes are cleared.")) return;
+  } else if (!(await askYesNo("End class? Students go back to the waiting screen and votes are cleared.", "End class"))) return;
   await link.send({ t: "end", keepPlan });
   location.hash = "#/";
 }
