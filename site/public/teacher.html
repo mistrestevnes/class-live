@@ -378,7 +378,7 @@ async function showHome() {
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
     el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
-    el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; location.hash = "#/edit/" + l.id; } }),
+    el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; openForBlock = null; location.hash = "#/edit/" + l.id; } }),
   )));
 }
 
@@ -475,7 +475,8 @@ async function startLesson(id, from) {
       : "Start this one instead? The running class ends and its votes are cleared."));
     if (!ok) return;
   }
-  const pick = await pickBlock();
+  const pick = openForBlock !== null ? { id: openForBlock } : await pickBlock();
+  openForBlock = null;
   if (!pick) return;
   if (from !== undefined && !(await askYesNo("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\" with the class on page " + (from + 1) + "? Students will see only that page until you unlock the next.", "Start on page " + (from + 1)))) return;
   if (edSaveTimer) saveNow(); await saveChain;
@@ -588,10 +589,10 @@ function pageLabel(p, i) {
   return "Page " + (i + 1);
 }
 
-let openInPreview = false;
+let openInPreview = false, openForBlock = null; // opened from "Start a class": that block was already chosen
 async function openEditor(id) {
   show("editView");
-  if (openInPreview) { openInPreview = false; edPreview = true; }
+  if (openInPreview) { openInPreview = false; edPreview = true; } else openForBlock = null;
   if (!ed || ed.id !== id) {
     try { ed = await tapi("/api/lessons/" + id); } catch (e) { alert(e.message); location.hash = "#/lessons"; return; }
     edPage = 0;
@@ -1212,10 +1213,7 @@ async function renderStart(force) {
     el("span", { class: "t-ltitle", text: l.title }),
     el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
-    el("button", { class: "aero-btn-primary", text: "Start", onclick: async () => {
-      lvSession = null;
-      await link.send({ t: "start", lessonId: l.id, periodId: pd ? pd.id : null });
-    } }));
+    el("button", { class: "aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; openForBlock = pd ? pd.id : null; location.hash = "#/edit/" + l.id; } }));
   box.replaceChildren(...[
     el("h2", { style: "margin-top:0", text: "Start a class" }),
     periods.length ? el("div", { class: "t-row", style: "flex-wrap:wrap;margin-bottom:14px" },
