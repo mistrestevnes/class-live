@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=19">
+<link rel="stylesheet" href="app.css?v=20">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -273,6 +273,13 @@ function simOnPage(url) {
   const pg = state.pages && state.pages[page];
   return !!url && !!pg && (pg.blocks || []).some((b) => b.type === "sim" && b.url === url);
 }
+// what the "back to the page" button calls what's behind the question
+function backLabel(part) {
+  if (animOf(part)) return "Watch the animation";
+  const bl = (state.pages && state.pages[page] && state.pages[page].blocks) || [];
+  const hasVideo = bl.some((b) => b.type === "video"), hasSim = bl.some((b) => b.type === "sim");
+  return hasVideo && !hasSim ? "Go back to the video" : hasVideo ? "Go back to the page" : "Go back to the sim";
+}
 // an animation (not the page's own sim) goes full size behind the question instead of inside it
 const animOf = (a) => (a && a.sim && !simOnPage(a.sim) ? a.sim : "");
 let spAnim = "";
@@ -334,7 +341,7 @@ function applyCover() {
     askId = null; clearInterval(askTimer); askTimer = null; return;
   }
   $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim) || animOf(a));
-  $("askToSim").textContent = animOf(a) ? "Watch the animation" : "Go back to the sim";
+  $("askToSim").textContent = backLabel(a);
   $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
@@ -488,7 +495,7 @@ function renderSp() {
     $("spLabel").textContent = q.parts.length > 1 ? "Question · part " + (idx + 1) + " of " + q.parts.length : "Question";
     $("spPrompt").replaceChildren(formatText(part.prompt));
     setMedia($("spMedia"), part);
-    $("spMin").textContent = animOf(part) ? "Watch the animation" : "Go back to the sim";
+    $("spMin").textContent = backLabel(part);
     $("spText").value = (mine[q.id + "." + idx] || {}).text || "";
   }
   // the clock for this part
