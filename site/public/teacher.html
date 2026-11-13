@@ -1,222 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="teacher">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=18">
-<style>
-  /* teacher-only layout */
-  .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .t-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; gap: 12px; padding: 0 12px 4px; }
-  .t-side, .t-body { min-height: 0; overflow: auto; }
-  .t-side { padding: 14px; }
-  .t-body > .aero-panel + .aero-panel, .t-body > .aero-bar + .aero-panel, .t-body > * + * { margin-top: 12px; }
-  .t-pages { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .t-pages button {
-    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border-radius: var(--aero-radius-sm);
-    padding: 8px 12px; font-weight: 500;
-  }
-  .t-pages button .t-num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--aero-select); color: var(--aero-ink); font-weight: 700; text-shadow: none; }
-  .t-pages button .t-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .t-pages button.locked { color: var(--aero-ink-muted); }
-  .t-pages .t-count { flex: none; font-size: .85rem; padding: 2px 10px; color: var(--aero-ink); text-shadow: none; background: #FFFFFF; }
-  .t-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  /* control room tabs */
-  .t-tabs { display: flex; gap: 6px; padding: 0 16px; }
-  .t-tabs button { min-height: 48px; padding: 0 22px; font-size: 19px; border-radius: 8px 8px 0 0; border: 0; background: #2A4A3C; color: var(--aero-ink-on-dark); display: inline-flex; align-items: center; gap: 10px; }
-  .t-tabs button[aria-selected="true"] { background: var(--aero-surface); color: var(--aero-ink); font-weight: 700; }
-  .t-badge { min-width: 28px; height: 28px; padding: 0 6px; box-sizing: border-box; border-radius: 14px; background: var(--aero-gold-soft); color: var(--aero-ink); font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-  .t-badge.flash { animation: tsqflash 0.6s ease-in-out 4; }
-  .t-resp { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr 340px; gap: 12px; padding: 12px; background: var(--aero-surface); margin: 0 12px 12px; border-radius: 0 10px 10px 10px; }
-  .t-resp > * { min-height: 0; overflow: auto; }
-  .t-resp-side { display: flex; flex-direction: column; gap: 12px; }
-  .t-notes-tab { flex: 1; min-height: 0; padding: 16px; background: var(--aero-surface); margin: 0 12px 12px; border-radius: 0 10px 10px 10px; overflow: auto; }
-  .t-notes-tab textarea { min-height: 55vh; }
-  .t-timeup { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--aero-gold-soft); color: var(--aero-ink); font-size: 19px; font-weight: 600; }
-  .t-fb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
-  .t-fb textarea { flex: 1; min-width: 240px; }
-  .t-fb .t-fbsent { flex-basis: 100%; padding-left: 10px; border-left: 4px solid var(--aero-emerald); }
-  /* the bar along the top of every teacher page */
-  .t-nav { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; border-radius: 0; }
-  .t-nav button { min-height: 44px; }
-  .t-nav button[aria-current="page"] { background: var(--aero-emerald); color: #FFFFFF; border-color: var(--aero-emerald); }
-  /* plan lists: drag to reorder */
-  .t-plan li { display: flex; gap: 6px; align-items: stretch; }
-  .t-plan li > button:first-child { flex: 1; min-width: 0; }
-  .t-plan .t-label { white-space: normal !important; }
-  .t-plan .t-sub { display: block; font-size: 16px; color: var(--aero-ink-muted); font-weight: 400; }
-  .t-plan .t-num { cursor: grab; }
-  .t-plan button[aria-pressed="true"] .t-sub { color: inherit; opacity: .9; }
-  .t-qs button[aria-pressed="true"] .t-q-when { color: inherit; opacity: .9; }
-  .t-plan li.dragging { opacity: .4; }
-  .t-plan li.dropover { outline: 3px solid var(--aero-gold, #E0B252); border-radius: var(--aero-radius-sm); }
-  .t-plan .t-edit { flex: none; width: auto !important; padding: 4px 12px; }
-  .t-itembox { width: min(980px, 100%); }
-  .t-row.end { justify-content: flex-end; }
-  .t-small { min-height: 40px; padding: 4px 14px; font-size: .95rem; }
-  .t-block { padding: 14px 18px; }
-  .t-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .t-block-head h3 { margin: 0; flex: 1; }
-  .t-hint { color: var(--aero-ink-muted); font-size: .9rem; margin: 6px 0 0; }
-  .t-opt { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-  .t-opt input { flex: 1; }
-  .t-thumb { max-width: 260px; max-height: 160px; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); display: block; margin-bottom: 10px; }
-  .t-lessons { display: grid; gap: 10px; }
-  .t-lesson { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); background: #FFFFFF; }
-  .t-lesson .t-ltitle { flex: 1; min-width: 200px; font-weight: 600; font-size: 1.1rem; }
-  .t-home { max-width: 1000px; margin: 0 auto; width: 100%; padding: 0 12px; overflow: auto; }
-  .t-home > * + * { margin-top: 12px; }
-  .t-title-input { flex: 1; min-width: 200px; font-size: 1.2rem !important; }
-  #liveView .t-cols.with-who { grid-template-columns: 280px 1fr 300px; }
-  .t-who { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-  .t-who li { padding: 8px 10px; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); background: #FFFFFF; color: var(--aero-ink); }
-  .t-who li.away { background: #F8EDCB; border-color: var(--aero-gold); }
-  .t-who li.gone { color: var(--aero-ink-muted); }
-  .t-who .t-who-name { font-weight: 700; font-size: 18px; }
-  .t-who .t-who-now { font-size: 18px; }
-  .t-who .t-who-sum { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-ink-muted); }
-  .t-who-count { font-size: 18px; font-weight: 700; color: var(--aero-ink); }
-  .t-roll { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 14px; }
-  .t-roll li { display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--aero-ink); padding: 4px 0; }
-  .t-roll li::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--aero-line); }
-  .t-roll li.on::before { background: var(--aero-jade); border-color: var(--aero-jade); }
-  .t-roll li:not(.on) { color: var(--aero-ink-muted); }
-  .t-roll li.grp { grid-column: 1 / -1; font-family: Helvetica, Arial, sans-serif; font-weight: 700; padding-top: 10px; }
-  .t-roll li.grp::before { display: none; }
-  .t-pick { display: grid; gap: 12px; max-width: 560px; }
-  .t-pick h2 { margin: 0 0 4px; }
-  .t-pick button { min-height: 60px; font-size: 1.2rem; }
-  .t-part { margin-bottom: 12px; }
-  .t-prep { padding: 14px 18px; }
-  .t-prep .t-prepq { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--aero-line); }
-  .t-prep .t-prepq:first-of-type { border-top: 0; }
-  .t-pq { border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 12px 14px; margin-bottom: 12px; background: #FFFFFF; color: var(--aero-ink); }
-  .t-pq .t-block-head { margin-bottom: 8px; }
-  .t-media { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .t-media select { font-size: 18px; max-width: 260px; }
-  .t-notesbox { margin-top: 18px; }
-  .t-notesbox h3 { margin: 0 0 6px; }
-  .t-notesbox select { width: 100%; font-size: 18px; margin-bottom: 6px; }
-  .t-notesbox textarea { width: 100%; font-size: 18px; min-height: 180px; resize: vertical; }
-  .t-ask { padding: 16px 20px; }
-  .t-ask h3 { margin: 0 0 8px; }
-  .t-ask textarea { width: 100%; font-size: 20px; }
-  .t-ask .t-ask-prompt { font-size: 22px; margin-bottom: 10px; }
-  .t-ask .t-ask-time { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .t-ask .t-row { margin-top: 10px; }
-  .t-ask input[type=number] { width: 90px; font-size: 20px; }
-  .t-answers { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
-  .t-answers li { background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 10px 14px; color: var(--aero-ink); font-size: 19px; white-space: pre-wrap; }
-  .t-answers .t-who-name { font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-ink-muted); display: block; margin-bottom: 4px; white-space: normal; }
-  #lvPause[aria-pressed="true"] { background: var(--aero-gold); color: var(--aero-ink); text-shadow: none; }
-  .t-qs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
-  .t-qs button { width: 100%; text-align: left; font-size: 18px; padding: 8px 10px; display: block; white-space: normal; }
-  .t-qs button[aria-pressed="true"] { outline: 3px solid var(--aero-jade); }
-  .t-qs .t-q-when { display: block; font-family: Helvetica, Arial, sans-serif; font-size: 18px; color: var(--aero-ink-muted); }
-  .t-answers li { display: flex; gap: 12px; align-items: flex-start; }
-  .t-answers .t-ans-text { flex: 1; }
-  .t-answers li.done { border-left: 6px solid var(--aero-jade); }
-  .t-answers .t-done { color: var(--aero-jade); font-weight: 700; }
-  .t-answers .t-writing { color: var(--aero-ink-muted); }
-  .t-answers li.shown { border-color: var(--aero-jade); box-shadow: 0 0 0 2px var(--aero-jade); }
-  .t-answers button { flex: none; min-width: 84px; }
-  .t-unlock { min-height: 64px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
-  .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .t-login { max-width: 520px; margin: 10vh auto 0; }
-  .t-login form { display: grid; gap: 12px; }
-  .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin: 16px 0; }
-  .st-grid textarea { width: 100%; min-height: 300px; font-size: 18px; }
-  .st-grid input[type=text] { width: 100%; font-size: 20px; }
-  .st-card { display: grid; gap: 10px; }
-  .st-msg { font-weight: 600; min-height: 1.4em; margin: 10px 0 0; }
-  #printArea { display: none; }
-  @media print {
-    body > *:not(#printArea) { display: none !important; }
-    #printArea { display: block; }
-    body { background: #fff !important; }
-    .slip { page-break-after: always; break-after: page; padding-top: 1in; text-align: center;
-            color: #000; font-family: Helvetica, Arial, sans-serif; }
-    .slip:last-child { page-break-after: auto; break-after: auto; }
-    .slip .who { font-size: 20pt; font-weight: 700; margin-bottom: 0.25in; }
-    .slip .lab { font-size: 18pt; }
-    .slip .code { font-size: 26pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.05in 0 0.25in; }
-    .slip .how { font-size: 13pt; }
-    .slip .cls { font-size: 11pt; margin-top: 0.2in; color: #444; }
-  }
-  @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
-  /* ---- Control room: compact, so more fits on the laptop screen (Joseph's own screen; student pages stay large) ---- */
-  #topNav { padding: 4px 10px; gap: 6px; font-size: 15px; }
-  #topNav button { min-height: 32px; padding: 2px 12px; font-size: 15px; }
-  #topNav .aero-chip { font-size: 14px; }
-  #liveView { font-size: 15px; }
-  #liveView .cl-top { padding: 8px 14px 6px; gap: 8px; }
-  #liveView .cl-top .cl-title { font-size: 18px; }
-  #liveView .cl-top .aero-chip { font-size: 14px; }
-  #liveView button { font-size: 15px; }
-  #liveView .t-small { min-height: 30px; padding: 2px 10px; font-size: 14px; }
-  #liveView .t-tabs { padding: 0 12px; gap: 4px; }
-  #liveView .t-tabs button { min-height: 34px; padding: 0 16px; font-size: 15px; }
-  #liveView .t-badge { min-width: 22px; height: 22px; font-size: 13px; }
-  #liveView .t-cols { grid-template-columns: 240px 1fr; gap: 8px; padding: 0 8px 2px; }
-  #liveView .t-side { padding: 10px; }
-  #liveView .t-side h3 { font-size: 15px; margin: 0 0 6px; }
-  #liveView .t-pages { gap: 4px; margin-bottom: 8px; }
-  #liveView .t-pages button { padding: 4px 8px; min-height: 32px; font-size: 14px; }
-  #liveView .t-plan .t-sub { font-size: 13px; }
-  #liveView .t-pages button .t-num { width: 22px; height: 22px; font-size: 13px; }
-  #liveView .t-pages .t-count { font-size: 12px; padding: 1px 6px; }
-  #liveView .t-body { display: flex; flex-direction: column; gap: 8px; }
-  #liveView .t-body > * { margin: 0; }
-  #liveView .t-prep, #liveView .t-ask, #liveView .t-sq { padding: 10px 14px; }
-  #liveView .t-prep h3, #liveView .t-ask h3, #liveView .t-sq h3 { font-size: 15px; }
-  #liveView .t-prep .t-prepq { padding: 5px 0; gap: 8px; }
-  #liveView .t-prep [style*="font-size:19px"], #liveView .t-prep [style*="font-size:18px"] { font-size: 15px !important; }
-  #liveView .t-ask .t-ask-prompt { font-size: 17px; margin-bottom: 6px; }
-  #liveView .t-ask .t-ask-time { font-size: 24px; }
-  #liveView .t-ask textarea, #liveView .t-ask input[type=number] { font-size: 15px; }
-  #liveView .t-who-count { font-size: 14px; }
-  #liveView .t-timeup { padding: 6px 12px; font-size: 15px; }
-  #liveView .t-answers { gap: 5px; }
-  #liveView .t-answers li { padding: 6px 10px; font-size: 15px; }
-  #liveView .t-answers .t-who-name { font-size: 13px; margin-bottom: 2px; }
-  #liveView .t-qs button { font-size: 14px; padding: 5px 8px; }
-  #liveView .t-qs .t-q-when { font-size: 12px; }
-  #liveView .t-sqitem { font-size: 15px; padding: 5px 0; }
-  #liveView .t-act { font-size: 14px; }
-  #liveView .t-act th, #liveView .t-act td { padding: 2px 6px; }
-  #liveView .t-resp { grid-template-columns: 240px 1fr 300px; gap: 8px; padding: 8px; margin: 0 8px 8px; }
-  #liveView .t-notes-tab { padding: 10px; margin: 0 8px 8px; }
-  #liveView .t-notesbox textarea, #liveView .t-notesbox select { font-size: 15px; }
-  #liveView .t-hint { font-size: 13px; }
-  #liveView #lvPage { padding: 10px 14px; font-size: 15px; }
-  #liveView #lvPage h1 { font-size: 22px; }
-  #liveView #lvPage h2 { font-size: 18px; }
-  #liveView .t-lesson { padding: 6px 10px; }
-  #liveView .t-lesson .t-ltitle { font-size: 15px; }
-  #liveView .cl-bottom { margin: 6px 8px 10px; padding: 6px 10px; }
-  #liveView .cl-bottom button { min-height: 36px; padding: 4px 16px; font-size: 15px; }
-  #liveView .t-unlock { min-height: 40px !important; font-size: 16px !important; padding: 4px 22px !important; }
-  #liveView .t-fb textarea { min-width: 180px; font-size: 14px; }
-  #liveView .t-fb button { min-height: 30px; padding: 2px 10px; }
-  .t-itembox { font-size: 15px; }
-</style>
+<link rel="stylesheet" href="teacher.css?v=1">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
 
 <!-- sign in -->
 <!-- the bar along the top of every teacher page -->
-<nav class="t-nav aero-bar" id="topNav" hidden>
-  <button id="navLive">Control room</button>
-  <button id="navLessons">Lessons</button>
-  <button id="studentsBtn">Students</button>
-  <button id="pastBtn">Past lessons</button>
-  <button id="recBtn">Record a replay</button>
-  <span class="cl-grow"></span>
-  <span class="aero-chip" id="studentUrl"></span>
-  <button class="t-small" id="accountBtn">Username &amp; passcode</button>
-  <button class="t-small" id="signOutBtn">Sign out</button>
+<nav class="t-nav t-tabs" id="topNav" role="tablist" hidden>
+  <button role="tab" id="navLive">Control room</button>
+  <button role="tab" id="navLessons">Lessons</button>
+  <button role="tab" id="studentsBtn">Students</button>
+  <button role="tab" id="pastBtn">Past lessons</button>
+  <button role="tab" id="recBtn">Record a replay</button>
 </nav>
 
 <section id="loginView" hidden>
@@ -231,22 +32,6 @@
       <span class="aero-chip aero-chip-warn cl-error" id="loginErr"></span>
       <button class="aero-btn-primary" id="loginBtn">Sign in</button>
       <button type="button" id="loginSwitch"></button>
-    </form>
-  </div>
-</section>
-
-<!-- change username / passcode -->
-<section id="accountView" hidden>
-  <div class="aero-panel t-login">
-    <h1>Username and passcode</h1>
-    <form id="acctForm">
-      <label class="cl-field"><span>Current passcode</span><input type="password" id="acctCur" autocomplete="current-password"></label>
-      <label class="cl-field"><span>Username</span><input type="text" id="acctUser" name="username" autocomplete="username" autocapitalize="off"></label>
-      <label class="cl-field"><span>New passcode (leave blank to keep the current one)</span><input type="password" id="acctPass" name="password" autocomplete="new-password"></label>
-      <label class="cl-field"><span>Type the new passcode again</span><input type="password" id="acctPass2" autocomplete="new-password"></label>
-      <span class="aero-chip aero-chip-warn cl-error" id="acctErr"></span>
-      <button class="aero-btn-primary" id="acctSave">Save</button>
-      <button type="button" id="acctCancel">Back to lessons</button>
     </form>
   </div>
 </section>
@@ -271,7 +56,7 @@
   </header>
   <div class="t-home">
     <div class="aero-panel" id="homeWho" hidden>
-      <div class="t-row"><h2 style="margin:0;flex:1">Signed in now</h2><span id="homeWhoNote" class="t-who-count"></span></div>
+      <div class="t-row"><h2 style="margin:0;flex:1">Class roll</h2><span id="homeWhoNote" class="t-who-count"></span></div>
       <ul class="t-roll" id="homeWhoList"></ul>
     </div>
     <div class="aero-panel">
@@ -294,6 +79,7 @@
   <header class="cl-top aero-header">
     <h1 class="cl-title">Lessons</h1>
     <span class="cl-grow"></span>
+    <button class="t-small" id="signOutBtn">Sign out</button>
   </header>
   <div class="t-home">
     <div class="aero-panel" id="liveCard" hidden></div>
@@ -384,7 +170,6 @@
         <h3 style="margin-top:18px">Pages</h3>
       </div>
       <ul class="t-pages" id="lvPages"></ul>
-      <p class="t-hint" id="lvUrlHint"></p>
     </aside>
     <div class="t-body">
       <div class="t-timeup" id="lvTimeUp" hidden></div>
@@ -393,11 +178,6 @@
       <div class="aero-bar" id="lvPollBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
     </div>
-    <aside class="aero-panel t-side" id="lvWho" hidden>
-      <h3>Students</h3>
-      <p class="t-hint" id="lvWhoNote"></p>
-      <ul class="t-who" id="lvWhoList"></ul>
-    </aside>
   </div>
   <footer class="cl-bottom aero-bar" id="lvFoot">
     <button id="lvRelock" class="t-small">Re-lock last page</button>
@@ -427,12 +207,12 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
   throw e;
 });
 
-const VIEWS = ["loginView", "homeView", "editView", "liveView", "accountView", "studentsView", "pastView"];
-const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", accountView: "accountBtn" };
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", "pastView"];
+const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn" };
 function show(v) {
   for (const id of VIEWS) $(id).hidden = id !== v;
   $("topNav").hidden = v === "loginView";
-  for (const b of $("topNav").querySelectorAll("button")) b.setAttribute("aria-current", NAV[v] === b.id ? "page" : "false");
+  for (const b of $("topNav").querySelectorAll("button")) b.setAttribute("aria-selected", NAV[v] === b.id ? "true" : "false");
 }
 $("navLive").onclick = () => (location.hash = "#/");
 $("navLessons").onclick = () => (location.hash = "#/lessons");
@@ -440,7 +220,6 @@ $("navLessons").onclick = () => (location.hash = "#/lessons");
 $("recBtn").onclick = () => { location.href = "/recorder"; };
 $("pastBtn").onclick = () => (location.hash = "#/past");
 $("paBack").onclick = () => (location.hash = "#/past");
-$("studentUrl").textContent = "Students go to: " + location.host;
 
 // ---------------------------------------------------------------- routing
 async function route() {
@@ -450,7 +229,6 @@ async function route() {
   const m = h.match(/^#\/edit\/([a-z0-9]+)/);
   if (m) return openEditor(m[1]);
   if (h === "#/lessons") return showHome();
-  if (h === "#/account") return showAccount();
   if (h === "#/students") return showStudents();
   const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
   if (pm) return showPast(pm[1]);
@@ -510,40 +288,11 @@ async function showLogin(mode) {
 }
 
 // ---------------------------------------------------------------- account
-$("accountBtn").onclick = () => (location.hash = "#/account");
 $("studentsBtn").onclick = () => (location.hash = "#/students");
-$("acctCancel").onclick = () => (location.hash = "#/");
 $("signOutBtn").onclick = () => {
   token = null;
   store("cl_token", null);
   location.reload();
-};
-
-async function showAccount() {
-  show("accountView");
-  $("acctErr").textContent = "";
-  $("acctCur").value = $("acctPass").value = $("acctPass2").value = "";
-  try { $("acctUser").value = (await tapi("/api/account")).username; } catch {}
-  $("acctCur").focus();
-}
-
-$("acctForm").onsubmit = async (e) => {
-  e.preventDefault();
-  $("acctErr").textContent = "";
-  if ($("acctPass").value !== $("acctPass2").value) { $("acctErr").textContent = "The two new passcodes don't match."; return; }
-  $("acctSave").disabled = true;
-  try {
-    await tapi("/api/account", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ currentPasscode: $("acctCur").value, username: $("acctUser").value.trim(), passcode: $("acctPass").value }),
-    });
-    alert("Saved. Use the new username and passcode next time you sign in.");
-    location.hash = "#/";
-  } catch (err) {
-    $("acctErr").textContent = err.message;
-  } finally {
-    $("acctSave").disabled = false;
-  }
 };
 
 // ---------------------------------------------------------------- live connection
@@ -597,14 +346,18 @@ async function showHome() {
   )));
 }
 
-// Before class: everyone on the class list, and whether they're signed in with the page open.
+// While a class is running: everyone on the class list, by last name, and whether they're signed in.
 // Only on a computer with the name file, so the iPad never shows it.
+function lastFirst(full) {
+  const p = String(full || "").trim().split(/\s+/);
+  return p.length > 1 ? p[p.length - 1] + ", " + p.slice(0, -1).join(" ") : p[0] || "";
+}
 function renderHomeWho() {
-  const has = tstate && Object.keys(names).length;
+  const has = tstate && tstate.live && Object.keys(names).length;
   $("homeWho").hidden = !has;
   if (!has) return;
-  const rows = (tstate.students || []).filter((x) => x.cls).map((x) => ({ ...x, name: shortName(names[x.code]) || x.code }));
-  rows.sort((a, b) => a.cls.localeCompare(b.cls) || a.name.localeCompare(b.name));
+  const rows = (tstate.students || []).filter((x) => x.cls).map((x) => ({ ...x, name: lastFirst(names[x.code]) || x.code }));
+  rows.sort((a, b) => a.cls.localeCompare(b.cls) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   const n = rows.filter((x) => x.connected).length;
   $("homeWhoNote").textContent = n + " of " + rows.length + " signed in";
   const blocks = new Set(rows.map((x) => x.cls));
@@ -616,7 +369,7 @@ function renderHomeWho() {
       out.push(el("li", { class: "grp", text: x.cls + " · " + inB.filter((y) => y.connected).length + " of " + inB.length + " signed in" }));
       last = x.cls;
     }
-    out.push(el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name }));
+    out.push(el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name + (x.connected ? "" : " · not signed in") }));
   }
   $("homeWhoList").replaceChildren(...out);
 }
@@ -1180,7 +933,6 @@ function showLive() {
   show("liveView");
   renderStart.data = null; $("lvPage")._startKey = null;
   $("lvNotesSlot").append(notesBox);
-  $("lvUrlHint").textContent = "Students go to: " + location.host;
   renderLive();
 }
 
@@ -1200,6 +952,7 @@ function renderLive() {
   const { live, lesson, presence, tallies } = tstate;
   $("lvPlanBox").hidden = !live;
   $("lvTabs").hidden = !live;
+  $("lvClassTab").classList.toggle("idle", !live);
   if (!live && lvTab !== "class") setTab("class");
   if (!live || !lesson || !lesson.pages.length) {
     $("lvTitle").textContent = "Control room";
@@ -1209,7 +962,6 @@ function renderLive() {
     renderStart();
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
     $("lvStudents").textContent = presence.count + " connected";
-    renderWho();
     askDraft = null; renderAsk();
     return;
   }
@@ -1266,7 +1018,6 @@ function renderLive() {
   $("lvUnlockNote").textContent = more ? "Next: " + pageLabel(lesson.pages[next], next) : "";
   $("lvRelock").disabled = live.unlocked === 0;
   $("lvRelock").textContent = "Re-lock page " + (live.unlocked + 1);
-  renderWho();
   renderAsk();
   $("lvPause").setAttribute("aria-pressed", live.paused ? "true" : "false");
   $("lvPause").textContent = live.paused ? "Resume students" : "Pause students";
@@ -1310,7 +1061,7 @@ async function renderStart(force) {
         onclick: () => { startBlock = p.id; store("cl_startBlock", p.id); renderStart(); } }))) : null,
     el("div", { class: "t-lessons" }, ...mine.map(row)),
     !mine.length ? el("p", { class: "t-hint", text: lvl ? "No " + LEVELS[lvl] + " lessons yet. Set a lesson's level in the lesson editor." : "No lessons yet." }) : null,
-    other.length ? el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:19px", text: "Other lessons (" + other.length + ")" }),
+    other.length ? el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:inherit", text: "Other lessons (" + other.length + ")" }),
       el("div", { class: "t-lessons" }, ...other.map(row))) : null].filter(Boolean));
 }
 
@@ -1431,7 +1182,7 @@ function renderPrep() {
       if (q.mode === "student") {
         const sc = (tstate && tstate.spCounts) || {};
         return el("div", { class: "t-prepq", style: "flex-direction:column;align-items:stretch" },
-          ...q.parts.map((p, i) => el("div", { style: "font-size:19px;white-space:pre-wrap" }, q.parts.length > 1 ? el("strong", { text: "Part " + (i + 1) + ": " }) : null, formatText(p.prompt || ""))),
+          ...q.parts.map((p, i) => el("div", { style: "font-size:inherit;white-space:pre-wrap" }, q.parts.length > 1 ? el("strong", { text: "Part " + (i + 1) + ": " }) : null, formatText(p.prompt || ""))),
           el("div", { class: "t-row", style: "gap:8px" },
             el("span", { class: "t-hint", style: "flex:1", text: "Starts on its own · each student's clock" +
               ((((tstate && tstate.live && tstate.live.spExtra) || {})[q.id] || 0) ? " · " + (((tstate.live.spExtra[q.id]) > 0 ? "+" : "") + Math.round(tstate.live.spExtra[q.id] / 60 * 10) / 10) + " min changed" : "") }),
@@ -1441,12 +1192,12 @@ function renderPrep() {
           ...q.parts.map((p, i) => {
             const c = sc[q.id + "." + i];
             return el("div", { class: "t-row", style: "gap:10px" },
-              el("span", { style: "flex:1;font-size:18px", text: (q.parts.length > 1 ? "Part " + (i + 1) + ": " : "") + (c ? c.done + " submitted, " + (c.n - c.done) + " still writing" : "not started") }),
+              el("span", { style: "flex:1;font-size:inherit", text: (q.parts.length > 1 ? "Part " + (i + 1) + ": " : "") + (c ? c.done + " submitted, " + (c.n - c.done) + " still writing" : "not started") }),
               c ? el("button", { class: "t-small", text: "Answers", onclick: () => openSaved(c.qid) }) : null);
           }));
       }
       return el("div", { class: "t-prepq" },
-        el("div", { style: "flex:1;font-size:19px" },
+        el("div", { style: "flex:1;font-size:inherit" },
           ...q.parts.map((p, i) => el("div", { style: "white-space:pre-wrap" }, i === 0 && at ? "✓ " : "", q.parts.length > 1 ? el("strong", { text: "Part " + (i + 1) + ": " }) : null, formatText(p.prompt || "(empty question)"))),
           at ? el("div", { class: "t-hint", text: "Asked at " + new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null),
         el("button", { class: "t-small", text: "Edit first", disabled: busy, onclick: () => sendPrepared(q, true) }),
@@ -1786,7 +1537,7 @@ async function showPast(id) {
       B.replaceChildren(...[...days].map(([d, xs]) => el("div", { class: "aero-panel", style: "margin-bottom:12px" },
         el("h2", { style: "margin:0 0 8px", text: d }),
         ...xs.map((x) => el("div", { class: "t-row", style: "padding:6px 0;border-top:1px solid var(--aero-line)" },
-          el("span", { style: "flex:1;font-size:19px" }, el("strong", { text: x.title || "Lesson" }), " · " + (x.block || "No block") + " · " +
+          el("span", { style: "flex:1;font-size:inherit" }, el("strong", { text: x.title || "Lesson" }), " · " + (x.block || "No block") + " · " +
             new Date(x.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "–" + new Date(x.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })),
           el("button", { class: "aero-btn-primary", text: "Open", onclick: () => (location.hash = "#/past/" + x.id) }))))));
       return;
@@ -1801,7 +1552,7 @@ async function showPast(id) {
         (named ? "" : " · open your name file on the Students screen to see names") }))];
     if ((r.plan || []).length) parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
       el("h3", { style: "margin:0 0 6px", text: "Plan this class used" }),
-      el("ol", { style: "margin:0;font-size:19px" }, ...r.plan.map((x) => el("li", { text: (x.title || "Untitled item") + (x.questions ? " · " + x.questions + (x.questions === 1 ? " question" : " questions") : "") })))));
+      el("ol", { style: "margin:0;font-size:inherit" }, ...r.plan.map((x) => el("li", { text: (x.title || "Untitled item") + (x.questions ? " · " + x.questions + (x.questions === 1 ? " question" : " questions") : "") })))));
     for (const q of r.questions) {
       const ans = Object.entries(q.answers || {}).filter(([, v]) => (v.text || "").trim());
       const nDone = ans.filter(([, v]) => v.done).length;
@@ -1822,7 +1573,7 @@ async function showPast(id) {
       parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
         el("h3", { style: "margin:0 0 6px", text: "Poll on page " + p.page + " · " + p.total + " votes" }),
         p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
-        ...p.options.map((o, i) => el("div", { style: "font-size:19px;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
+        ...p.options.map((o, i) => el("div", { style: "font-size:inherit;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
     }
     const at = actTable(r.act, false);
     if (at) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" }, el("h3", { style: "margin:0 0 6px", text: "Left the window" }), at));
@@ -1852,7 +1603,6 @@ function downloadAnswers(q, answers) {
   el("a", { href: u, download: "answers-" + new Date(q.startedAt).toISOString().slice(0, 10) + ".csv" }).click();
   setTimeout(() => URL.revokeObjectURL(u), 5000);
 }
-setInterval(() => { if (!$("liveView").hidden && tstate && tstate.live && tstate.live.ask) renderAsk(); }, 500);
 
 // ---------- my notes: private, always showing beside the pages. One set for each lesson in each block;
 // never sent to students or the TV. The same box moves between the lesson editor and the class view.
@@ -1926,24 +1676,6 @@ function blockStudents() {
   const all = (tstate && tstate.students) || [];
   return L && L.periodName ? all.filter((x) => x.cls === L.periodName) : all;
 }
-function renderWho() {
-  const show = !!(tstate && tstate.live && Object.keys(names).length);
-  $("lvWho").hidden = !show;
-  document.querySelector("#liveView .t-cols").classList.toggle("with-who", show);
-  if (!show) return;
-  const since = Date.now() - tstateAt;
-  const rows = blockStudents().map((x) => ({ ...x, ms: x.ms + (x.away ? since : 0), name: shortName(names[x.code]) || x.code }));
-  rows.sort((a, b) => (b.away - a.away) || (a.connected - b.connected) || (b.ms - a.ms) || a.name.localeCompare(b.name));
-  const nAway = rows.filter((x) => x.away).length;
-  const nOn = rows.filter((x) => x.connected).length;
-  $("lvWhoNote").textContent = nOn + " of " + rows.length + " signed in" + (nAway ? " · " + nAway + " away now" : "");
-  $("lvWhoList").replaceChildren(...rows.map((x) => el("li", { class: x.away ? "away" : x.connected ? "" : "gone" },
-    el("div", { class: "t-who-name", text: x.name }),
-    el("div", { class: "t-who-now", text: x.away ? "Away now" : x.connected ? "Here · page " + (x.page + 1) : "Not signed in" }),
-    x.count ? el("div", { class: "t-who-sum", text: "Left " + x.count + (x.count === 1 ? " time" : " times") + " · " + mmss(x.ms) + " away" }) : null)));
-}
-setInterval(() => { if (!$("liveView").hidden && tstate && (tstate.students || []).some((x) => x.away)) renderWho(); }, 1000);
-
 route();
 // ---------------------------------------------------------------- students
 // The server holds login codes only. Names come from a file on this computer

@@ -1,0 +1,227 @@
+  /* teacher-only layout */
+  .t-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .t-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px 1fr; gap: 12px; padding: 0 12px 4px; }
+  .t-side, .t-body { min-height: 0; overflow: auto; }
+  .t-side { padding: 14px; }
+  .t-body > .aero-panel + .aero-panel, .t-body > .aero-bar + .aero-panel, .t-body > * + * { margin-top: 12px; }
+  .t-pages { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .t-pages button {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border-radius: var(--aero-radius-sm);
+    padding: 8px 12px; font-weight: 500;
+  }
+  .t-pages button .t-num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--aero-select); color: var(--aero-ink); font-weight: 700; text-shadow: none; }
+  .t-pages button .t-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t-pages button.locked { color: var(--aero-ink-muted); }
+  .t-pages .t-count { flex: none; font-size: .85rem; padding: 2px 10px; color: var(--aero-ink); text-shadow: none; background: #FFFFFF; }
+  .t-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* control room tabs */
+  .t-badge { min-width: 28px; height: 28px; padding: 0 6px; box-sizing: border-box; border-radius: 14px; background: var(--aero-gold-soft); color: var(--aero-ink); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .t-badge.flash { animation: tsqflash 0.6s ease-in-out 4; }
+  .t-resp { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px 1fr 260px; gap: 12px; padding: 12px; background: var(--aero-surface); margin: 0 12px 12px; border-radius: 0 10px 10px 10px; }
+  .t-resp > * { min-height: 0; overflow: auto; }
+  .t-resp-side { display: flex; flex-direction: column; gap: 12px; }
+  .t-notes-tab { flex: 1; min-height: 0; padding: 16px; background: var(--aero-surface); margin: 0 12px 12px; border-radius: 0 10px 10px 10px; overflow: auto; }
+  .t-notes-tab textarea { min-height: 55vh; }
+  .t-timeup { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--aero-gold-soft); color: var(--aero-ink); font-size: 13px; font-weight: 600; }
+  .t-fb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .t-fb textarea { flex: 1; min-width: 240px; }
+  .t-fb .t-fbsent { flex-basis: 100%; padding-left: 10px; border-left: 4px solid var(--aero-emerald); }
+  /* plan lists: drag to reorder */
+  .t-plan li { display: flex; gap: 6px; align-items: stretch; }
+  .t-plan li > button:first-child { flex: 1; min-width: 0; }
+  .t-plan .t-label { white-space: normal !important; }
+  .t-plan .t-sub { display: block; font-size: 12px; color: var(--aero-ink-muted); font-weight: 400; }
+  .t-plan .t-num { cursor: grab; }
+  .t-plan button[aria-pressed="true"] .t-sub { color: inherit; opacity: .9; }
+  .t-qs button[aria-pressed="true"] .t-q-when { color: inherit; opacity: .9; }
+  .t-plan li.dragging { opacity: .4; }
+  .t-plan li.dropover { outline: 3px solid var(--aero-gold, #E0B252); border-radius: var(--aero-radius-sm); }
+  .t-plan .t-edit { flex: none; width: auto !important; padding: 4px 12px; }
+  .t-itembox { width: min(980px, 100%); }
+  .t-row.end { justify-content: flex-end; }
+  .t-small { min-height: 24px; padding: 4px 14px; font-size: .95rem; }
+  .t-block { padding: 14px 18px; }
+  .t-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .t-block-head h3 { margin: 0; flex: 1; }
+  .t-hint { color: var(--aero-ink-muted); font-size: .9rem; margin: 6px 0 0; }
+  .t-opt { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .t-opt input { flex: 1; }
+  .t-thumb { max-width: 260px; max-height: 160px; border-radius: var(--aero-radius-sm); border: 1px solid var(--aero-line); display: block; margin-bottom: 10px; }
+  .t-lessons { display: grid; gap: 10px; }
+  .t-lesson { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); background: #FFFFFF; }
+  .t-lesson .t-ltitle { flex: 1; min-width: 200px; font-weight: 600; font-size: 1.1rem; }
+  .t-home { max-width: 1000px; margin: 0 auto; width: 100%; padding: 0 12px; overflow: auto; }
+  .t-home > * + * { margin-top: 12px; }
+  .t-title-input { flex: 1; min-width: 200px; font-size: 1.2rem !important; }
+  .t-roll { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 14px; }
+  .t-roll li { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--aero-ink); padding: 4px 0; }
+  .t-roll li::before { content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--aero-line); }
+  .t-roll li.on::before { background: var(--aero-jade); border-color: var(--aero-jade); }
+  .t-roll li:not(.on) { color: var(--aero-ink-muted); }
+  .t-roll li.grp { grid-column: 1 / -1; font-family: Helvetica, Arial, sans-serif; font-weight: 700; padding-top: 10px; }
+  .t-roll li.grp::before { display: none; }
+  .t-pick { display: grid; gap: 12px; max-width: 560px; }
+  .t-pick h2 { margin: 0 0 4px; }
+  .t-pick button { min-height: 36px; font-size: 1.2rem; }
+  .t-part { margin-bottom: 12px; }
+  .t-prep { padding: 14px 18px; }
+  .t-prep .t-prepq { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--aero-line); }
+  .t-prep .t-prepq:first-of-type { border-top: 0; }
+  .t-pq { border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 12px 14px; margin-bottom: 12px; background: #FFFFFF; color: var(--aero-ink); }
+  .t-pq .t-block-head { margin-bottom: 8px; }
+  .t-media { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .t-media select { font-size: 12px; max-width: 260px; }
+  .t-notesbox { margin-top: 18px; }
+  .t-notesbox h3 { margin: 0 0 6px; }
+  .t-notesbox select { width: 100%; font-size: 12px; margin-bottom: 6px; }
+  .t-notesbox textarea { width: 100%; font-size: 12px; min-height: 108px; resize: vertical; }
+  .t-ask { padding: 16px 20px; }
+  .t-ask h3 { margin: 0 0 8px; }
+  .t-ask textarea { width: 100%; font-size: 13px; }
+  .t-ask .t-ask-prompt { font-size: 15px; margin-bottom: 10px; }
+  .t-ask .t-ask-time { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .t-ask .t-row { margin-top: 10px; }
+  .t-ask input[type=number] { width: 90px; font-size: 13px; }
+  .t-answers { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
+  .t-answers li { background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: var(--aero-radius-sm); padding: 10px 14px; color: var(--aero-ink); font-size: 13px; white-space: pre-wrap; }
+  .t-answers .t-who-name { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: var(--aero-ink-muted); display: block; margin-bottom: 4px; white-space: normal; }
+  #lvPause[aria-pressed="true"] { background: var(--aero-gold); color: var(--aero-ink); text-shadow: none; }
+  .t-qs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  .t-qs button { width: 100%; text-align: left; font-size: 12px; padding: 8px 10px; display: block; white-space: normal; }
+  .t-qs button[aria-pressed="true"] { outline: 3px solid var(--aero-jade); }
+  .t-qs .t-q-when { display: block; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: var(--aero-ink-muted); }
+  .t-answers li { display: flex; gap: 12px; align-items: flex-start; }
+  .t-answers .t-ans-text { flex: 1; }
+  .t-answers li.done { border-left: 6px solid var(--aero-jade); }
+  .t-answers .t-done { color: var(--aero-jade); font-weight: 700; }
+  .t-answers .t-writing { color: var(--aero-ink-muted); }
+  .t-answers li.shown { border-color: var(--aero-jade); box-shadow: 0 0 0 2px var(--aero-jade); }
+  .t-answers button { flex: none; min-width: 84px; }
+  .t-unlock { min-height: 38px !important; font-size: 1.25rem !important; padding: 10px 34px !important; }
+  .t-addbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .t-login { max-width: 520px; margin: 10vh auto 0; }
+  .t-login form { display: grid; gap: 12px; }
+  .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin: 16px 0; }
+  .st-grid textarea { width: 100%; min-height: 180px; font-size: 12px; }
+  .st-grid input[type=text] { width: 100%; font-size: 13px; }
+  .st-card { display: grid; gap: 10px; }
+  .st-msg { font-weight: 600; min-height: 1.4em; margin: 10px 0 0; }
+  #printArea { display: none; }
+  @media print {
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block; }
+    body { background: #fff !important; }
+    .slip { page-break-after: always; break-after: page; padding-top: 1in; text-align: center;
+            color: #000; font-family: Helvetica, Arial, sans-serif; }
+    .slip:last-child { page-break-after: auto; break-after: auto; }
+    .slip .who { font-size: 20pt; font-weight: 700; margin-bottom: 0.25in; }
+    .slip .lab { font-size: 18pt; }
+    .slip .code { font-size: 26pt; font-weight: 700; letter-spacing: 0.04em; margin: 0.05in 0 0.25in; }
+    .slip .how { font-size: 13pt; }
+    .slip .cls { font-size: 11pt; margin-top: 0.2in; color: #444; }
+  }
+  @media (max-width: 860px) { .t-cols { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } .t-side { max-height: 32vh; } }
+  /* ---- Control room: compact, so more fits on the laptop screen (Joseph's own screen; student pages stay large) ---- */
+  #liveView { font-size: 12px; }
+  #liveView .cl-top { padding: 8px 14px 6px; gap: 8px; }
+  #liveView .cl-top .cl-title { font-size: 12px; }
+  #liveView .cl-top .aero-chip { font-size: 12px; }
+  #liveView button { font-size: 12px; }
+  #liveView .t-small { min-height: 30px; padding: 2px 10px; font-size: 12px; }
+  #liveView .t-badge { min-width: 22px; height: 22px; font-size: 12px; }
+  #liveView .t-cols { grid-template-columns: 230px 1fr; gap: 8px; padding: 0 8px 2px; }
+  #liveView .t-side { padding: 10px; }
+  #liveView .t-side h3 { font-size: 12px; margin: 0 0 6px; }
+  #liveView .t-pages { gap: 4px; margin-bottom: 8px; }
+  #liveView .t-pages button { padding: 4px 8px; min-height: 32px; font-size: 12px; }
+  #liveView .t-plan .t-sub { font-size: 12px; }
+  #liveView .t-pages button .t-num { width: 22px; height: 22px; font-size: 12px; }
+  #liveView .t-pages .t-count { font-size: 12px; padding: 1px 6px; }
+  #liveView .t-body { display: flex; flex-direction: column; gap: 8px; }
+  #liveView .t-body > * { margin: 0; }
+  #liveView .t-prep, #liveView .t-ask, #liveView .t-sq { padding: 10px 14px; }
+  #liveView .t-prep h3, #liveView .t-ask h3, #liveView .t-sq h3 { font-size: 12px; }
+  #liveView .t-prep .t-prepq { padding: 5px 0; gap: 8px; }
+  #liveView .t-ask .t-ask-prompt { font-size: 12px; margin-bottom: 6px; }
+  #liveView .t-ask .t-ask-time { font-size: 16px; }
+  #liveView .t-ask textarea, #liveView .t-ask input[type=number] { font-size: 12px; }
+  #liveView .t-timeup { padding: 6px 12px; font-size: 12px; }
+  #liveView .t-answers { gap: 5px; }
+  #liveView .t-answers li { padding: 6px 10px; font-size: 12px; }
+  #liveView .t-answers .t-who-name { font-size: 12px; margin-bottom: 2px; }
+  #liveView .t-qs button { font-size: 12px; padding: 5px 8px; }
+  #liveView .t-qs .t-q-when { font-size: 12px; }
+  #liveView .t-sqitem { font-size: 12px; padding: 5px 0; }
+  #liveView .t-act { font-size: 12px; }
+  #liveView .t-act th, #liveView .t-act td { padding: 2px 6px; }
+  #liveView .t-resp { grid-template-columns: 230px 1fr 260px; gap: 8px; padding: 8px; margin: 0 8px 8px; }
+  #liveView .t-notes-tab { padding: 10px; margin: 0 8px 8px; }
+  #liveView .t-notesbox textarea, #liveView .t-notesbox select { font-size: 12px; }
+  #liveView .t-hint { font-size: 12px; }
+  #liveView #lvPage { padding: 10px 14px; font-size: 12px; }
+  #liveView #lvPage h1 { font-size: 15px; }
+  #liveView #lvPage h2 { font-size: 12px; }
+  #liveView .t-lesson { padding: 6px 10px; }
+  #liveView .t-lesson .t-ltitle { font-size: 12px; }
+  #liveView .cl-bottom { margin: 6px 8px 10px; padding: 6px 10px; }
+  #liveView .cl-bottom button { min-height: 36px; padding: 4px 16px; font-size: 12px; }
+  #liveView .t-unlock { min-height: 24px !important; font-size: 12px !important; padding: 4px 22px !important; }
+  #liveView .t-fb textarea { min-width: 180px; font-size: 12px; }
+  #liveView .t-fb button { min-height: 30px; padding: 2px 10px; }
+  .t-itembox { font-size: 12px; }
+
+/* ====================================================================
+   Teacher page theme: small bold type, small controls, 50px from every
+   screen edge. Everything here applies only to teacher.html (html.teacher).
+   Student, TV and replay pages never load this file.
+   ==================================================================== */
+html.teacher { font-size: 12px; --edge: 50px; --aero-control-h: 26px; }
+html.teacher body {
+  font-size: 12px; font-weight: 600; line-height: 1.35; letter-spacing: 0; word-spacing: 0;
+  padding: var(--edge); height: 100vh;
+}
+html.teacher button, html.teacher .aero-btn, html.teacher .aero-btn-primary { font-weight: 700; padding: 2px 10px; min-height: var(--aero-control-h); border-radius: 5px; }
+html.teacher select, html.teacher input, html.teacher textarea { font-size: 12px; font-weight: 600; }
+html.teacher h1, html.teacher h2, html.teacher h3, html.teacher th, html.teacher strong { font-weight: 700; }
+html.teacher h1 { font-size: 16px; } html.teacher h2 { font-size: 14px; } html.teacher h3 { font-size: 12px; }
+html.teacher .cl-title { font-size: 16px; }
+html.teacher .aero-muted, html.teacher .t-hint, html.teacher .aero-chip { font-weight: 600; }
+html.teacher .cl-page { font-size: 13px; line-height: 1.45; }
+html.teacher #liveView #lvPage h1 { font-size: 16px; } html.teacher #liveView #lvPage h2 { font-size: 14px; }
+html.teacher .t-ask .t-ask-time, html.teacher #liveView .t-ask .t-ask-time { font-size: 20px; }
+html.teacher .t-unlock, html.teacher #liveView .t-unlock { min-height: 30px !important; font-size: 13px !important; padding: 2px 16px !important; }
+html.teacher .t-pick button { min-height: 34px; font-size: 14px; }
+html.teacher .t-pages button .t-num, html.teacher #liveView .t-pages button .t-num { width: 20px; height: 20px; font-size: 12px; }
+html.teacher .t-badge, html.teacher #liveView .t-badge { min-width: 18px; height: 18px; font-size: 12px; border-radius: 9px; }
+html.teacher .cl-cover { padding: var(--edge); }
+html.teacher .cl-cover-box { max-height: calc(100vh - 2 * var(--edge)); padding: 14px 18px; }
+html.teacher input[type=checkbox], html.teacher input[type=radio] { width: 14px; height: 14px; }
+html.teacher .t-roll li { font-size: 12px; font-weight: 700; }
+html.teacher .t-roll li::before { width: 10px; height: 10px; border-width: 1px; }
+
+/* the 50px margin is on the body; inner blocks sit flush inside it */
+html.teacher .t-wrap { min-height: 0; }
+html.teacher #liveView .t-cols, html.teacher .t-cols { padding: 0; gap: 8px; }
+html.teacher .t-home { padding: 0; max-width: none; }
+html.teacher #liveView .cl-top, html.teacher .cl-top { padding: 6px 0; }
+html.teacher #liveView .cl-bottom, html.teacher .cl-bottom { margin: 8px 0 0; padding: 6px 8px; }
+html.teacher #liveView .cl-bottom button, html.teacher .cl-bottom button { min-height: 28px; padding: 2px 12px; font-size: 12px; }
+html.teacher .cl-main { padding: 4px 0; }
+
+/* every tab strip: the top navigation and the Control room's own tabs */
+html.teacher .t-tabs { display: flex; flex: none; flex-wrap: wrap; gap: 3px; padding: 0; }
+html.teacher .t-tabs button, html.teacher #liveView .t-tabs button {
+  min-height: 28px; padding: 0 14px; font-size: 12px; font-weight: 700; border: 0; border-radius: 6px 6px 0 0;
+  background: #2A4A3C; color: var(--aero-ink-on-dark); display: inline-flex; align-items: center; gap: 6px;
+}
+html.teacher .t-tabs button[aria-selected="false"]:hover:not(:disabled) { background: #355C4A; }
+html.teacher .t-tabs button[aria-selected="true"] { background: var(--aero-surface); color: var(--aero-ink); }
+html.teacher .t-nav { margin-bottom: 8px; }
+html.teacher #liveView .t-resp, html.teacher .t-resp { margin: 0; padding: 8px; }
+html.teacher #liveView .t-notes-tab, html.teacher .t-notes-tab { margin: 0; padding: 10px; }
+html.teacher .t-lessons { gap: 6px; }
+html.teacher .t-lesson { padding: 5px 10px; }
+html.teacher .t-lesson .t-ltitle { font-size: 12px; font-weight: 700; }
+html.teacher .t-small { min-height: 24px; padding: 1px 9px; font-size: 12px; }
+html.teacher #liveView .t-cols.idle { grid-template-columns: 1fr; }
+html.teacher #liveView .t-cols.idle > aside { display: none; }
