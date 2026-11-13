@@ -1622,7 +1622,14 @@ function renderAnswers() {
   const withText = Object.entries(answers).filter(([, v]) => (v.text || "").trim());
   const nDone = Object.values(answers).filter((v) => v.done).length;
   const named = Object.keys(names).length > 0; // names only on a computer with the name file
-  const key = [q.id, isLive, JSON.stringify(answers), shown.join(), !!live].join("|");
+  // time controls: the running sent question, or a self-starting question in this class
+  const now = teacherNow();
+  const askOpen = isLive && !a.paused && a.endsAt > now;
+  const spEntry = !isLive && live && q.sp && q.sessionId === live.sessionId
+    ? Object.entries(tstate.spCounts || {}).find(([, c]) => c.qid === q.id) : null;
+  const spQid = spEntry ? spEntry[0].split(".")[0] : "", spEnds = spEntry ? spEntry[1].ends : 0;
+  const spOpen = !!spEntry && spEnds > now;
+  const key = [q.id, isLive, JSON.stringify(answers), shown.join(), !!live, askOpen, isLive && a.paused, spQid, spOpen].join("|");
   if (box._key === key) return;
   // don't rebuild while a feedback box is being typed in
   const typing = document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA";
@@ -1633,7 +1640,15 @@ function renderAnswers() {
   const partTxt = q.parts > 1 ? " · part " + q.part + " of " + q.parts : "";
   box.replaceChildren(
     el("div", { class: "t-row" },
-      el("h3", { style: "flex:1;margin:0", text: (isLive ? "Running now" : (q.sp ? "Started on its own" : "Asked") + " · " + new Date(q.startedAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })) + partTxt + (q.block ? " · " + q.block : "") })),
+      ...(isLive && !a.paused ? [
+        askOpen ? btn("+30 seconds", () => link.send({ t: "askMore", seconds: 30 })) : null,
+        btn(askOpen ? "+1 minute" : "Reopen 1 minute", () => link.send({ t: "askMore", seconds: 60 })),
+        askOpen ? btn("End now", () => link.send({ t: "askEnd" }), "aero-btn-primary") : null] : []),
+      ...(spQid ? [
+        btn("+30 seconds", () => link.send({ t: "spTime", qid: spQid, seconds: 30 })),
+        btn("+1 minute", () => link.send({ t: "spTime", qid: spQid, seconds: 60 })),
+        spOpen ? btn("End now for everyone", () => link.send({ t: "spTime", qid: spQid, seconds: -Math.ceil((spEnds - teacherNow()) / 1000) }), "aero-btn-primary") : null] : []),
+      el("h3", { style: "flex:1;margin:0;order:-1", text: (isLive ? "Running now" : (q.sp ? "Started on its own" : "Asked") + " · " + new Date(q.startedAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })) + partTxt + (q.block ? " · " + q.block : "") })),
     el("div", { class: "t-ask-prompt" }, formatText(q.prompt)),
     el("div", { class: "t-row" },
       el("span", { class: "t-who-count", text: withText.length + " answers · " + nDone + " submitted" }),
