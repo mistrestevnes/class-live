@@ -139,7 +139,7 @@ function reportAway() { if (stoken) link.send({ t: "away", away: document.hidden
 document.addEventListener("visibilitychange", reportAway);
 
 function showMode(mode) {
-  if (mode === "live" || mode === "polling") setTimeout(reportAway, 0); // catch up after reconnecting
+  if (mode === "live" || mode === "polling") { setTimeout(reportAway, 0); actSentAt = 0; } // catch up after reconnecting
   const s = $("status");
   s.className = "aero-chip cl-status " + mode + (mode === "offline" || mode === "connecting" ? " aero-chip-warn" : "");
   s.textContent = { live: "Connected", polling: "Connected", connecting: "Connecting…", offline: "Reconnecting…" }[mode];
@@ -670,12 +670,14 @@ document.addEventListener("load", (e) => {
 }, true);
 
 // ---------- leaving the window: tell the teacher when the student goes to another tab or window, and when they come back
-let actAway = false;
+let actAway = false, actSentAt = 0;
 function actCheck() {
   if (!state.live || PREVIEW) return;
   // focus inside a sim on this page still counts as here
   const away = document.visibilityState === "hidden" || !document.hasFocus();
-  if (away !== actAway) { actAway = away; link.send({ t: "act", kind: away ? "away" : "back" }); }
+  // send on every change, and repeat it every 10 seconds: a lost message, a reload or a dropped connection
+  // would otherwise leave the teacher's page showing "away" for a student who is back
+  if (away !== actAway || Date.now() - actSentAt > 10000) { actAway = away; actSentAt = Date.now(); link.send({ t: "act", kind: away ? "away" : "back" }); }
 }
 document.addEventListener("visibilitychange", actCheck);
 window.addEventListener("blur", () => setTimeout(actCheck, 300));
