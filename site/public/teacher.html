@@ -501,6 +501,7 @@ function askYesNo(text, yes) {
   });
 }
 async function endClass() {
+  if (!tstate || !tstate.live) return;
   let keepPlan = false;
   if (tstate && tstate.live && tstate.live.planChanged) {
     const pick = await new Promise((resolve) => {
@@ -1123,6 +1124,7 @@ function renderLive() {
   if (!live || !lesson || !lesson.pages.length) {
     $("lvTitle").textContent = "Control room";
     $("lvLive").className = "t-livestate"; $("lvLive").textContent = "No class running";
+    $("lvEnd").hidden = $("lvEdit").hidden = true;
     $("lvPages").replaceChildren();
     $("lvPollBar").hidden = true;
     notesBox.hidden = true;
@@ -1143,6 +1145,7 @@ function renderLive() {
   $("lvPage")._startKey = null;
   $("lvTitle").textContent = "Control room · " + lesson.title + (live.periodName ? " · " + live.periodName : "");
   $("lvLive").className = "t-livestate on";
+  $("lvEnd").hidden = $("lvEdit").hidden = false;
   $("lvLive").textContent = "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   renderPlan();
   $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
@@ -1218,7 +1221,11 @@ async function renderStart(force) {
     el("span", { class: "t-ltitle", text: l.title }),
     el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
-    el("button", { class: "aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; openForBlock = pd ? pd.id : null; location.hash = "#/edit/" + l.id; } }));
+    el("button", { text: "Open", title: "Look through the lesson and start on any page", onclick: () => { openInPreview = true; openForBlock = pd ? pd.id : null; location.hash = "#/edit/" + l.id; } }),
+    el("button", { class: "aero-btn-primary", text: "Start class", onclick: async () => {
+      try { if (!ed || ed.id !== l.id) ed = await tapi("/api/lessons/" + l.id); } catch {}
+      openForBlock = pd ? pd.id : null; startLesson(l.id, 0);
+    } }));
   box.replaceChildren(...[
     el("h2", { style: "margin-top:0", text: "Start a class" }),
     periods.length ? el("div", { class: "t-row", style: "flex-wrap:wrap;margin-bottom:14px" },
@@ -1227,8 +1234,8 @@ async function renderStart(force) {
         onclick: () => { startBlock = p.id; store("cl_startBlock", p.id); renderStart(); } }))) : null,
     el("div", { class: "t-lessons" }, ...mine.map(row)),
     !mine.length ? el("p", { class: "t-hint", text: lvl ? "No " + LEVELS[lvl] + " lessons yet. Set a lesson's level in the lesson editor." : "No lessons yet." }) : null,
-    other.length ? el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:inherit", text: "Other lessons (" + other.length + ")" }),
-      el("div", { class: "t-lessons" }, ...other.map(row))) : null].filter(Boolean));
+    other.length ? (() => { const d = el("details", { style: "margin-top:14px" }, el("summary", { style: "font-size:inherit", text: "Other lessons (" + other.length + ")" }),
+      el("div", { class: "t-lessons" }, ...other.map(row))); d.open = !mine.length; return d; })() : null].filter(Boolean));
 }
 
 // ---------- the plan during class: the current item is highlighted; click one to go to it, drag to reorder
