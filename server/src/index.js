@@ -156,6 +156,20 @@ function withPlan(lesson) {
 const BLOCK_LEVEL = { 1: "honors", 5: "honors", 2: "enriched" };
 function levelOfBlock(name) { const m = String(name || "").match(/\d/); return (m && BLOCK_LEVEL[m[0]]) || ""; }
 
+// Waiting-room trivia: {on, list:[{id, text, imageId, options[2-5], answer, why}]}. Kept in one record.
+function cleanTrivia(t) {
+  const clip = (x, n) => String(x == null ? "" : x).replace(/\s+/g, " ").trim().slice(0, n);
+  const list = [];
+  for (const q of (t && Array.isArray(t.list) ? t.list : []).slice(0, 300)) {
+    const options = (Array.isArray(q && q.options) ? q.options : []).map((o) => clip(o, 140)).slice(0, 5);
+    if (options.length < 2) continue;
+    const answer = Number.isInteger(q.answer) && q.answer >= 0 && q.answer < options.length ? q.answer : 0;
+    list.push({ id: /^[a-z0-9]{4,24}$/.test(q.id || "") ? q.id : rid(8), text: clip(q.text, 400), options, answer, why: clip(q.why, 400),
+      imageId: /^[a-z0-9]{6,24}$/.test(q.imageId || "") ? q.imageId : "" });
+  }
+  return { on: !(t && t.on === false), list };
+}
+
 // What a sim can tell Class Live (events) and be told by it (commands).
 // A sim may list them in <script type="application/json" id="classlive-events">{"events":{"name":"what it means"},"commands":{...}}</script>.
 // The file is also scanned for names it sends or listens for, so sims without a list still work.
@@ -278,6 +292,12 @@ export class Classroom extends DurableObject {
       // the TV page, for networks that block websockets
       if (p === "/api/screen" && m === "GET") return json(this.screenState());
 
+      // questions students can answer while they wait for class to start (nothing private in them)
+      if (p === "/api/trivia-s" && m === "GET") {
+        const t = (await this.ctx.storage.get("trivia")) || { on: true, list: [] };
+        return json(t.on === false ? { on: false, list: [] } : t);
+      }
+
       // student sign-in
       if (p === "/api/slogin" && m === "POST") return this.studentLogin(await request.json());
 
@@ -340,6 +360,14 @@ export class Classroom extends DurableObject {
       const sm = p.match(/^\/api\/sims\/([a-z0-9]+)$/);
       if (sm && m === "PUT") return this.saveSim(request, sm[1]);
       if (sm && m === "DELETE") return this.deleteSim(sm[1]);
+
+      // waiting-room questions
+      if (p === "/api/trivia" && m === "GET") return json((await this.ctx.storage.get("trivia")) || { on: true, list: [] });
+      if (p === "/api/trivia" && m === "PUT") {
+        const t = cleanTrivia(await request.json());
+        await this.ctx.storage.put("trivia", t);
+        return json(t);
+      }
 
       // short videos kept in the R2 bucket, played from /video/<id>
       if (p === "/api/videos" && m === "GET") return json({ ready: !!this.env.VIDEOS, videos: (await this.ctx.storage.get("videos")) || [] });

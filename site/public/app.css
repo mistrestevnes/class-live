@@ -193,3 +193,26 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 
 /* videos on a lesson page */
 .cl-video video { display: block; width: 100%; max-height: calc(100vh - 220px); background: #000; border-radius: var(--aero-radius-sm); }
+
+/* waiting-room questions */
+.cl-trivia { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--aero-line); text-align: left; }
+.cl-trivia-label { font-weight: 700; color: var(--aero-ink-muted); margin-bottom: 8px; font-size: 1rem; }
+.cl-trivia .cl-question { font-size: 1.3rem; margin: 0 0 6px; }
+.cl-trivia-img { display: block; max-width: 100%; max-height: 34vh; margin: 0 auto 12px; border-radius: var(--aero-radius-sm); }
+.cl-trivia .cl-option { font-size: 1.1rem; min-height: 52px; width: 100%; }
+.cl-trivia .cl-option:disabled { opacity: 1; }
+.cl-option.cl-right { background: var(--aero-emerald); color: #FFFFFF; border-color: var(--aero-emerald-active); }
+.cl-option.cl-wrong { background: #F2D9A0; color: var(--aero-ink); border-color: var(--aero-gold); }
+.cl-trivia-verdict { font-weight: 700; font-size: 1.2rem; margin: 14px 0 4px; }
+#trAfter button { margin-top: 8px; }
+#waiting { margin-top: 4vh; }
+#waiting h1 { margin-bottom: .3em; }
+#waiting { padding: 14px 24px; }
+#waiting h1 { font-size: 1.6rem; }
+#waiting > p { margin: 0 0 8px; font-size: 1.05rem; }
+.cl-trivia { margin-top: 12px; padding-top: 12px; }
+.cl-trivia .cl-options { gap: 8px; margin-top: 8px; }
+.cl-trivia .cl-option { min-height: 44px; padding: 4px 14px; gap: 12px; }
+.cl-trivia .cl-letter { width: 32px; height: 32px; }
+.cl-trivia-verdict { margin: 10px 0 2px; }
+#trWhy { margin: 0 0 4px; font-size: 1rem; }

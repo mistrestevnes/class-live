@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=20">
+<link rel="stylesheet" href="app.css?v=23">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -28,6 +28,16 @@
       <section class="aero-panel cl-message" id="waiting" hidden>
         <h1>Waiting for your teacher</h1>
         <p class="aero-muted">Keep this page open. It will change on its own when class starts.</p>
+        <div class="cl-trivia" id="trivia" hidden>
+          <div class="cl-trivia-label">While you wait</div>
+          <div id="trQ"></div>
+          <div class="cl-options" id="trOpts"></div>
+          <div id="trAfter" hidden>
+            <p id="trVerdict" class="cl-trivia-verdict"></p>
+            <p id="trWhy" class="aero-muted"></p>
+            <button class="aero-btn-primary" id="trNext">Another question</button>
+          </div>
+        </div>
       </section>
       <section class="aero-panel" id="pageBox" hidden></section>
     </div>
@@ -191,10 +201,46 @@ function go(delta) {
 $("back").onclick = () => go(-1);
 $("next").onclick = () => go(1);
 
+
+// ---- questions to answer while waiting for class to start
+let triviaList = null, triviaSeen = (() => { try { return JSON.parse(localStorage.getItem("cl_trivia_seen") || "[]"); } catch { return []; } })(), triviaCur = null;
+async function loadTrivia() {
+  if (triviaList) return;
+  try { const t = await api("/api/trivia-s"); triviaList = t.on === false ? [] : (t.list || []); } catch { triviaList = []; }
+}
+async function showTrivia() {
+  if (PREVIEW) return;
+  await loadTrivia();
+  if (!triviaList.length) { $("trivia").hidden = true; return; }
+  let pool = triviaList.filter((q) => !triviaSeen.includes(q.id));
+  if (!pool.length) { triviaSeen = []; pool = triviaList; }
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  triviaCur = q; triviaSeen.push(q.id);
+  try { localStorage.setItem("cl_trivia_seen", JSON.stringify(triviaSeen.slice(-400))); } catch {}
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  $("trQ").replaceChildren(...[q.imageId ? el("img", { src: "/img/" + q.imageId, alt: "", class: "cl-trivia-img" }) : null, el("p", { class: "cl-question", text: q.text })].filter(Boolean));
+  $("trOpts").replaceChildren(...order.map((oi, k) => el("button", { class: "cl-option", "data-i": String(oi), onclick: (e) => answerTrivia(oi, e.currentTarget) },
+    el("span", { class: "cl-letter", text: "ABCDE"[k] }), el("span", { text: q.options[oi] }))));
+  $("trAfter").hidden = true;
+  $("trivia").hidden = false;
+}
+function answerTrivia(oi, btn) {
+  const q = triviaCur; if (!q || !$("trAfter").hidden) return;
+  const ok = oi === q.answer;
+  for (const b of $("trOpts").children) { b.disabled = true; if (Number(b.dataset.i) === q.answer) b.classList.add("cl-right"); }
+  if (!ok) btn.classList.add("cl-wrong");
+  $("trVerdict").textContent = ok ? "Correct!" : "Not quite. The answer is " + q.options[q.answer] + ".";
+  $("trWhy").textContent = q.why || ""; $("trWhy").hidden = !q.why;
+  $("trAfter").hidden = false;
+}
+$("trNext").onclick = showTrivia;
+
 function render() {
   $("login").hidden = true;
   const live = state.live && state.pages && state.pages.length;
   $("waiting").hidden = !!live;
+  if (!live && !triviaCur) showTrivia();
   $("pageBox").hidden = !live;
   $("nav").hidden = !live;
   $("pageNum").hidden = !live;

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=20">
-<link rel="stylesheet" href="teacher.css?v=2">
+<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="teacher.css?v=3">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -59,6 +59,20 @@
     <div class="aero-panel" id="homeWho" hidden>
       <div class="t-row"><h2 style="margin:0;flex:1">Class roll</h2><span id="homeWhoNote" class="t-who-count"></span></div>
       <ul class="t-roll" id="homeWhoList"></ul>
+    </div>
+    <div class="aero-panel" id="trPanel">
+      <div class="t-row">
+        <h2 style="margin:0;flex:1">Waiting-room questions</h2>
+        <span class="aero-muted" id="trState"></span>
+        <button class="t-small" id="trOn" aria-pressed="true">Showing to students: On</button>
+      </div>
+      <p class="t-hint">Students answer these while they wait for class to start. Each one shows right or wrong, then the explanation if you wrote one. Pictures are optional.</p>
+      <div class="t-row" style="margin:8px 0">
+        <button class="t-small aero-btn-primary" id="trAdd">+ Add a question</button>
+        <button class="t-small" id="trStarter" hidden>Add the 20 starter questions</button>
+        <span class="aero-muted" id="trCount"></span>
+      </div>
+      <div id="trList" class="t-lessons"></div>
     </div>
     <div class="aero-panel">
       <p>One login code per line, like 504cloud. Only codes are saved on the server. Names never leave this computer.</p>
@@ -208,6 +222,7 @@
 </section>
 
 <script src="common.js?v=15"></script>
+<script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -1855,7 +1870,6 @@ function blockStudents() {
   const all = (tstate && tstate.students) || [];
   return L && L.periodName ? all.filter((x) => x.cls === L.periodName) : all;
 }
-route();
 // ---------------------------------------------------------------- students
 // The server holds login codes only. Names come from a file on this computer
 // and are kept in this browser alone; they are never sent anywhere.
@@ -1886,8 +1900,61 @@ function drawNamesNote() {
   $("stNamesNote").textContent = n ? n + " names loaded on this computer." : "No names loaded. Printed pages will show codes only.";
   $("stForget").hidden = !n;
 }
+// ---------------------------------------------------------------- waiting-room questions
+let trivia = { on: true, list: [] }, trTimer = null;
+const trSet = (t) => { $("trState").textContent = t; };
+function trSave() {
+  trSet("Saving…"); clearTimeout(trTimer);
+  trTimer = setTimeout(async () => {
+    try { trivia = await tapi("/api/trivia", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(trivia) }); trSet("Saved"); }
+    catch (e) { trSet("Not saved: " + e.message); }
+  }, 700);
+}
+async function loadTriviaT() {
+  try { trivia = await tapi("/api/trivia"); } catch { trivia = { on: true, list: [] }; }
+  trSet(""); renderTrivia();
+}
+function renderTrivia() {
+  const L = trivia.list;
+  $("trOn").textContent = "Showing to students: " + (trivia.on === false ? "Off" : "On");
+  $("trOn").setAttribute("aria-pressed", String(trivia.on !== false));
+  $("trCount").textContent = L.length + (L.length === 1 ? " question" : " questions");
+  $("trStarter").hidden = L.length > 0 || !window.TRIVIA_STARTER;
+  $("trList").replaceChildren(...L.map((q, qi) => {
+    const det = el("details", { class: "t-lesson", style: "display:block" });
+    const sum = el("summary", { style: "cursor:pointer;font-weight:700", text: (qi + 1) + ". " + (q.text || "(new question)").slice(0, 110) });
+    const radioName = "tra" + qi + "_" + Math.random().toString(36).slice(2, 6);
+    const body = el("div", { style: "display:grid;gap:8px;margin-top:8px" },
+      el("textarea", { rows: 2, value: q.text, placeholder: "The question", "aria-label": "Question", oninput: (e) => { q.text = e.target.value; sum.textContent = (qi + 1) + ". " + (q.text || "(new question)").slice(0, 110); trSave(); } }),
+      el("div", { class: "t-hint", text: "Pick the circle next to the right answer." }),
+      ...q.options.map((o, oi) => el("label", { class: "t-row", style: "gap:8px" },
+        el("input", { type: "radio", name: radioName, checked: q.answer === oi, "aria-label": "Right answer", onchange: () => { q.answer = oi; trSave(); } }),
+        el("input", { type: "text", value: o, style: "flex:1", placeholder: "Answer " + "ABCDE"[oi], "aria-label": "Answer " + "ABCDE"[oi], oninput: (e) => { q.options[oi] = e.target.value; trSave(); } }),
+        q.options.length > 2 ? el("button", { class: "t-small", text: "×", "aria-label": "Remove this answer", onclick: (e) => { e.preventDefault(); q.options.splice(oi, 1); if (q.answer >= q.options.length) q.answer = 0; else if (q.answer > oi) q.answer--; trSave(); renderTrivia(); } }) : null)),
+      q.options.length < 5 ? el("div", { class: "t-row" }, el("button", { class: "t-small", text: "+ Add an answer", onclick: () => { q.options.push(""); trSave(); renderTrivia(); } })) : null,
+      el("input", { type: "text", value: q.why || "", placeholder: "Explanation shown after answering (optional)", "aria-label": "Explanation", oninput: (e) => { q.why = e.target.value; trSave(); } }),
+      el("div", { class: "t-media" },
+        q.imageId ? el("img", { class: "t-thumb", src: "/img/" + q.imageId, alt: "" }) : null,
+        (() => { const f = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => { if (!f.files[0]) return; trSet("Uploading picture…"); try { q.imageId = await uploadImage(f.files[0]); trSave(); renderTrivia(); } catch (e) { trSet(e.message); } } });
+          return el("span", {}, el("button", { class: "t-small", text: q.imageId ? "Replace picture" : "Add a picture", onclick: () => f.click() }), f); })(),
+        q.imageId ? el("button", { class: "t-small", text: "Remove picture", onclick: () => { q.imageId = ""; trSave(); renderTrivia(); } }) : null,
+        el("span", { style: "flex:1" }),
+        el("button", { class: "t-small", text: "Delete question", onclick: () => { if (!confirm("Delete this question?")) return; L.splice(qi, 1); trSave(); renderTrivia(); } })));
+    det.append(sum, body);
+    return det;
+  }));
+}
+$("trAdd").onclick = () => {
+  trivia.list.unshift({ id: Math.random().toString(36).slice(2, 10), text: "", options: ["", "", "", ""], answer: 0, why: "", imageId: "" });
+  trSave(); renderTrivia();
+  const d = $("trList").firstChild; if (d) { d.open = true; const t = d.querySelector("textarea"); if (t) t.focus(); }
+};
+$("trStarter").onclick = () => { trivia.list = (window.TRIVIA_STARTER || []).map((q) => ({ ...q, options: [...q.options], id: Math.random().toString(36).slice(2, 10) })); trSave(); renderTrivia(); };
+$("trOn").onclick = () => { trivia.on = trivia.on === false; trSave(); renderTrivia(); };
+
 async function showStudents() {
   show("studentsView");
+  loadTriviaT();
   renderHomeWho();
   stMsg(""); drawNamesNote();
   try {
@@ -1947,6 +2014,8 @@ $("stForget").onclick = () => {
   names = {}; try { localStorage.removeItem("cl_names"); } catch {}
   drawNamesNote(); stMsg("Names removed from this computer.");
 };
+
+route(); // last, so everything above is defined before the first page draws
 </script>
 </body>
 </html>
