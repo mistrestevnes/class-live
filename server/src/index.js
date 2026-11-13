@@ -638,7 +638,8 @@ export class Classroom extends DurableObject {
         // each block is started on its own: only that block's students move into the lesson
         const pd = this.roster.periods.find((x) => x.id === msg.periodId) || null;
         if (this.roster.periods.length && !pd) return;
-        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: 0, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
+        const from = Math.max(0, Math.min(Math.floor(Number(msg.from)) || 0, lesson.pages.length - 1)); // the page this class starts on
+        this.live = { sessionId: rid(8), lessonId: lesson.id, unlocked: from, from, revealed: {}, startedAt: Date.now(), periodId: pd ? pd.id : null, periodName: pd ? pd.name : "",
           autoEndAt: pd ? autoEndTime(pd.name, Date.now()) : null,
           // this class's own copy of the plan: changed freely during class; kept in the lesson only if the teacher says so
           plan: JSON.parse(JSON.stringify(lesson.plan || [])), item: "", planChanged: false };
@@ -667,7 +668,7 @@ export class Classroom extends DurableObject {
       }
       case "unlock": {
         if (!this.live) return;
-        const n = Math.max(0, Math.min(Number(msg.to) || 0, this.pages().length - 1));
+        const n = Math.max(this.live.from || 0, Math.min(Number(msg.to) || 0, this.pages().length - 1));
         this.live.unlocked = n;
         await this.ctx.storage.put("live", this.live);
         break;
@@ -1614,6 +1615,7 @@ export class Classroom extends DurableObject {
       sessionId: this.live.sessionId,
       title: this.liveLesson.title,
       unlocked,
+      from: this.live.from || 0,
       total: this.pages().length,
       pages,
       myVotes,

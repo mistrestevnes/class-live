@@ -466,7 +466,7 @@ async function pickBlock() {
   });
 }
 
-async function startLesson(id) {
+async function startLesson(id, from) {
   if (tstate && tstate.live) {
     const who = tstate.live.periodName ? tstate.live.periodName + " is in a class right now. " : "";
     const same = tstate.live.lessonId === id;
@@ -479,7 +479,7 @@ async function startLesson(id) {
   if (!pick) return;
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
-  await link.send({ t: "start", lessonId: id, periodId: pick.id });
+  await link.send({ t: "start", lessonId: id, periodId: pick.id, from: from || 0 });
   location.hash = "#/";
   if (!$("liveView").hidden) renderLive();
 }
@@ -661,7 +661,7 @@ function dragList(ul, onMove) {
 }
 const pageName = (lesson, pageId) => { const i = (lesson.pages || []).findIndex((p) => p.id === pageId); return i < 0 ? "" : (i + 1) + ". " + pageLabel(lesson.pages[i], i); };
 $("edBack").onclick = async () => { if (edSaveTimer) saveNow(); await saveChain; ed = null; location.hash = "#/lessons"; };
-$("edStart").onclick = () => startLesson(ed.id);
+$("edStart").onclick = () => startLesson(ed.id, edPage);
 $("edModeEdit").onclick = () => { edPreview = false; renderEditor(); };
 $("edModePreview").onclick = () => { edPreview = true; renderEditor(); };
 
@@ -699,6 +699,7 @@ function renderEditor() {
     el("button", { "aria-pressed": !edItem && i === edPage ? "true" : "false", onclick: () => { edItem = null; edPage = i; renderEditor(); } },
       el("span", { class: "t-num", text: i + 1 }),
       el("span", { class: "t-label", text: pageLabel(p, i) })))));
+  $("edStart").textContent = edPage > 0 ? "Start class on page " + (edPage + 1) : "Start with class";
   $("pgUp").disabled = edPage === 0;
   $("pgDown").disabled = edPage === ed.pages.length - 1;
 
@@ -1091,7 +1092,7 @@ $("lvUnlock").onclick = () => {
   link.send({ t: "unlock", to: tstate.live.unlocked + 1 });
 };
 $("lvRelock").onclick = () => {
-  if (!tstate || !tstate.live || tstate.live.unlocked === 0) return;
+  if (!tstate || !tstate.live || tstate.live.unlocked <= (tstate.live.from || 0)) return;
   link.send({ t: "unlock", to: tstate.live.unlocked - 1 });
 };
 
@@ -1114,7 +1115,7 @@ function renderLive() {
     return;
   }
   notesBox.hidden = false;
-  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = 0; lvLastUnlocked = live.unlocked; notesShow(live.lessonId, live.periodId || ""); }
+  if (lvSession !== live.sessionId) { lvSession = live.sessionId; lvSelected = live.from || 0; lvLastUnlocked = live.unlocked; notesShow(live.lessonId, live.periodId || ""); }
   else if (notes.lesson !== live.lessonId) notesShow(live.lessonId, live.periodId || "");
   if (live.unlocked > lvLastUnlocked) lvSelected = live.unlocked; // follow the page just unlocked
   if (live.goto && live.goto.n !== lvGotoN) { if (lvGotoN !== null || lvSession === live.sessionId) lvSelected = live.goto.page; lvGotoN = live.goto.n; } // went to a plan item's page
@@ -1164,7 +1165,7 @@ function renderLive() {
   $("lvUnlock").disabled = !more;
   $("lvUnlock").textContent = more ? "Unlock page " + (next + 1) + " ▶" : "All pages unlocked";
   $("lvUnlockNote").textContent = more ? "Next: " + pageLabel(lesson.pages[next], next) : "";
-  $("lvRelock").disabled = live.unlocked === 0;
+  $("lvRelock").disabled = live.unlocked <= (live.from || 0);
   $("lvRelock").textContent = "Re-lock page " + (live.unlocked + 1);
   renderAsk();
   $("lvPause").setAttribute("aria-pressed", live.paused ? "true" : "false");

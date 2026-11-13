@@ -176,9 +176,10 @@ function apply(s) {
   if (s.goto && s.goto.n !== gotoN) {
     const first = gotoN === null;
     gotoN = s.goto.n;
-    if (!first || page !== s.goto.page) { page = Math.min(s.goto.page, s.unlocked); pulse = false; spKey = null; reportPage(); }
+    if (!first || page !== s.goto.page) { page = Math.max(s.from || 0, Math.min(s.goto.page, s.unlocked)); pulse = false; spKey = null; reportPage(); }
   }
   if (page > s.unlocked) { page = s.unlocked; reportPage(); }
+  if (page < (s.from || 0)) { page = s.from || 0; reportPage(); }
   render();
 }
 
@@ -189,7 +190,7 @@ function reportPage() {
 
 function go(delta) {
   const n = page + delta;
-  if (n < 0 || n > state.unlocked) return;
+  if (n < (state.from || 0) || n > state.unlocked) return;
   page = n;
   if (delta > 0) pulse = false;
   reportPage();
@@ -286,7 +287,7 @@ function render() {
   $("fs").onclick = () => { try { fsGo.call(fsTarget); } catch {} };
 
   $("pageNum").textContent = "Page " + (page + 1);
-  $("back").disabled = page === 0;
+  $("back").disabled = page <= (state.from || 0);
   const canNext = page < state.unlocked;
   const atEnd = page >= state.total - 1;
   $("next").disabled = !canNext;
