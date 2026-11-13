@@ -294,7 +294,7 @@ export class Classroom extends DurableObject {
 
       // questions students can answer while they wait for class to start (nothing private in them)
       if (p === "/api/trivia-s" && m === "GET") {
-        const t = (await this.ctx.storage.get("trivia")) || { on: true, list: [] };
+        const saved = await this.ctx.storage.get("trivia"); const t = saved || { on: true, list: [] }; if (!saved) t.fresh = true; // nothing saved yet: the page falls back to the starter questions
         return json(t.on === false ? { on: false, list: [] } : t);
       }
 

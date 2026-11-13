@@ -206,7 +206,14 @@ $("next").onclick = () => go(1);
 let triviaList = null, triviaSeen = (() => { try { return JSON.parse(localStorage.getItem("cl_trivia_seen") || "[]"); } catch { return []; } })(), triviaCur = null;
 async function loadTrivia() {
   if (triviaList) return;
-  try { const t = await api("/api/trivia-s"); triviaList = t.on === false ? [] : (t.list || []); } catch { triviaList = []; }
+  try {
+    const t = await api("/api/trivia-s");
+    triviaList = t.on === false ? [] : (t.list || []);
+    if (t.fresh && !triviaList.length) { // the teacher hasn't set any up: use the starter set
+      await new Promise((ok) => { const sc = document.createElement("script"); sc.src = "trivia-starter.js?v=1"; sc.onload = sc.onerror = ok; document.head.append(sc); });
+      triviaList = (window.TRIVIA_STARTER || []).map((q, i) => ({ ...q, id: "s" + i }));
+    }
+  } catch { triviaList = []; }
 }
 async function showTrivia() {
   if (PREVIEW) return;

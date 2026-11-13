@@ -353,6 +353,7 @@ function onTState(s) {
   if (!s || !("presence" in s)) return;
   tstate = s;
   tstateAt = Date.now();
+  refreshViewQ();
   if (!$("homeView").hidden) renderLiveCard();
   if (!$("studentsView").hidden) renderHomeWho();
   if (!$("liveView").hidden) renderLive();
@@ -1609,7 +1610,7 @@ function renderAnswers() {
         const thumbOn = !!(x.fb && x.fb.thumb);
         return el("li", { class: (on ? "shown " : "") + (x.done ? "done" : ""), style: "flex-wrap:wrap" },
           el("div", { class: "t-ans-text" },
-            el("span", { class: "t-who-name" }, named ? x.name : "", x.done ? el("span", { class: "t-done", text: (named ? " · " : "") + "✓ Submitted" }) : (isLive ? el("span", { class: "t-writing", text: (named ? " · " : "") + "still writing" }) : null)),
+            el("span", { class: "t-who-name" }, named ? x.name : "", x.done ? el("span", { class: "t-done", text: (named ? " · " : "") + "✓ Submitted" }) : (isLive || (live && q.sp && q.sessionId === live.sessionId) ? el("span", { class: "t-writing", text: (named ? " · " : "") + "still writing" }) : null)),
             x.text),
           live ? el("button", { class: on ? "aero-btn-primary" : "", text: on ? "On the TV" : "Show on TV", "aria-pressed": on ? "true" : "false",
             onclick: () => link.send({ t: "show", qid: q.id, code: x.code, on: !on }) }) : null,
@@ -1636,6 +1637,16 @@ function renderQs() {
     el("span", { style: "white-space:pre-wrap" }, q.parts > 1 ? "Part " + q.part + "/" + q.parts + ": " : "", formatText(q.prompt)),
     el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
     : [el("li", { class: "t-hint", text: "Questions you ask show up here." })]));
+}
+// a self-paced question being watched while students type: pull its answers again (at most every 2 seconds)
+let vqBusy = false, vqAt = 0;
+async function refreshViewQ() {
+  if (!viewQ || vqBusy || !(tstate && tstate.live) || Date.now() - vqAt < 2000) return;
+  const q = (tstate.qs || []).find((x) => x.id === viewQ.id);
+  if (!q || !q.sp || q.sessionId !== tstate.live.sessionId) return;
+  vqBusy = true; vqAt = Date.now();
+  try { const id = viewQ.id; const a = await tapi("/api/answers?q=" + encodeURIComponent(id)); if (viewQ && viewQ.id === id) { viewQ.answers = a; renderAnswers(); } } catch {}
+  vqBusy = false;
 }
 async function openSaved(id, quiet) {
   const a = tstate.live && tstate.live.ask;
