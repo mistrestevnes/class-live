@@ -128,6 +128,29 @@ function withPlan(lesson) {
 const BLOCK_LEVEL = { 1: "honors", 5: "honors", 2: "enriched" };
 function levelOfBlock(name) { const m = String(name || "").match(/\d/); return (m && BLOCK_LEVEL[m[0]]) || ""; }
 
+// What a sim can tell Class Live (events) and be told by it (commands).
+// A sim may list them in <script type="application/json" id="classlive-events">{"events":{"name":"what it means"},"commands":{...}}</script>.
+// The file is also scanned for names it sends or listens for, so sims without a list still work.
+// Each item: {name, says, listed (in the sim's list), found (in the sim's code)}.
+function simManifest(html) {
+  const out = { events: [], commands: [] };
+  let listed = { events: {}, commands: {} };
+  const m = html.match(/<script[^>]*id=["']classlive-events["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (m) { try { const j = JSON.parse(m[1]); listed = { events: j.events || {}, commands: j.commands || {} }; } catch {} }
+  const name = (x) => /^[A-Za-z][\w-]{0,40}$/.test(x);
+  const scan = (res) => { const set = new Set(); for (const re of res) for (const r of html.matchAll(re)) if (name(r[1])) set.add(r[1]); return set; };
+  const foundE = scan([/classliveEvent\s*:\s*["'`]([\w-]+)["'`]/g]);
+  const foundC = scan([/classliveCommand\s*={2,3}\s*["'`]([\w-]+)["'`]/g, /["'`]([\w-]+)["'`]\s*={2,3}\s*[\w.$\[\]]*classliveCommand/g]);
+  const cases = scan([/case\s*["'`]([\w-]+)["'`]\s*:/g]); // a switch label only counts for a command the sim lists
+  const build = (kind, found) => {
+    const l = Array.isArray(listed[kind]) ? Object.fromEntries(listed[kind].map((x) => [x.name, x.says])) : listed[kind];
+    const names = new Set([...Object.keys(l).filter(name), ...found]);
+    return [...names].map((n) => ({ name: n, says: typeof l[n] === "string" ? l[n].slice(0, 200) : "", listed: n in l, found: found.has(n) || (kind === "commands" && n in l && cases.has(n)) }));
+  };
+  out.events = build("events", foundE); out.commands = build("commands", foundC);
+  return out;
+}
+
 export class Classroom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -284,7 +307,7 @@ export class Classroom extends DurableObject {
       if (p === "/api/images" && m === "POST") return this.saveImage(request);
 
       // sims the teacher uploads (single .html files), shown in lessons from /sim/<id>
-      if (p === "/api/sims" && m === "GET") return json((await this.ctx.storage.get("sims")) || []);
+      if (p === "/api/sims" && m === "GET") return json(await this.simIndex());
       if (p === "/api/sims" && m === "POST") return this.saveSim(request, null);
       const sm = p.match(/^\/api\/sims\/([a-z0-9]+)$/);
       if (sm && m === "PUT") return this.saveSim(request, sm[1]);
@@ -449,9 +472,23 @@ export class Classroom extends DurableObject {
     const sid = id || rid(12);
     const updated = Date.now();
     await this.ctx.storage.put("sim:" + sid, { html, updated });
-    const entry = { id: sid, name, size: html.length, updated };
+    const entry = { id: sid, name, size: html.length, updated, ...simManifest(html) };
     await this.ctx.storage.put("sims", [entry, ...index.filter((x) => x.id !== sid)]);
     return json(entry);
+  }
+
+  // the sim list; sims uploaded before events were tracked get theirs worked out once, here
+  async simIndex() {
+    const index = (await this.ctx.storage.get("sims")) || [];
+    let changed = false;
+    for (const e of index) {
+      if (e.events) continue;
+      const rec = await this.ctx.storage.get("sim:" + e.id);
+      Object.assign(e, rec ? simManifest(rec.html) : { events: [], commands: [] });
+      changed = true;
+    }
+    if (changed) await this.ctx.storage.put("sims", index);
+    return index;
   }
 
   async deleteSim(id) {

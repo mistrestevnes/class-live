@@ -733,6 +733,68 @@ function partMedia(p, H = EDH) {
     status, pic, anim);
 }
 
+// Events a sim can report / commands it accepts, for the pickers in the question editor.
+// Looks at the sims on the question's page first; if the page has none, at every uploaded sim.
+function pageSimIds(page) {
+  const lesson = (ed && ed.pages ? ed : null) || (tstate && tstate.lesson) || { pages: [] };
+  let blocks = page.blocks || [];
+  if (page.pageId) { const pg = lesson.pages.find((x) => x.id === page.pageId); blocks = (pg && pg.blocks) || []; }
+  const ids = [];
+  for (const b of blocks) { const m = b && b.type === "sim" && (b.url || "").match(/^\/sim\/([a-z0-9]+)$/); if (m) ids.push(m[1]); }
+  return ids;
+}
+async function simChoices(page, kind) {
+  const list = await loadSims();
+  const ids = pageSimIds(page);
+  const from = ids.length ? list.filter((x) => ids.includes(x.id)) : list;
+  const seen = new Map();
+  for (const sim of from) for (const it of sim[kind] || []) if (!seen.has(it.name)) seen.set(it.name, { ...it, sim: sim.name });
+  return { items: [...seen.values()], scoped: ids.length > 0 };
+}
+// A menu of what the sim offers, plus "Something else" for a name typed by hand.
+function namePicker({ page, kind, value, placeholder, label, onSet }) {
+  const wrap = el("span", { class: "t-row", style: "gap:6px" });
+  const typed = el("input", { type: "text", style: "width:180px", value: value || "", placeholder, "aria-label": label,
+    oninput: (e) => onSet(e.target.value.trim()) });
+  const menu = el("select", { "aria-label": label + " menu", onchange: (e) => {
+    if (e.target.value === "__other") { typed.hidden = false; typed.focus(); return; }
+    typed.hidden = true; typed.value = e.target.value; onSet(e.target.value);
+  } });
+  menu.hidden = true;
+  wrap.append(menu, typed);
+  simChoices(page, kind).then(({ items }) => {
+    if (!items.length) return;
+    const known = items.some((x) => x.name === value);
+    menu.replaceChildren(el("option", { value: "", text: "Choose…" }),
+      ...items.map((x) => el("option", { value: x.name, text: x.says ? x.name + " — " + x.says : x.name })),
+      el("option", { value: "__other", text: "Something else…" }));
+    menu.value = !value ? "" : known ? value : "__other";
+    menu.hidden = false;
+    typed.hidden = !value || known; // a typed name shows only for "Something else…"
+  });
+  return wrap;
+}
+// What an uploaded sim reports, shown under the sim picker.
+function simInfo(id) {
+  const box = el("div", { class: "t-hint" });
+  if (!id) return box;
+  loadSims().then((list) => {
+    const sim = list.find((x) => x.id === id);
+    if (!sim) return;
+    const line = (title, items) => {
+      if (!items || !items.length) return null;
+      return el("div", {}, el("strong", { text: title }),
+        ...items.map((x) => el("div", { text: "• " + x.name + (x.says ? " — " + x.says : " — no description yet") +
+          (x.found ? "" : " (not found in the sim's code)") })));
+    };
+    box.append(line("Events it reports", sim.events) || el("div", { text: "This sim reports no events." }),
+      line("Commands it accepts", sim.commands));
+    const undescribed = [...(sim.events || []), ...(sim.commands || [])].filter((x) => !x.listed).length;
+    if (undescribed) box.append(el("div", { text: undescribed + " found in the code but not described in the sim's list." }));
+  });
+  return box;
+}
+
 function questionsPanel(page, H = EDH) {
   const qs = page.questions || [];
   const panel = el("div", { class: "aero-panel t-block" }, el("div", { class: "t-block-head" }, el("h3", { text: "Questions" })));
@@ -764,16 +826,16 @@ function questionsPanel(page, H = EDH) {
           el("option", { value: "sim", text: "When the sim reports an event", selected: q.trigger.type === "sim" }),
           ...earlier.map((x) => el("option", { value: x.id, text: "After question " + (qs.indexOf(x) + 1) + " is submitted", selected: q.trigger.type === "after" && q.trigger.afterId === x.id }))),
         q.trigger.type === "sim"
-          ? el("input", { type: "text", style: "width:200px", value: q.trigger.event || "", placeholder: "Event name, like dataSubmitted", "aria-label": "Sim event name",
-              oninput: (e) => { q.trigger.event = e.target.value.trim(); H.changed(); } })
+          ? namePicker({ page, kind: "events", value: q.trigger.event, placeholder: "Event name, like dataSubmitted", label: "Sim event",
+              onSet: (v) => { q.trigger.event = v; H.changed(); } })
           : el("label", { class: "t-row" },
               el("input", { type: "number", min: "0", max: "600", step: "1", style: "width:80px", value: q.trigger.delay ?? 3, "aria-label": "Seconds to wait",
                 oninput: (e) => { q.trigger.delay = Number(e.target.value) || 0; H.changed(); } }),
               el("span", { text: "seconds later" }))));
       box.append(el("div", { class: "t-row", style: "margin:6px 0" },
         el("label", { class: "t-row" }, el("span", { text: "When the last part is submitted, tell the sim" }),
-          el("input", { type: "text", style: "width:200px", value: q.command || "", placeholder: "Command name (optional)", "aria-label": "Sim command",
-            oninput: (e) => { q.command = e.target.value.trim(); H.changed(); } }))));
+          namePicker({ page, kind: "commands", value: q.command, placeholder: "Command name (optional)", label: "Sim command",
+            onSet: (v) => { q.command = v; H.changed(); } }))));
     }
     q.parts.forEach((p, pi) => box.append(el("div", { class: "t-part" },
       q.parts.length > 1 ? el("div", { class: "t-hint", text: "Part " + (pi + 1) }) : null,
@@ -891,6 +953,7 @@ function blockEditor(page, b, i) {
         el("button", { class: "t-small", text: "Upload a sim file", onclick: () => upNew.click() }),
         cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
         status, upNew, upRep));
+    box.append(simInfo(cur && cur[1]));
     box.append(el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
       el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: set("url") })));
     box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Height" }),
