@@ -592,6 +592,24 @@ $("itAdd").onclick = () => addItem("New item");
 $("itIntro").onclick = () => addItem("Intro");
 $("itExit").onclick = () => addItem("Exit Ticket");
 const EDH = { changed: () => changed(), render: () => renderEditor() };
+// One click from a page to a question: uses the plan item that already goes to this page,
+// or makes one (named after the page, placed after the items for earlier pages), then adds a question to it.
+function questionForPage(page) {
+  let item = [...ed.plan].reverse().find((x) => x.pageId === page.id);
+  if (!item) {
+    const pi = ed.pages.indexOf(page);
+    item = newItem(pageLabel(page, pi));
+    item.pageId = page.id;
+    let at = ed.plan.length;
+    const after = ed.plan.map((x, i) => [i, ed.pages.findIndex((p) => p.id === x.pageId)]).filter(([, k]) => k >= 0 && k <= pi);
+    const before = ed.plan.findIndex((x) => { const k = ed.pages.findIndex((p) => p.id === x.pageId); return k > pi; });
+    if (after.length) at = after[after.length - 1][0] + 1; else if (before >= 0) at = before;
+    ed.plan.splice(at, 0, item);
+  }
+  (item.questions ||= []).push(newPrepared());
+  edItem = item.id; edPreview = false; changed(); renderEditor();
+  setTimeout(() => { const t = [...document.querySelectorAll("#edBody .t-pq textarea")].pop(); if (t) { t.scrollIntoView({ block: "center" }); t.focus(); } }, 0);
+}
 
 // a list you can drag to put in order; onMove(from, to)
 function dragList(ul, onMove) {
@@ -673,10 +691,11 @@ function renderEditor() {
         onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
   const usedBy = ed.plan.filter((x) => x.pageId === page.id);
   items.push(el("div", { class: "aero-panel t-block" },
-    el("h3", { style: "margin:0 0 6px", text: "Plan items that go to this page" }),
+    el("div", { class: "t-block-head" }, el("h3", { text: "Plan items that go to this page" }),
+      el("button", { class: "t-small aero-btn-primary", text: "+ Add a question after this page", onclick: () => questionForPage(page) })),
     usedBy.length ? el("div", { class: "t-row", style: "flex-wrap:wrap" }, ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item",
       onclick: () => { edItem = x.id; renderEditor(); } })))
-      : el("p", { class: "t-hint", style: "margin:0", text: "None yet. Questions live in plan items: add an item, choose this page, and add its questions there." })));
+      : el("p", { class: "t-hint", style: "margin:0", text: "None yet." })));
   body.replaceChildren(...items);
 }
 
@@ -959,6 +978,8 @@ function blockEditor(page, b, i) {
     box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Height" }),
       sizeSelect(b, "height", [["tall", "Fills the screen"], ["medium", "About half the screen"]])));
     box.append(el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. Uploaded sims freeze when you pause the class." }));
+    box.append(el("div", { class: "t-row", style: "margin-top:8px" },
+      el("button", { class: "t-small aero-btn-primary", text: "+ Add a question after this sim", onclick: () => questionForPage(ed.pages[edPage]) })));
   }
   return box;
 }
