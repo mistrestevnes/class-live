@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="app.css?v=24">
 <link rel="stylesheet" href="teacher.css?v=3">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -776,13 +776,19 @@ function partMedia(p, H = EDH) {
     el("option", { value: "", text: "Loading…" }));
   loadSims().then((list) => {
     pick.replaceChildren(el("option", { value: "", text: "No animation" }), ...list.map((x) => el("option", { value: x.id, text: "Animation: " + x.name })));
-    pick.value = p.sim ? p.sim.replace("/sim/", "") : "";
+    pick.value = p.sim && p.sim.startsWith("/sim/") ? p.sim.replace("/sim/", "") : "";
+  });
+  const vpick = el("select", { "aria-label": "Video", onchange: (e) => { p.sim = e.target.value ? "/video/" + e.target.value : ""; if (p.sim) p.imageId = ""; H.changed(); H.render(); } },
+    el("option", { value: "", text: "Loading…" }));
+  loadVideos().then((d) => { const list = d.videos || [];
+    vpick.replaceChildren(el("option", { value: "", text: "No video" }), ...list.map((x) => el("option", { value: x.id, text: "Video: " + x.name })));
+    vpick.value = p.sim && p.sim.startsWith("/video/") ? p.sim.replace("/video/", "") : "";
   });
   return el("div", { class: "t-media" },
     p.imageId ? el("img", { class: "t-thumb", src: "/img/" + p.imageId, alt: "" }) : null,
     el("button", { class: "t-small", text: p.imageId ? "Replace picture" : "Add a picture", onclick: () => pic.click() }),
     p.imageId ? el("button", { class: "t-small", text: "Remove picture", onclick: () => { p.imageId = ""; H.changed(); H.render(); } }) : null,
-    pick,
+    pick, vpick,
     el("button", { class: "t-small", text: "Upload animation file", onclick: () => anim.click() }),
     status, pic, anim);
 }

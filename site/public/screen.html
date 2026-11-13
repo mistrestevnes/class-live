@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Screen</title>
-<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="app.css?v=24">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
   /* the TV page: open on the iPad and leave it. No controls, no names. */
@@ -104,9 +104,9 @@ function apply(s) {
   const anim = a && a.sim && !onPage(a.sim) ? a.sim : "";
   const st = $("animStage");
   if (!anim || sh || paused) { st.replaceChildren(); st.hidden = true; }
-  else if (!st.firstChild || st.firstChild.dataset.url !== anim) { const f = el("iframe", { src: anim, title: "Animation", allow: "autoplay; fullscreen" }); f.dataset.url = anim; st.replaceChildren(f); st.hidden = false; }
+  else if (!st.firstChild || st.firstChild.dataset.url !== anim) { const f = anim.startsWith("/video/") ? el("video", { src: anim, controls: true, playsinline: true, title: "Video" }) : el("iframe", { src: anim, title: "Animation", allow: "autoplay; fullscreen" }); f.dataset.url = anim; st.replaceChildren(f); st.hidden = false; }
   else st.hidden = false;
-  $("tvToSim").textContent = anim ? "Watch the animation" : "Show the sim";
+  $("tvToSim").textContent = anim ? (anim.startsWith("/video/") ? "Watch the video" : "Watch the animation") : "Show the sim";
   $("tvBack").hidden = !(a && tvMin && !sh && !paused);
   $("cover").hidden = !(a || sh || paused) || (!!a && tvMin && !sh && !paused);
   $("showBox").hidden = !sh;

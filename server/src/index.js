@@ -726,7 +726,7 @@ export class Classroom extends DurableObject {
           seconds: Math.max(10, Math.min(Number(p && p.seconds) || 120, 3600)),
           // a picture (an uploaded image) or an animation (an uploaded sim) shown with the question
           imageId: /^[a-z0-9]{4,24}$/.test((p && p.imageId) || "") ? p.imageId : "",
-          sim: /^\/sim\/[a-z0-9]+$/.test((p && p.sim) || "") ? p.sim : "",
+          sim: /^\/(sim|video)\/[a-z0-9]+$/.test((p && p.sim) || "") ? p.sim : "", // an uploaded sim, or an uploaded video
         })).filter((p) => p.prompt);
         if (!parts.length) return;
         if (msg.preparedId) (this.live.sent ||= {})[String(msg.preparedId).replace(/[^a-z0-9]/gi, "").slice(0, 20)] = Date.now(); // for the "asked" mark

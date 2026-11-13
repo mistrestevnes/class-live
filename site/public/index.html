@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="app.css?v=24">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -321,7 +321,7 @@ function simOnPage(url) {
 }
 // what the "back to the page" button calls what's behind the question
 function backLabel(part) {
-  if (animOf(part)) return "Watch the animation";
+  if (animOf(part)) return animOf(part).startsWith("/video/") ? "Watch the video" : "Watch the animation";
   const bl = (state.pages && state.pages[page] && state.pages[page].blocks) || [];
   const hasVideo = bl.some((b) => b.type === "video"), hasSim = bl.some((b) => b.type === "sim");
   return hasVideo && !hasSim ? "Go back to the video" : hasVideo ? "Go back to the page" : "Go back to the sim";
@@ -336,7 +336,7 @@ function updateStage() {
   if (!url) { if (st.firstChild) st.replaceChildren(); st.hidden = true; return; }
   st.hidden = false;
   if (!st.firstChild || st.firstChild.dataset.url !== url) {
-    const f = el("iframe", { src: url, title: "Animation", allow: "autoplay; fullscreen" });
+    const f = url.startsWith("/video/") ? el("video", { src: url, controls: true, playsinline: true, title: "Video" }) : el("iframe", { src: url, title: "Animation", allow: "autoplay; fullscreen" });
     f.dataset.url = url;
     st.replaceChildren(f);
   }
