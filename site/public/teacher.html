@@ -1587,7 +1587,7 @@ function popTimeUp(d) {
     el("h2", { text: "Question over" }),
     el("p", { text: d.text }),
     el("div", { class: "t-row" },
-      el("button", { class: "aero-btn-primary", text: "See responses", onclick: () => { box.remove(); if (d.id) timeUpSeen.add(d.id), renderTimeUp(null); location.hash = "#/"; if (d.qid) openSaved(d.qid); else { viewQ = null; setTab("resp"); } } }),
+      el("button", { class: "aero-btn-primary", text: "See responses", onclick: () => { box.remove(); if (d.id) { timeUpSeen.add(d.id); renderTimeUp(null); } location.hash = "#/"; openSaved(d.qid || d.id); } }),
       el("button", { text: "Close", onclick: () => { box.remove(); if (d.id) { timeUpSeen.add(d.id); renderTimeUp(null); } } })));
   stack.append(box);
 }

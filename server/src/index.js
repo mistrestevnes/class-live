@@ -48,6 +48,7 @@ async function serveVideo(request, env, rawId) {
 const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this long after each check
 const MAX_IMAGE_BYTES = 1_800_000;
 const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
+const ASK_GRACE = 6000; // students' answers are still saved for 5 s after time runs out
 const MAX_VIDEO_BYTES = 90_000_000; // one uploaded video (the site passes requests up to 100 MB)
 const VIDEO_TYPES = { "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov" };
 const LATE_MS = 4000;        // a student's last save may arrive this long after the timer hits zero
@@ -860,6 +861,7 @@ export class Classroom extends DurableObject {
       default:
         return; // "refresh" and unknown messages change nothing
     }
+    if (msg.t.startsWith("ask")) await this.setAlarms(); // the running question's time may have changed
     this.broadcast();
   }
 
@@ -1393,6 +1395,8 @@ export class Classroom extends DurableObject {
     const t = [];
     if (this.run && this.run.endsAt !== null && !this.runClosed()) t.push(this.run.endsAt);
     if (this.live && this.live.autoEndAt) t.push(this.live.autoEndAt);
+    const a = this.live && this.live.ask;
+    if (a && !a.paused) t.push(a.endsAt + ASK_GRACE); // close the question once its time is up
     if (t.length) await this.ctx.storage.setAlarm(Math.min(...t));
     else await this.ctx.storage.deleteAlarm();
   }
@@ -1421,6 +1425,13 @@ export class Classroom extends DurableObject {
 
   // The timer ran out: tell everyone.
   async alarm() {
+    // a sent question's time ran out: go on to its next part, or close it (after a moment for the last answers to save)
+    const a = this.live && this.live.ask;
+    if (a && !a.paused && Date.now() >= a.endsAt + ASK_GRACE - 1000) {
+      const set = this.live.askSet;
+      if (set && set.i + 1 < set.parts.length) await this.startPart(set.i + 1);
+      else { this.live.ask = null; this.live.askSet = null; await this.ctx.storage.put("live", this.live); }
+    }
     if (this.live && this.live.autoEndAt && Date.now() >= this.live.autoEndAt - 1000) {
       await this.teacherMessage({ t: "end" });
     }
