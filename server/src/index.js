@@ -954,13 +954,31 @@ export class Classroom extends DurableObject {
     return out;
   }
   // how many students have answered / submitted each part (for the teacher)
+  // a student's clock on a self-starting question began: keep the latest start, so the teacher knows when the last clock runs out
+  async noteSpStart(msg, stu) {
+    if (!stu || !this.live || !this.inBlock(stu)) return;
+    const hit = this.spQuestions().find((x) => x.pg.id === msg.pageId && x.q.id === msg.qid);
+    const idx = Number(msg.idx);
+    if (!hit || !Number.isInteger(idx) || idx < 0 || idx >= hit.q.parts.length) return;
+    const id = this.spId(hit.pg.id, hit.q.id, idx);
+    const at = Math.min(Number(msg.at) || Date.now(), Date.now());
+    const last = (this.live.spLast ||= {});
+    if ((last[id] || 0) >= at) return;
+    last[id] = at;
+    await this.ctx.storage.put("live", this.live);
+    this.broadcast({ teachersOnly: true });
+  }
   spCounts() {
     const out = {};
     for (const { pg, q } of this.spQuestions()) {
       q.parts.forEach((_, i) => {
         const a = this.qa[this.spId(pg.id, q.id, i)] || {};
         const v = Object.values(a);
-        out[q.id + "." + i] = { n: v.length, done: v.filter((x) => x.done).length, qid: this.spId(pg.id, q.id, i) };
+        const sid = this.spId(pg.id, q.id, i), last = (this.live.spLast || {})[sid] || 0;
+        out[q.id + "." + i] = { n: v.length, done: v.filter((x) => x.done).length, qid: sid,
+          // when the last student's clock on this part runs out
+          ends: last ? last + (Number(q.parts[i].min) || 3) * 60000 + ((this.live.spExtra || {})[q.id] || 0) * 1000 : 0,
+          prompt: String(q.parts[i].prompt || "").replace(/\*+/g, "").slice(0, 120), part: i + 1, parts: q.parts.length };
       });
     }
     return out;
@@ -1126,6 +1144,7 @@ export class Classroom extends DurableObject {
   async studentMessage(sid, msg, stu) {
     if (msg.t === "answer") return this.saveAnswer(msg, stu);
     if (msg.t === "work") return this.saveWork(msg, stu);
+    if (msg.t === "spStart") return this.noteSpStart(msg, stu);
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
     if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
     if (msg.t === "sqSend") return this.saveSq(msg, stu);

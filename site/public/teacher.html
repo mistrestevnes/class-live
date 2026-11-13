@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=24">
-<link rel="stylesheet" href="teacher.css?v=3">
+<link rel="stylesheet" href="teacher.css?v=4">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -354,6 +354,7 @@ function onTState(s) {
   tstate = s;
   tstateAt = Date.now();
   refreshViewQ();
+  checkTimeUps();
   if (!$("homeView").hidden) renderLiveCard();
   if (!$("studentsView").hidden) renderHomeWho();
   if (!$("liveView").hidden) renderLive();
@@ -1554,6 +1555,43 @@ function renderBadge() {
 
 // "time is up" on the Class tab, until dismissed
 const timeUpSeen = new Set();
+// a pop-up on the teacher page when a question's time runs out (sent questions, and the last student's clock on self-starting ones)
+const timeUpPopped = new Set();
+let timeUpSeeded = false;
+function checkTimeUps() {
+  if (!tstate || !tstate.live) return;
+  const now = teacherNow(), due = [];
+  const a = tstate.live.ask;
+  if (a && !a.paused && now >= a.endsAt) {
+    const ans = Object.values(tstate.askAnswers || {});
+    due.push({ key: "ask:" + a.id + ":" + a.endsAt, ended: a.endsAt, id: a.id,
+      text: "Time is up on the question" + (a.parts > 1 ? " (part " + a.part + " of " + a.parts + ")" : "") + ". " + ans.filter((v) => v.done).length + " of " + blockStudents().filter((x) => x.connected).length + " submitted." });
+  }
+  for (const c of Object.values(tstate.spCounts || {})) {
+    if (!c.ends || now < c.ends) continue;
+    due.push({ key: "sp:" + c.qid + ":" + c.ends, ended: c.ends, qid: c.qid,
+      text: "Time is up for everyone on \u201c" + (c.prompt || "the question") + "\u201d" + (c.parts > 1 ? " (part " + c.part + " of " + c.parts + ")" : "") + ". " + c.done + " of " + c.n + " submitted." });
+  }
+  for (const d of due) {
+    if (timeUpPopped.has(d.key)) continue;
+    timeUpPopped.add(d.key);
+    if (!timeUpSeeded && now - d.ended > 15000) continue; // already over before this page was opened
+    popTimeUp(d);
+  }
+  timeUpSeeded = true;
+}
+function popTimeUp(d) {
+  let stack = $("timeUpStack");
+  if (!stack) { stack = el("div", { id: "timeUpStack", class: "t-popstack" }); document.body.append(stack); }
+  const box = el("section", { class: "aero-panel t-popup", role: "alertdialog", "aria-label": "Time is up" },
+    el("h2", { text: "Question over" }),
+    el("p", { text: d.text }),
+    el("div", { class: "t-row" },
+      el("button", { class: "aero-btn-primary", text: "See responses", onclick: () => { box.remove(); if (d.id) timeUpSeen.add(d.id), renderTimeUp(null); location.hash = "#/"; if (d.qid) openSaved(d.qid); else { viewQ = null; setTab("resp"); } } }),
+      el("button", { text: "Close", onclick: () => { box.remove(); if (d.id) { timeUpSeen.add(d.id); renderTimeUp(null); } } })));
+  stack.append(box);
+}
+setInterval(checkTimeUps, 1000);
 function renderTimeUp(info) {
   const bar = $("lvTimeUp");
   if (!info || timeUpSeen.has(info.id)) { bar.hidden = true; bar._key = null; return; }

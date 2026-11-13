@@ -551,6 +551,7 @@ function renderSp() {
     setMedia($("spMedia"), part);
     $("spMin").textContent = backLabel(part);
     $("spText").value = (mine[q.id + "." + idx] || {}).text || "";
+    if (!finished) link.send({ t: "spStart", pageId: pg.id, qid: q.id, idx, at: spStartOf(sessionId + "." + key) }); // so the teacher knows when time runs out
   }
   // the clock for this part
   let left = 0;

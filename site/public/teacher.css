@@ -225,3 +225,10 @@ html.teacher .t-lesson .t-ltitle { font-size: 12px; font-weight: 700; }
 html.teacher .t-small { min-height: 24px; padding: 1px 9px; font-size: 12px; }
 html.teacher #liveView .t-cols.idle { grid-template-columns: 1fr; }
 html.teacher #liveView .t-cols.idle > aside { display: none; }
+
+/* "question over" pop-ups: top centre, well away from the edges, stay until closed */
+.t-popstack { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 12px; width: min(560px, calc(100vw - 120px)); }
+.t-popup { padding: 18px 22px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.t-popup h2 { margin: 0 0 6px; font-size: 18px; }
+.t-popup p { margin: 0 0 14px; font-size: 16px; }
+.t-popup .t-row { gap: 10px; justify-content: flex-end; }
