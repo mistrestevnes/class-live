@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=24">
-<link rel="stylesheet" href="teacher.css?v=4">
+<link rel="stylesheet" href="teacher.css?v=5">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -164,6 +164,7 @@
 <section id="liveView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
     <h1 class="cl-title" id="lvTitle"></h1>
+    <span class="t-livestate" id="lvLive"></span>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="lvStudents"></span>
     <span class="aero-chip cl-status" id="lvStatus"></span>
@@ -1121,6 +1122,7 @@ function renderLive() {
   if (!live && lvTab !== "class") setTab("class");
   if (!live || !lesson || !lesson.pages.length) {
     $("lvTitle").textContent = "Control room";
+    $("lvLive").className = "t-livestate"; $("lvLive").textContent = "No class running";
     $("lvPages").replaceChildren();
     $("lvPollBar").hidden = true;
     notesBox.hidden = true;
@@ -1140,6 +1142,8 @@ function renderLive() {
 
   $("lvPage")._startKey = null;
   $("lvTitle").textContent = "Control room · " + lesson.title + (live.periodName ? " · " + live.periodName : "");
+  $("lvLive").className = "t-livestate on";
+  $("lvLive").textContent = "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   renderPlan();
   $("lvStudents").textContent = presence.count + (presence.count === 1 ? " student" : " students") +
     (presence.polling ? " (" + presence.polling + " checking every few seconds)" : "") +

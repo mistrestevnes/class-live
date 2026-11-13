@@ -232,3 +232,10 @@ html.teacher #liveView .t-cols.idle > aside { display: none; }
 .t-popup h2 { margin: 0 0 6px; font-size: 18px; }
 .t-popup p { margin: 0 0 14px; font-size: 16px; }
 .t-popup .t-row { gap: 10px; justify-content: flex-end; }
+
+/* is a class live? next to the Control room title */
+.t-livestate { display: inline-flex; align-items: center; gap: 8px; margin-left: 16px; font-size: 14px; font-weight: 700; color: var(--aero-muted, #9fb5a8); }
+.t-livestate::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #6b7d73; }
+.t-livestate.on { color: #ffffff; padding: 4px 14px 4px 10px; border-radius: 999px; background: #c0392b; }
+.t-livestate.on::before { background: #ffffff; animation: t-blink 1.6s ease-in-out infinite; }
+@keyframes t-blink { 50% { opacity: 0.25; } }
