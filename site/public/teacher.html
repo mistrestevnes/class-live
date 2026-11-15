@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=24">
-<link rel="stylesheet" href="teacher.css?v=7">
+<link rel="stylesheet" href="teacher.css?v=8">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -38,18 +38,23 @@
   </div>
 </section>
 
-<!-- lesson-plan calendar: one week, a row per block -->
+<!-- lesson-plan calendar: Day, Week or Month (one at a time) -->
 <section id="calView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
     <h1 class="cl-title" id="calTitle">Calendar</h1>
     <span class="cl-grow"></span>
     <span class="t-hint" id="calSaved"></span>
+    <nav class="t-tabs" role="tablist">
+      <button role="tab" id="calDayBtn">Day</button>
+      <button role="tab" id="calWeekBtn">Week</button>
+      <button role="tab" id="calMonthBtn">Month</button>
+    </nav>
   </header>
-  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-body" id="calGrid"></div>
   <div class="aero-bar cal-bar">
-    <button id="calPrev">◀ Last week</button>
-    <button id="calToday">This week</button>
-    <button id="calNext">Next week ▶</button>
+    <button id="calPrev">◀</button>
+    <button id="calToday">Today</button>
+    <button id="calNext">▶</button>
   </div>
 </section>
 
@@ -283,8 +288,8 @@ async function route() {
   if (h === "#/lessons") return showHome();
   if (h === "#/students") return showStudents();
   if (h === "#/videos") return showVideos();
-  const cm = h.match(/^#\/calendar(?:\/(\d{4}-\d{2}-\d{2}))?$/);
-  if (cm) return showCalendar(cm[1]);
+  const cm = h.match(/^#\/calendar(?:\/(day|week|month)\/(\d{4}-\d{2}-\d{2}))?$/);
+  if (cm) return showCalendar(cm[1], cm[2]);
   const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
   if (pm) return showPast(pm[1]);
   return showLive(); // the control room is the teacher's home
@@ -1848,67 +1853,120 @@ window.addEventListener("resize", () => document.querySelectorAll("textarea").fo
 
 
 // ---------------------------------------------------------------- lesson-plan calendar
+// stored per week (key = Monday): cells["1st|0"] = { topic, sequence, assignments, exit, did }  (0 = Monday … 4 = Friday)
 $("calBtn").onclick = () => (location.hash = "#/calendar");
 const CAL_BLOCKS = ["1st", "2nd", "5th"];
 const CAL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const CAL_FIELDS = [["topic", "Topic"], ["sequence", "Sequence"], ["assignments", "Assignments"], ["exit", "Exit ticket"], ["did", "What we did"]];
 const ymd = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 function parseYmd(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-let calWeek = null, calData = null, calTimer = null;
-async function calSave(week, data) {
+function schoolDay(d) { const g = d.getDay(); return g === 6 ? addDays(d, 2) : g === 0 ? addDays(d, 1) : d; }
+const calWeeks = {};           // Monday -> { cells }
+const calDirty = new Set(); let calTimer = null;
+function calFix(data) { // older entries had one "plan" box: it becomes the topic
+  for (const c of Object.values(data.cells || {})) if (c.plan !== undefined) { if (!c.topic) c.topic = c.plan; delete c.plan; }
+  return data;
+}
+async function calLoad(week, fresh) {
+  if (!fresh && calWeeks[week]) return calWeeks[week];
+  const r = await tapi("/api/plans/" + week);
+  return (calWeeks[week] = calFix(r && r.cells ? r : { cells: {} }));
+}
+async function calSaveAll() {
   clearTimeout(calTimer); calTimer = null;
-  try { await tapi("/api/plans/" + week, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }); $("calSaved").textContent = "Saved"; }
-  catch (e) { $("calSaved").textContent = "Not saved — check the connection"; }
+  const weeks = [...calDirty]; calDirty.clear();
+  try {
+    for (const w of weeks) await tapi("/api/plans/" + w, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(calWeeks[w]) });
+    $("calSaved").textContent = "Saved";
+  } catch (e) { weeks.forEach((w) => calDirty.add(w)); $("calSaved").textContent = "Not saved — check the connection"; }
 }
-function calQueue() { $("calSaved").textContent = "Saving…"; clearTimeout(calTimer); const w = calWeek, d = calData; calTimer = setTimeout(() => calSave(w, d), 800); }
-async function calFlush() { if (calTimer) await calSave(calWeek, calData); }
-async function calLoad(week) { const r = await tapi("/api/plans/" + week); return r && r.cells ? r : { cells: {} }; }
-// move a cell's plan to the next school day (into next week from Friday)
-async function calMoveOn(block, day) {
-  const key = block + "|" + day, plan = (calData.cells[key] || {}).plan || "";
-  if (!plan.trim()) return;
-  await calFlush();
-  let week = calWeek, data = calData, nd = day + 1;
-  if (nd > 4) { week = ymd(addDays(parseYmd(calWeek), 7)); data = await calLoad(week); nd = 0; }
-  const k2 = block + "|" + nd, c2 = data.cells[k2] || (data.cells[k2] = { plan: "", did: "" });
-  c2.plan = c2.plan.trim() ? plan + "\n" + c2.plan : plan;
-  calData.cells[key].plan = "";
-  await calSave(calWeek, calData);
-  if (week !== calWeek) await calSave(week, data);
-  showCalendar(calWeek);
+function calQueue(week) { calDirty.add(week); $("calSaved").textContent = "Saving…"; clearTimeout(calTimer); calTimer = setTimeout(calSaveAll, 800); }
+function calCell(date, block) {
+  const w = ymd(mondayOf(date)), i = (date.getDay() + 6) % 7;
+  const cells = calWeeks[w].cells, key = block + "|" + i;
+  return { week: w, get: () => cells[key] || {}, set: (f, v) => { (cells[key] ||= {})[f] = v; calQueue(w); }, replace: (c) => { cells[key] = c; calQueue(w); } };
 }
-async function showCalendar(week) {
+const calDate = (d) => d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+async function showCalendar(view, dateStr) {
   show("calView");
-  await calFlush();
-  calWeek = week || ymd(mondayOf(new Date()));
-  const mon = parseYmd(calWeek);
-  $("calPrev").onclick = () => (location.hash = "#/calendar/" + ymd(addDays(mon, -7)));
-  $("calNext").onclick = () => (location.hash = "#/calendar/" + ymd(addDays(mon, 7)));
-  $("calToday").onclick = () => (location.hash = "#/calendar");
-  const fmt = (d) => d.toLocaleDateString([], { month: "long", day: "numeric" });
-  $("calTitle").textContent = "Week of " + fmt(mon) + ", " + mon.getFullYear();
+  if (calTimer) await calSaveAll();
+  view = view || "week";
+  const date = schoolDay(dateStr ? parseYmd(dateStr) : new Date());
+  for (const [v, id] of [["day", "calDayBtn"], ["week", "calWeekBtn"], ["month", "calMonthBtn"]]) {
+    $(id).setAttribute("aria-selected", v === view ? "true" : "false");
+    $(id).onclick = () => (location.hash = "#/calendar/" + v + "/" + ymd(date));
+  }
+  const go = (d) => (location.hash = "#/calendar/" + view + "/" + ymd(d));
+  const step = view === "day" ? (n) => { let d = addDays(date, n); while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, n); return d; }
+    : view === "week" ? (n) => addDays(mondayOf(date), 7 * n)
+    : (n) => new Date(date.getFullYear(), date.getMonth() + n, 1);
+  $("calPrev").onclick = () => go(step(-1));
+  $("calNext").onclick = () => go(step(1));
+  $("calToday").onclick = () => go(new Date());
+  $("calPrev").textContent = "◀ " + (view === "day" ? "Previous day" : view === "week" ? "Last week" : "Last month");
+  $("calNext").textContent = (view === "day" ? "Next day" : view === "week" ? "Next week" : "Next month") + " ▶";
   $("calSaved").textContent = "";
   const G = $("calGrid");
+  G.className = "cal-body cal-" + view;
   G.replaceChildren(el("p", { class: "t-hint", text: "Loading…" }));
-  try { calData = await calLoad(calWeek); } catch (e) { G.replaceChildren(el("p", { class: "t-hint", text: "Couldn't load this week." })); return; }
-  const today = ymd(new Date());
-  const kids = [el("div", { class: "cal-corner" })];
-  CAL_DAYS.forEach((n, i) => { const d = addDays(mon, i); kids.push(el("div", { class: "cal-day" + (ymd(d) === today ? " cal-today" : ""), text: n + " " + (d.getMonth() + 1) + "/" + d.getDate() })); });
-  for (const b of CAL_BLOCKS) {
-    kids.push(el("div", { class: "cal-block", text: b }));
-    CAL_DAYS.forEach((n, i) => {
-      const key = b + "|" + i, c = calData.cells[key] || { plan: "", did: "" };
-      const box = (field, label) => el("label", { class: "cal-field" }, el("span", { text: label }),
-        el("textarea", { rows: 2, value: c[field] || "", oninput: (e) => { (calData.cells[key] ||= { plan: "", did: "" })[field] = e.target.value; growBox(e.target); calQueue(); } }));
-      kids.push(el("div", { class: "aero-panel cal-cell" + (ymd(addDays(mon, i)) === today ? " cal-today" : "") },
-        box("plan", "Plan"), box("did", "What we did"),
-        el("button", { class: "cal-move", text: "Move plan to next day ▶", onclick: () => calMoveOn(b, i) })));
-    });
-  }
-  G.replaceChildren(...kids);
+  try {
+    if (view === "month") {
+      const first = new Date(date.getFullYear(), date.getMonth(), 1), last = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      for (let m = mondayOf(first); m <= last; m = addDays(m, 7)) await calLoad(ymd(m), true);
+      return calMonth(date, first, last);
+    }
+    await calLoad(ymd(mondayOf(date)), true);
+    return view === "day" ? calDay(date) : calWeek(date);
+  } catch (e) { G.replaceChildren(el("p", { class: "t-hint", text: "Couldn't load the calendar." })); }
 }
-window.addEventListener("beforeunload", () => { if (calTimer) calSave(calWeek, calData); });
+const openDay = (d) => (location.hash = "#/calendar/day/" + ymd(d));
+function calDay(date) {
+  $("calTitle").textContent = calDate(date);
+  const cols = CAL_BLOCKS.map((b) => {
+    const c = calCell(date, b);
+    const head = el("div", { class: "cal-colhead" }, el("span", { class: "cal-block", text: b + " block" }));
+    if (b === "5th") head.append(el("button", { text: "Copy 1st block to 5th", onclick: () => {
+      const has = Object.values(c.get()).some((v) => String(v || "").trim());
+      if (has && !window.confirm("Replace what's already in 5th block with a copy of 1st block?")) return;
+      const src = calCell(date, "1st").get(), copy = {};
+      for (const [f] of CAL_FIELDS) if (f !== "did" && src[f]) copy[f] = src[f];
+      if (c.get().did) copy.did = c.get().did; // keep 5th block's own "what we did"
+      c.replace(copy); calDay(date);
+    } }));
+    return el("div", { class: "aero-panel cal-col" }, head,
+      CAL_FIELDS.map(([f, label]) => el("label", { class: "cal-field" + (f === "did" ? " cal-did" : "") }, el("span", { text: label }),
+        el("textarea", { rows: f === "topic" ? 1 : 3, value: c.get()[f] || "", oninput: (e) => { c.set(f, e.target.value); growBox(e.target); } }))));
+  });
+  $("calGrid").replaceChildren(...cols);
+}
+function calWeek(date) {
+  const mon = mondayOf(date), today = ymd(new Date());
+  $("calTitle").textContent = "Week of " + mon.toLocaleDateString([], { month: "long", day: "numeric" });
+  const kids = [el("div")];
+  CAL_DAYS.forEach((n, i) => { const d = addDays(mon, i); kids.push(el("button", { class: "cal-dayhead" + (ymd(d) === today ? " cal-today" : ""), text: n + " " + (d.getMonth() + 1) + "/" + d.getDate(), onclick: () => openDay(d) })); });
+  for (const b of CAL_BLOCKS) {
+    kids.push(el("div", { class: "cal-block cal-rowhead", text: b }));
+    CAL_DAYS.forEach((n, i) => { const d = addDays(mon, i), t = calCell(d, b).get().topic || "";
+      kids.push(el("button", { class: "aero-panel cal-topic" + (ymd(d) === today ? " cal-today" : ""), onclick: () => openDay(d) }, t ? t : el("span", { class: "cal-empty", text: "—" }))); });
+  }
+  $("calGrid").replaceChildren(...kids);
+}
+function calMonth(date, first, last) {
+  $("calTitle").textContent = first.toLocaleDateString([], { month: "long", year: "numeric" });
+  const today = ymd(new Date());
+  const kids = CAL_DAYS.map((n) => el("div", { class: "cal-mhead", text: n }));
+  for (let d = mondayOf(first); d <= last; d = addDays(d, 1)) {
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const inMonth = d.getMonth() === first.getMonth();
+    kids.push(el("button", { class: "aero-panel cal-mday" + (inMonth ? "" : " cal-out") + (ymd(d) === today ? " cal-today" : ""), onclick: ((x) => () => openDay(x))(d) },
+      el("span", { class: "cal-mnum", text: String(d.getDate()) }),
+      CAL_BLOCKS.map((b) => { const t = calCell(d, b).get().topic; return t ? el("span", { class: "cal-mline", text: b + ": " + t }) : null; })));
+  }
+  $("calGrid").replaceChildren(...kids);
+}
+window.addEventListener("beforeunload", () => { if (calTimer) calSaveAll(); });
 
 // ---------------------------------------------------------------- past lessons
 const when = (t) => new Date(t).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

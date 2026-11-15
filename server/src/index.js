@@ -395,8 +395,9 @@ export class Classroom extends DurableObject {
         const cells = {};
         for (const [k, v] of Object.entries((b && b.cells) || {})) {
           if (!/^(1st|2nd|5th)\|[0-4]$/.test(k)) continue;
-          const plan = String((v && v.plan) || "").slice(0, 5000), did = String((v && v.did) || "").slice(0, 5000);
-          if (plan || did) cells[k] = { plan, did };
+          const c = {};
+          for (const f of ["topic", "sequence", "assignments", "exit", "did"]) { const t = String((v && v[f]) || "").slice(0, 8000); if (t) c[f] = t; }
+          if (Object.keys(c).length) cells[k] = c;
         }
         await this.ctx.storage.put("plans:" + wk[1], { cells, updated: Date.now() });
         return json({ ok: true });
