@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=24">
-<link rel="stylesheet" href="teacher.css?v=6">
+<link rel="stylesheet" href="teacher.css?v=7">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -17,6 +17,7 @@
   <button role="tab" id="navLessons">Lessons</button>
   <button role="tab" id="videosBtn">Videos</button>
   <button role="tab" id="studentsBtn">Students</button>
+  <button role="tab" id="calBtn">Calendar</button>
   <button role="tab" id="pastBtn">Past lessons</button>
   <button role="tab" id="recBtn">Record a replay</button>
 </nav>
@@ -34,6 +35,21 @@
       <button class="aero-btn-primary" id="loginBtn">Sign in</button>
       <button type="button" id="loginSwitch"></button>
     </form>
+  </div>
+</section>
+
+<!-- lesson-plan calendar: one week, a row per block -->
+<section id="calView" class="t-wrap" hidden>
+  <header class="cl-top aero-header">
+    <h1 class="cl-title" id="calTitle">Calendar</h1>
+    <span class="cl-grow"></span>
+    <span class="t-hint" id="calSaved"></span>
+  </header>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="aero-bar cal-bar">
+    <button id="calPrev">◀ Last week</button>
+    <button id="calToday">This week</button>
+    <button id="calNext">Next week ▶</button>
   </div>
 </section>
 
@@ -243,8 +259,8 @@ const tapi = (path, opts = {}) => api(path, { ...opts, headers: authHeaders(opts
   throw e;
 });
 
-const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", "pastView", "videosView"];
-const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", videosView: "videosBtn" };
+const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", "pastView", "videosView", "calView"];
+const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", videosView: "videosBtn", calView: "calBtn" };
 function show(v) {
   for (const id of VIEWS) $(id).hidden = id !== v;
   $("topNav").hidden = v === "loginView";
@@ -267,6 +283,8 @@ async function route() {
   if (h === "#/lessons") return showHome();
   if (h === "#/students") return showStudents();
   if (h === "#/videos") return showVideos();
+  const cm = h.match(/^#\/calendar(?:\/(\d{4}-\d{2}-\d{2}))?$/);
+  if (cm) return showCalendar(cm[1]);
   const pm = h.match(/^#\/past(?:\/([a-z0-9]+))?/i);
   if (pm) return showPast(pm[1]);
   return showLive(); // the control room is the teacher's home
@@ -1827,6 +1845,70 @@ new MutationObserver((list) => {
   }
 }).observe(document.body, { childList: true, subtree: true });
 window.addEventListener("resize", () => document.querySelectorAll("textarea").forEach(growBox));
+
+
+// ---------------------------------------------------------------- lesson-plan calendar
+$("calBtn").onclick = () => (location.hash = "#/calendar");
+const CAL_BLOCKS = ["1st", "2nd", "5th"];
+const CAL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const ymd = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function parseYmd(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+let calWeek = null, calData = null, calTimer = null;
+async function calSave(week, data) {
+  clearTimeout(calTimer); calTimer = null;
+  try { await tapi("/api/plans/" + week, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }); $("calSaved").textContent = "Saved"; }
+  catch (e) { $("calSaved").textContent = "Not saved — check the connection"; }
+}
+function calQueue() { $("calSaved").textContent = "Saving…"; clearTimeout(calTimer); const w = calWeek, d = calData; calTimer = setTimeout(() => calSave(w, d), 800); }
+async function calFlush() { if (calTimer) await calSave(calWeek, calData); }
+async function calLoad(week) { const r = await tapi("/api/plans/" + week); return r && r.cells ? r : { cells: {} }; }
+// move a cell's plan to the next school day (into next week from Friday)
+async function calMoveOn(block, day) {
+  const key = block + "|" + day, plan = (calData.cells[key] || {}).plan || "";
+  if (!plan.trim()) return;
+  await calFlush();
+  let week = calWeek, data = calData, nd = day + 1;
+  if (nd > 4) { week = ymd(addDays(parseYmd(calWeek), 7)); data = await calLoad(week); nd = 0; }
+  const k2 = block + "|" + nd, c2 = data.cells[k2] || (data.cells[k2] = { plan: "", did: "" });
+  c2.plan = c2.plan.trim() ? plan + "\n" + c2.plan : plan;
+  calData.cells[key].plan = "";
+  await calSave(calWeek, calData);
+  if (week !== calWeek) await calSave(week, data);
+  showCalendar(calWeek);
+}
+async function showCalendar(week) {
+  show("calView");
+  await calFlush();
+  calWeek = week || ymd(mondayOf(new Date()));
+  const mon = parseYmd(calWeek);
+  $("calPrev").onclick = () => (location.hash = "#/calendar/" + ymd(addDays(mon, -7)));
+  $("calNext").onclick = () => (location.hash = "#/calendar/" + ymd(addDays(mon, 7)));
+  $("calToday").onclick = () => (location.hash = "#/calendar");
+  const fmt = (d) => d.toLocaleDateString([], { month: "long", day: "numeric" });
+  $("calTitle").textContent = "Week of " + fmt(mon) + ", " + mon.getFullYear();
+  $("calSaved").textContent = "";
+  const G = $("calGrid");
+  G.replaceChildren(el("p", { class: "t-hint", text: "Loading…" }));
+  try { calData = await calLoad(calWeek); } catch (e) { G.replaceChildren(el("p", { class: "t-hint", text: "Couldn't load this week." })); return; }
+  const today = ymd(new Date());
+  const kids = [el("div", { class: "cal-corner" })];
+  CAL_DAYS.forEach((n, i) => { const d = addDays(mon, i); kids.push(el("div", { class: "cal-day" + (ymd(d) === today ? " cal-today" : ""), text: n + " " + (d.getMonth() + 1) + "/" + d.getDate() })); });
+  for (const b of CAL_BLOCKS) {
+    kids.push(el("div", { class: "cal-block", text: b }));
+    CAL_DAYS.forEach((n, i) => {
+      const key = b + "|" + i, c = calData.cells[key] || { plan: "", did: "" };
+      const box = (field, label) => el("label", { class: "cal-field" }, el("span", { text: label }),
+        el("textarea", { rows: 2, value: c[field] || "", oninput: (e) => { (calData.cells[key] ||= { plan: "", did: "" })[field] = e.target.value; growBox(e.target); calQueue(); } }));
+      kids.push(el("div", { class: "aero-panel cal-cell" + (ymd(addDays(mon, i)) === today ? " cal-today" : "") },
+        box("plan", "Plan"), box("did", "What we did"),
+        el("button", { class: "cal-move", text: "Move plan to next day ▶", onclick: () => calMoveOn(b, i) })));
+    });
+  }
+  G.replaceChildren(...kids);
+}
+window.addEventListener("beforeunload", () => { if (calTimer) calSave(calWeek, calData); });
 
 // ---------------------------------------------------------------- past lessons
 const when = (t) => new Date(t).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

@@ -387,6 +387,20 @@ export class Classroom extends DurableObject {
         await this.ctx.storage.put("pastIndex", ((await this.ctx.storage.get("pastIndex")) || []).filter((x) => x.id !== pm[1]));
         return json({ ok: true });
       }
+      // the lesson-plan calendar: one record per week (key = that week's Monday, YYYY-MM-DD)
+      const wk = p.match(/^\/api\/plans\/(\d{4}-\d{2}-\d{2})$/);
+      if (wk && m === "GET") return json((await this.ctx.storage.get("plans:" + wk[1])) || { cells: {} });
+      if (wk && m === "PUT") {
+        const b = await request.json();
+        const cells = {};
+        for (const [k, v] of Object.entries((b && b.cells) || {})) {
+          if (!/^(1st|2nd|5th)\|[0-4]$/.test(k)) continue;
+          const plan = String((v && v.plan) || "").slice(0, 5000), did = String((v && v.did) || "").slice(0, 5000);
+          if (plan || did) cells[k] = { plan, did };
+        }
+        await this.ctx.storage.put("plans:" + wk[1], { cells, updated: Date.now() });
+        return json({ ok: true });
+      }
       if (p === "/api/notes" && m === "GET") {
         const n = await this.ctx.storage.get(this.notesKey(url.searchParams.get("lesson"), url.searchParams.get("period")));
         return json({ text: n ? n.text : "" });

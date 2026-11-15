@@ -247,3 +247,18 @@ html.teacher #liveView .t-cols.idle > aside { display: none; }
 .t-simprog th:not(:first-child) { text-align: center; }
 #lvSimProg { margin-top: 10px; flex: 0 0 auto; max-height: 40%; overflow: auto; }
 #liveView #lvPage { min-height: 0; }
+
+/* lesson-plan calendar */
+#calView { padding-bottom: 50px; }
+.cal-grid { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: 44px repeat(5, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.cal-day, .cal-block { color: var(--aero-ink-on-dark); }
+.cal-day { text-align: center; font-weight: bold; padding: 4px 0; }
+.cal-day.cal-today { color: #fff; font-size: 14px; }
+.cal-block { font-weight: bold; align-self: center; }
+.cal-cell { display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 0; }
+.cal-cell.cal-today { outline: 2px solid #4FB38A; }
+.cal-field { display: flex; flex-direction: column; gap: 2px; }
+.cal-field span { font-size: 11px; opacity: .8; }
+.cal-field textarea { width: 100%; box-sizing: border-box; resize: none; overflow: hidden; font: inherit; font-weight: normal; }
+.cal-move { align-self: flex-start; font-size: 11px; }
+.cal-bar { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
