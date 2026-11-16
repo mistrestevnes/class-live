@@ -126,7 +126,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=20"></script>
+<script src="common.js?v=21"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -544,7 +544,7 @@ function renderTools() {
           el("input", { type: "number", min: MIN_FONT, max: 200, step: 2, value: size, "aria-label": "Font size", onchange: (e) => setSize(b, +e.target.value) }),
           el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setSize(b, size + 4) }))),
       colorField("Text color", b.color || autoInk(page.bg), (c) => { b.color = c; changed(); renderStage(); if (!c) renderTools(); }, INK_SWATCHES, b.color ? "Automatic" : null),
-      el("p", { class: "t-hint", text: "Smallest size is " + MIN_FONT + " (about 18 px on a Chromebook). Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
+      el("p", { class: "t-hint", text: "Smallest size is " + MIN_FONT + " (about 14 px on a Chromebook). Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
   } else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
   else if (b.type === "question") {
     const qsOn = page.blocks.filter((x) => x.type === "question"), at = qsOn.indexOf(b);
