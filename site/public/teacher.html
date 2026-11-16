@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=34">
-<link rel="stylesheet" href="teacher.css?v=14">
+<link rel="stylesheet" href="app.css?v=35">
+<link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1334,7 +1334,8 @@ function renderSq() {
       };
       return el("div", { class: "t-sqitem" },
         el("div", { class: "t-hint", text: who + " · " + when }),
-        el("div", { style: "font-weight:700", text: q.text }),
+        q.text ? el("div", { style: "font-weight:700", text: q.text }) : null,
+        q.imageId ? el("a", { href: "/img/" + q.imageId, target: "_blank", rel: "noopener", title: "Open the picture full size" }, el("img", { class: "t-sqimg", src: "/img/" + q.imageId, alt: "Picture of the student's sim" })) : null,
         q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null,
         ta,
         el("div", { class: "t-row", style: "margin-top:4px" }, el("span", { class: "cl-grow" }), el("button", { class: "aero-btn-primary", text: "Reply", onclick: send })));
@@ -1957,7 +1958,8 @@ async function showPast(id) {
       el("h3", { style: "margin:0 0 6px", text: "Questions from students (" + r.sq.length + ")" }),
       ...r.sq.map((q) => el("div", { class: "t-sqitem" },
         el("div", { class: "t-hint", text: who(q.code) + " · " + new Date(q.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }),
-        el("div", { style: "font-weight:700", text: q.text }),
+        q.text ? el("div", { style: "font-weight:700", text: q.text }) : null,
+        q.imageId ? el("a", { href: "/img/" + q.imageId, target: "_blank", rel: "noopener" }, el("img", { class: "t-sqimg", src: "/img/" + q.imageId, alt: "Picture of the student's sim" })) : null,
         q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null))));
     if (!r.questions.length && !(r.polls || []).length && !(r.sq || []).length) parts.push(el("div", { class: "aero-panel" }, el("p", { text: "No questions, polls or student questions in this class." })));
     parts.push(el("div", { class: "t-row" }, el("span", { class: "cl-grow" }),

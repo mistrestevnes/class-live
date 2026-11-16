@@ -1186,8 +1186,17 @@ export class Classroom extends DurableObject {
   async saveSq(msg, stu) {
     if (!stu || !this.live || !this.inBlock(stu)) return;
     const text = String(msg.text || "").trim().slice(0, 1000);
-    if (!text) return;
-    this.sq.push({ id: rid(8), code: stu.name, text, at: Date.now(), reply: "", replyAt: 0 });
+    // a picture of the student's sim, sent as a JPEG data URL; kept like an uploaded image and shown at /img/<id>
+    let imageId = "";
+    const m = typeof msg.img === "string" && msg.img.length < 1_400_000 && msg.img.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+    if (m) {
+      const bin = atob(m[1]);
+      const data = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+      if (data.byteLength <= MAX_IMAGE_BYTES) { imageId = rid(12); await this.ctx.storage.put("img:" + imageId, { type: "image/jpeg", data: data.buffer }); }
+    }
+    if (!text && !imageId) return;
+    this.sq.push({ id: rid(8), code: stu.name, text, imageId, at: Date.now(), reply: "", replyAt: 0 });
     if (this.sq.length > 300) this.sq.splice(0, this.sq.length - 300);
     await this.ctx.storage.put("sq:" + this.live.sessionId, this.sq);
     this.broadcast({ teachersOnly: true });
@@ -1322,7 +1331,7 @@ export class Classroom extends DurableObject {
       blockAns,
       spExtra: inb && this.live ? this.live.spExtra || {} : {},
       myFb: inb && stu && this.live ? this.myFeedback(stu) : [],
-      myQs: inb && stu && this.live ? this.sq.filter((x) => x.code === stu.name).slice(-20).map((x) => ({ id: x.id, text: x.text, reply: x.reply, at: x.at })) : [] };
+      myQs: inb && stu && this.live ? this.sq.filter((x) => x.code === stu.name).slice(-20).map((x) => ({ id: x.id, text: x.text, imageId: x.imageId || "", reply: x.reply, at: x.at })) : [] };
   }
 
   // ---------------------------------------------------------------- student sign-in

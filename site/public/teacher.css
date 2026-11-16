@@ -345,3 +345,5 @@ html.teacher #lvPage .cl-qblock-t .cl-options { gap: 4px; }
 .t-qrow.run { border-color: #1f6b4f; background: rgba(31,107,79,.15); }
 .t-qrow .t-qtext { flex: 1; min-width: 0; }
 .t-qrow .t-qrun { font-weight: 600; opacity: .85; }
+
+.t-sqimg { display: block; max-width: 100%; max-height: 260px; margin: 6px 0; border-radius: 6px; border: 1px solid var(--aero-btn-border); cursor: zoom-in; }
