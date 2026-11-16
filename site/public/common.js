@@ -304,13 +304,26 @@ function textStyle(b) {
   return "font-size:" + Math.max(MIN_FONT, b.size || (b.type === "heading" ? HEAD_SIZE : TEXT_SIZE)) + "px" + (c ? ";color:" + c : "");
 }
 
-// the card a question block shows in the builder
+// question text formatting: size (px on the 1600-wide canvas), bold, italic
+const QSIZE = 32;
+function qFormat(b) { return { size: Math.max(MIN_FONT, Number(b && b.qsize) || QSIZE), bold: !!(b && b.qbold), italic: !!(b && b.qital) }; }
+function applyQFormat(box, b) {
+  const f = qFormat(b);
+  if (b && b.qsize) box.style.setProperty("--qfs", f.size + "px"); else box.style.removeProperty("--qfs");
+  box.classList.toggle("qb", f.bold); box.classList.toggle("qi", f.italic);
+}
+function clockText(sec) { return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+// the box a question block shows in the builder and the Control room: the same box a student gets when it is open
 function questionCard(b, qn) {
   const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
-  return el("div", { class: "cl-qblock-t cl-qcard" },
-    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" + (qn ? " " + qn : "") + " · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+  const box = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard" },
+    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" + (qn ? " " + qn : "") }), el("span", { class: "cl-ask-time", text: clockText(Math.round((Number(b.min) || 3) * 60)) })),
     el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
-    mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o))))) : null);
+    mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o)))))
+      : el("textarea", { rows: 6, "aria-label": "Your answer", disabled: true }),
+    el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc.length ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
+  applyQFormat(box, b);
+  return box;
 }
 
 // What goes inside a block's box (null: nothing to show students).
@@ -352,7 +365,7 @@ function renderBlock(b, opts = {}) {
   if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock", "data-id": b.id || "", hidden: true, style: box });
   const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
-  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || ""), style: box }, inner);
+  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" : ""), style: box }, inner);
 }
 
 // opts: { myChoice, closed, onVote(choice), results: {counts,total}, preview }

@@ -111,7 +111,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=19"></script>
+<script src="common.js?v=20"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -372,13 +372,16 @@ function placeAsk() {
   const slot = bi && bi.reachable && page === bi.idx && $("pageBox").querySelector('.cl-qblock[data-id="' + bi.a.blockId + '"]');
   const box = $("askBox");
   if (slot) {
+    const qb = ((state.pages || [])[bi.idx].blocks || []).find((x) => x.id === bi.a.blockId);
+    box.classList.remove("qb", "qi"); box.style.removeProperty("--qfs");
+    if (qb) applyQFormat(box, qb);
     if (box.parentElement !== slot) slot.replaceChildren(box);
     slot.hidden = false;
     box.classList.add("cl-inline");
     box.hidden = !!state.show;
   } else {
     if (box.parentElement !== askHome) askHome.append(box);
-    box.classList.remove("cl-inline");
+    box.classList.remove("cl-inline", "qb", "qi"); box.style.removeProperty("--qfs");
   }
 }
 // closed question blocks show the student's own answers, read only; blocks never opened stay hidden
@@ -397,12 +400,14 @@ function fillQBlocks(pg) {
     const b = (pg.blocks || []).find((x) => x.id === id);
     if (!rounds || !rounds.length || !b) { slot.hidden = true; slot.replaceChildren(); continue; }
     slot.hidden = false;
-    slot.replaceChildren(el("section", { class: "aero-panel cl-cover-box cl-inline cl-closedq" },
+    const closedBox = el("section", { class: "aero-panel cl-cover-box cl-inline cl-closedq" },
       el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" }), el("span", { class: "cl-ask-label", text: "Closed" })),
       el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "")),
       ...rounds.map((t, i) => el("div", { class: "cl-myans" },
         el("div", { class: "cl-ask-label", text: rounds.length === 1 ? "Your answer" : i === 0 ? "Your first answer" : "After discussion" + (rounds.length > 2 ? " (" + (i + 1) + ")" : "") }),
-        el("div", { class: "cl-myans-text", text: t || "(no answer)" })))));
+        el("div", { class: "cl-myans-text", text: t || "(no answer)" }))));
+    applyQFormat(closedBox, b);
+    slot.replaceChildren(closedBox);
   }
 }
 

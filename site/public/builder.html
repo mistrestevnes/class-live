@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
 <link rel="stylesheet" href="app.css?v=27">
-<link rel="stylesheet" href="teacher.css?v=13">
+<link rel="stylesheet" href="teacher.css?v=14">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
   html.builder { --edge: 16px; }
@@ -70,6 +70,10 @@
   .t-sizerow input { width: 70px; }
   #pvQ button { padding: 2px 10px; }
   #pvQ button[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
+  #bTools .t-small[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
+  .t-cb-question .cl-inline { width: auto; max-height: none; margin: 0; height: 100%; box-sizing: border-box; padding: 20px 26px; border: 2px solid var(--aero-emerald); background: var(--aero-well); box-shadow: none; font-size: 30px; display: flex; flex-direction: column; overflow: auto; }
+  .t-cb-question .cl-inline textarea { flex: 1 1 auto; min-height: 90px; height: auto; resize: none; font-size: 30px; }
+  .t-cb-question .cl-ask-foot { flex: none; }
   .b-msg { margin: 60px auto; max-width: 520px; padding: 20px; }
 </style>
 </head>
@@ -122,7 +126,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=19"></script>
+<script src="common.js?v=20"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -336,11 +340,15 @@ function blockBody(b, sel) {
   }
   if (b.type === "question" && sel) {
     b.options ||= ["", ""];
-    const qn = page.blocks.filter((x) => x.type === "question").indexOf(b) + 1;
-    return [el("div", { class: "cl-qblock-t t-qedit" },
-      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question " + qn + " · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+    const qn = ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(b) + 1;
+    const mc = b.kind === "mc";
+    const card = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard t-qedit" },
+      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question " + qn }), el("span", { class: "cl-ask-time", text: clockText(Math.round((Number(b.min) || 3) * 60)) })),
       area(b, "prompt", "cl-ask-prompt", "Type the question", 2),
-      b.kind === "mc" ? choiceList(b) : el("div", { class: "t-fakebox", text: "Students write their answer here." }))];
+      mc ? choiceList(b) : el("textarea", { rows: 6, disabled: true, "aria-label": "Your answer" }),
+      el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
+    applyQFormat(card, b);
+    return [card];
   }
   return blockInner(b, { edit: EDIT }) || [el("div", { class: "t-ph", text: BLOCK_NAMES[b.type] || b.type })];
 }
@@ -555,6 +563,18 @@ function renderTools() {
         el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderStage(); } },
           el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
           el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }))),
+      (() => {
+        const f = qFormat(b), setQ = (k, v) => { b[k] = v; changed(); renderStage(); renderTools(); };
+        return el("div", { class: "cl-field" }, el("span", { text: "Question text" }),
+          el("div", { class: "t-sizerow" },
+            el("button", { class: "t-small", text: "A−", "aria-label": "Smaller", disabled: f.size <= MIN_FONT, onclick: () => setQ("qsize", Math.max(MIN_FONT, f.size - 4)) }),
+            el("input", { type: "number", min: MIN_FONT, max: 120, step: 2, value: f.size, "aria-label": "Question text size", onchange: (e) => setQ("qsize", clamp(Math.round(+e.target.value) || QSIZE, MIN_FONT, 120)) }),
+            el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setQ("qsize", Math.min(120, f.size + 4)) })),
+          el("div", { class: "t-row", style: "margin-top:6px" },
+            el("button", { class: "t-small", text: "Bold", style: "font-weight:900", "aria-pressed": String(f.bold), onclick: () => setQ("qbold", !f.bold) }),
+            el("button", { class: "t-small", text: "Italic", style: "font-style:italic", "aria-pressed": String(f.italic), onclick: () => setQ("qital", !f.italic) })),
+          el("p", { class: "t-hint", text: "Applies to the question and its choices, exactly as students see them." }));
+      })(),
       el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
         el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
           oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
