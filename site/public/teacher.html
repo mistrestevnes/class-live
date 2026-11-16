@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=36">
-<link rel="stylesheet" href="teacher.css?v=15">
+<link rel="stylesheet" href="teacher.css?v=16">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -230,15 +230,21 @@
       <div class="t-timeup" id="lvTimeUp" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
-      <div class="aero-bar" id="lvPollBar" hidden></div>
-      <div class="aero-bar" id="lvStateBar" hidden></div>
+      <div class="t-sthumbs" id="lvThumbs" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
+      <div class="aero-panel t-sview" id="lvView" hidden></div>
+      <div class="aero-panel t-ctl" id="lvCtl" hidden>
+        <span class="t-ctl-group" id="lvStateBar"></span>
+        <span class="t-ctl-group" id="lvCtlQ"></span>
+        <span class="t-ctl-group" id="lvPollBar"></span>
+        <span class="t-ctl-group" id="lvCtlMain"></span>
+        <span class="t-ctl-note aero-muted" id="lvUnlockNote"></span>
+      </div>
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
   </div>
-  <footer class="cl-bottom aero-bar" id="lvFoot">
+  <footer class="cl-bottom aero-bar" id="lvFoot" hidden style="display:none">
     <button id="lvRelock" class="t-small">Re-lock last page</button>
-    <span class="aero-muted" id="lvUnlockNote"></span>
     <span class="cl-grow"></span>
     <button id="lvAskBtn" class="t-small">Ask a question</button>
     <button id="lvPause" class="t-small">Pause students</button>
@@ -246,7 +252,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=33"></script>
+<script src="common.js?v=34"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -998,6 +1004,7 @@ function showLive() {
   renderLive();
 }
 
+for (const id of ["lvRelock", "lvUnlock", "lvAskBtn", "lvPause"]) { const b = $(id); b.className = id === "lvUnlock" ? "t-unlock" : ""; $("lvCtlMain").append(b); }
 $("lvEdit").onclick = () => { if (tstate && tstate.live && tstate.live.lessonId) location.href = "/builder?id=" + tstate.live.lessonId; };
 $("lvEnd").onclick = endClass;
 $("lvEndLesson").onclick = endLesson;
@@ -1027,7 +1034,7 @@ function renderLive() {
     $("lvLive").className = live ? "t-livestate on" : "t-livestate";
     $("lvLive").textContent = live ? started + " · no lesson yet" : "No class running";
     $("lvPages").replaceChildren();
-    $("lvPollBar").hidden = true;
+    $("lvPage").hidden = false; $("lvView").hidden = $("lvCtl").hidden = $("lvThumbs").hidden = true;
     notesBox.hidden = true;
     renderStart();
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
@@ -1071,32 +1078,48 @@ function renderLive() {
   const revealed = !!live.revealed[page.id];
   const tally = tallies[page.id] || { counts: [], total: 0 };
   bar.hidden = !poll;
+  if (!poll) bar.replaceChildren();
   if (poll) {
     bar.replaceChildren(
-      el("span", { class: "aero-chip", text: tally.total + " of " + presence.count + " voted" }),
-      el("span", { class: "aero-muted", text: revealed ? "Results showing · voting closed" : lvSelected > live.unlocked ? "Page is locked" : "Results hidden · voting open" }),
-      el("span", { class: "cl-grow" }),
+      el("span", { class: "t-ctl-info", text: "Poll: " + tally.total + " of " + presence.count + " voted · " + (revealed ? "results showing" : lvSelected > live.unlocked ? "page locked" : "voting open") }),
       el("button", { class: revealed ? "" : "aero-btn-primary", text: revealed ? "Hide results" : "Show results",
         onclick: () => link.send({ t: "reveal", pageId: page.id, on: !revealed }) }),
-      el("button", { class: "t-small", text: "Clear votes", disabled: !tally.total,
+      el("button", { text: "Clear votes", disabled: !tally.total,
         onclick: () => { if (confirm("Clear the votes on this page so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id }); } }));
   }
   // page states: move the class from one state of this page to the next
   const sts = pageStates(page), curSid = stateOfPage(page, (live.states || {})[page.id]), curIx = sts.findIndex((x) => x.id === curSid);
   const sbar = $("lvStateBar");
   sbar.hidden = sts.length < 2 || lvSelected > live.unlocked;
-  if (!sbar.hidden) {
+  if (sbar.hidden) sbar.replaceChildren();
+  else {
     const goState = (id) => link.send({ t: "state", pageId: page.id, to: id });
     sbar.replaceChildren(
-      el("span", { class: "aero-muted", text: "Page state:" }),
-      ...sts.map((x, i) => el("button", { class: "t-small" + (i === curIx ? " aero-btn-primary" : ""), text: (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", onclick: () => goState(x.id) })),
-      el("span", { class: "cl-grow" }),
       el("button", { text: "◀ Previous state", disabled: curIx <= 0, onclick: () => goState(sts[curIx - 1].id) }),
+      ...sts.map((x, i) => el("button", { class: "t-stbtn", text: (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", onclick: () => goState(x.id) })),
       el("button", { class: "aero-btn-primary", text: "Next state ▶", disabled: curIx >= sts.length - 1, onclick: () => goState(sts[curIx + 1].id) }));
   }
-  mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null, stateId: curSid });
+  // the page as students see it, and the states before and after this one
+  $("lvPage").hidden = true; $("lvView").hidden = false; $("lvCtl").hidden = false;
+  lvSendView();
+  const th = $("lvThumbs");
+  th.hidden = sts.length < 2;
+  if (!th.hidden) {
+    if (th.children.length !== 2) th.replaceChildren(...["p", "n"].map((w) => el("div", { class: "t-sthumb", "data-w": w }, el("span", { class: "t-sthumb-l" }), el("div", { class: "t-sthumb-p", inert: "" }))));
+    const slot = (k, which) => {
+      const sid = sts[k] && sts[k].id;
+      const box = th.querySelector('[data-w="' + which + '"]');
+      box.querySelector(".t-sthumb-l").textContent = sid ? (which === "p" ? "Previous state: " : "Next state: ") + (sts[k].name || "State " + (k + 1)) : (which === "p" ? "No earlier state" : "No later state");
+      const p = box.querySelector(".t-sthumb-p");
+      p.hidden = !sid;
+      if (sid) mountPage(p, page, { preview: true, stateId: sid });
+      return box;
+    };
+    slot(curIx - 1, "p"); slot(curIx + 1, "n");
+  }
   renderSimProg(page);
   qBlockControls(page);
+  ctlQuestions(page);
 
   const next = live.unlocked + 1;
   const more = next < lesson.pages.length;
@@ -1361,7 +1384,7 @@ function actTable(act, live) {
 function qBlockControls(page) {
   const live = tstate && tstate.live;
   let strip = $("lvQctl");
-  if (!strip) { strip = el("div", { id: "lvQctl", class: "aero-panel t-qstrip" }); $("lvPage").after(strip); }
+  if (!strip) { strip = el("div", { id: "lvQctl", class: "aero-panel t-qstrip" }); $("lvCtl").after(strip); }
   // questions follow states: only the ones that show in this page's current state (or are already running)
   const curSid = stateOfPage(page, live && live.states && live.states[page.id]);
   const allQs = (page.blocks || []).filter((x) => x.type === "question");
@@ -1394,15 +1417,66 @@ function qBlockControls(page) {
     return el("div", { class: "t-qrow" + (running ? " run" : "") },
       el("div", { class: "t-qtext" }, el("strong", { text: nOf(b) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
         el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") + (b.auto ? " · appears by itself" : "") })),
-      staged ? el("button", { class: "aero-btn-primary", text: "Start timer", disabled: !!a, title: a ? "Another question is still closing" : "", onclick: open }) : null,
-      staged ? el("button", { text: "Hide", title: "Take it off students' screens without asking it", onclick: () => link.send({ t: "unstage" }) }) : null,
       running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
-      !running && !staged && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,
-        title: a ? "Another question is open" : "", onclick: open }) : null,
-      !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null,
-      !running && ids.length ? el("button", { class: "aero-btn-primary", text: "Reopen for a redo", disabled: !!a, title: a ? "Another question is open" : "", onclick: open }) : null);
+      !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null);
   }));
 }
+
+// the question buttons in the control group: one for each question in this state that you can open, start or reopen
+function ctlQuestions(page) {
+  const live = tstate && tstate.live, box = $("lvCtlQ");
+  const curSid = stateOfPage(page, live && live.states && live.states[page.id]);
+  const allQs = (page.blocks || []).filter((x) => x.type === "question");
+  const qs = allQs.filter((x) => blockShowsIn(x, curSid));
+  const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
+  const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
+  const btns = [];
+  for (const b of qs) {
+    const n = allQs.indexOf(b) + 1, ids = bqOf(b.id);
+    if (a && a.blockId === b.id) continue;
+    const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
+    const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
+    if (stg === b.id) {
+      btns.push(el("button", { class: "aero-btn-primary", text: "Start timer · question " + n, disabled: !!a, title: a ? "Another question is still closing" : "", onclick: open }),
+        el("button", { text: "Hide question " + n, onclick: () => link.send({ t: "unstage" }) }));
+    } else if (!ids.length) btns.push(el("button", { text: "Open question " + n, disabled: !(b.prompt || "").trim() || !!a, title: a ? "Another question is open" : "", onclick: open }));
+    else btns.push(el("button", { text: "Reopen question " + n, disabled: !!a, title: a ? "Another question is open" : "", onclick: open }));
+  }
+  box.hidden = !btns.length;
+  box.replaceChildren(...btns);
+}
+// the real student page, fed what a student on this page sees right now (nothing is sent from it)
+let lvFrame = null, lvFrameReady = false;
+function lvViewState() {
+  const { live, lesson } = tstate, n = lvSelected, L = live;
+  const pages = lesson.pages.slice(0, n + 1).map((pg) => ({ ...pg, questions: [] }));
+  const a = L.ask, qp = !!(a && a.paused);
+  const closed = {};
+  for (const pg of pages) if (L.revealed && L.revealed[pg.id]) closed[pg.id] = true;
+  return { live: true, sessionId: "lv" + L.sessionId + ":" + n, title: lesson.title, unlocked: n, from: Math.min(L.from || 0, n), total: lesson.pages.length, pages,
+    myVotes: {}, closed, goto: null, stateOf: L.states || {}, staged: L.staged || null, now: Date.now(), paused: !!L.paused, qpaused: qp,
+    ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "",
+      ...(a.blockId ? { blockId: a.blockId, pageId: a.pageId, options: a.options || [], round: a.round || 1 } : {}), mine: "", done: false, prev: [] } : null,
+    show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
+}
+function lvSendView() {
+  const hold = $("lvView");
+  if (!lvFrame) {
+    lvFrame = el("iframe", { src: "/?preview=1", title: "What students see" });
+    hold.append(lvFrame);
+    new ResizeObserver(lvFitView).observe(hold);
+  }
+  lvFitView();
+  if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin);
+}
+function lvFitView() {
+  if (!lvFrame) return;
+  const h = $("lvView"), s = Math.min(h.clientWidth / 1366, h.clientHeight / 768);
+  lvFrame.style.transform = "scale(" + s + ")";
+  lvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
+  lvFrame.style.top = Math.max(0, (h.clientHeight - 768 * s) / 2) + "px";
+}
+window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
 
 // ---------- sim progress: which students' sims on this page reported which events (e.g. level1Done)
 let simProgAsked = false;
@@ -1550,7 +1624,7 @@ let lvTab = "class";
 function setTab(t) {
   lvTab = t;
   $("lvClassTab").hidden = t !== "class";
-  $("lvFoot").hidden = t !== "class";
+  $("lvFoot").hidden = true; // its buttons live in the control group under the preview
   $("lvRespTab").hidden = t !== "resp";
   $("lvNotesTab").hidden = t !== "notes";
   for (const [id, name] of [["tabClass", "class"], ["tabResp", "resp"], ["tabNotes", "notes"]]) $(id).setAttribute("aria-selected", String(t === name));

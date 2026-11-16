@@ -347,3 +347,26 @@ html.teacher #lvPage .cl-qblock-t .cl-options { gap: 4px; }
 .t-qrow .t-qrun { font-weight: 600; opacity: .85; }
 
 .t-sqimg { display: block; max-width: 100%; max-height: 260px; margin: 6px 0; border-radius: 6px; border: 1px solid var(--aero-btn-border); cursor: zoom-in; }
+
+/* the Control room during a lesson: state thumbnails, the page as students see it, and every class button together under it */
+html.teacher #liveView .t-sthumbs { display: flex; justify-content: center; gap: 24px; flex: none; }
+html.teacher #liveView .t-sthumbs[hidden] { display: none; }
+.t-sthumb { width: 200px; display: flex; flex-direction: column; gap: 3px; }
+.t-sthumb-l { font: 700 12px Helvetica, Arial, sans-serif; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-sthumb-p { position: relative; width: 200px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #FFFFFF; outline: 1px solid rgba(255, 255, 255, .35); }
+.t-sthumb-p > * { pointer-events: none; }
+html.teacher #liveView .t-sview { flex: 1 1 0; min-height: 200px; position: relative; overflow: hidden; padding: 0; background: #0B1A14; }
+.t-sview iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; }
+html.teacher #liveView .t-ctl { flex: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 28px; padding: 10px 14px; }
+html.teacher #liveView .t-ctl[hidden], .t-ctl-group[hidden] { display: none !important; }
+.t-ctl-group { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.t-ctl-group:empty { display: none; }
+html.teacher #liveView .t-ctl button { font-size: 20px; min-height: 50px; padding: 6px 18px; }
+html.teacher #liveView .t-ctl .t-stbtn[aria-pressed="true"] { background: var(--aero-emerald, #17A673); color: #FFFFFF; }
+.t-ctl-info { font: 700 14px Helvetica, Arial, sans-serif; }
+.t-ctl-note { flex-basis: 100%; text-align: center; font-size: 12px; }
+.t-ctl-note:empty { display: none; }
+html.teacher #liveView .t-ctl button { font-size: 20px !important; min-height: 46px !important; padding: 4px 16px !important; }
+html.teacher #liveView .t-ctl { gap: 8px 24px; padding: 8px 12px; }
+html.teacher #liveView #lvQctl, html.teacher #liveView #lvSimProg { flex: none; max-height: 96px; overflow-y: auto; }
+.t-sthumb, .t-sthumb-p { width: 170px; }
