@@ -211,7 +211,7 @@ function formatText(src) {
 // the screen showing it, so text wraps the same way everywhere. Text sizes are canvas units too: 30 is about 18 px on a Chromebook.
 const CANVAS_W = 1600, CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 30, HEAD_SIZE = 64, TEXT_SIZE = 36;
 // width and height a new block starts at
-const BLOCK_START = { heading: [1200, 110], text: [1000, 280], image: [640, 400], sim: [1200, 700], video: [960, 540], poll: [1100, 560], question: [1300, 420] };
+const BLOCK_START = { heading: [1200, 110], text: [1000, 280], image: [640, 400], sim: [1200, 700], video: [960, 540], poll: [1100, 560], question: [1300, 540] };
 
 const safeColor = (c) => (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c || "") ? c : "");
 // dark ink on a light page, white on a dark one
@@ -278,7 +278,7 @@ function canvasify(page) {
       } else if (b.type === "sim") { if ((b.height || "tall") === "tall") r.fill = true; else r.h = Math.round(440 * f); }
       else if (b.type === "video") { r.w = Math.round(840 * f); r.h = Math.round((r.w * 9) / 16) + (b.caption ? 50 : 0); r.x = Math.round((CANVAS_W - r.w) / 2); }
       else if (b.type === "poll") { r.w = 1200; r.x = 200; r.h = textHeight(b.question, 36, 1200, false) + (b.options || []).length * 92 + 60; }
-      else if (b.type === "question") r.h = 330 + (b.kind === "mc" ? (b.options || []).length * 84 : 0);
+      else if (b.type === "question") r.h = 440 + (b.kind === "mc" ? (b.options || []).length * 84 : 0);
       else r.h = 200;
       return r;
     });
@@ -305,10 +305,10 @@ function textStyle(b) {
 }
 
 // the card a question block shows in the builder
-function questionCard(b) {
+function questionCard(b, qn) {
   const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
   return el("div", { class: "cl-qblock-t cl-qcard" },
-    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" + (qn ? " " + qn : "") + " · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
     el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
     mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o))))) : null);
 }
@@ -341,7 +341,7 @@ function blockInner(b, opts = {}) {
       b.caption ? el("figcaption", {}, inline(b.caption)) : null)];
   }
   if (b.type === "poll") return [renderPoll(b, opts)];
-  if (b.type === "question") return opts.edit ? [questionCard(b)] : null;
+  if (b.type === "question") return opts.edit ? [questionCard(b, opts.qn)] : null;
   return null;
 }
 const BLOCK_CLASS = { heading: "cl-ctext", text: "cl-ctext", image: "cl-cimg", sim: "cl-csim", video: "cl-cvid", poll: "cl-cpoll", question: "cl-cq" };
@@ -350,7 +350,7 @@ function renderBlock(b, opts = {}) {
   const box = blockBox(b);
   // a question block stays hidden until the teacher opens it; the question then appears right in this box
   if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock", "data-id": b.id || "", hidden: true, style: box });
-  const inner = b.type === "question" ? [questionCard(b)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
+  const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
   return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || ""), style: box }, inner);
 }
@@ -361,7 +361,8 @@ function renderPage(page, opts = {}) {
   canvasify(page);
   const bg = safeColor(page.bg) || CANVAS_BG;
   const canvas = el("div", { class: "cl-canvas", style: "background:" + bg + ";color:" + autoInk(bg) });
-  for (const b of page.blocks || []) { const n = renderBlock(b, opts); if (n) canvas.append(n); }
+  let qn = 0;
+  for (const b of page.blocks || []) { const n = renderBlock(b, b.type === "question" ? { ...opts, qn: ++qn } : opts); if (n) canvas.append(n); }
   return el("div", { class: "cl-canvas-fit" }, canvas);
 }
 

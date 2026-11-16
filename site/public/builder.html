@@ -68,6 +68,8 @@
   .t-swatches input[type=color] { width: 40px; height: 32px; padding: 0; border: 1px solid var(--aero-btn-border); background: none; }
   .t-sizerow { display: flex; align-items: center; gap: 6px; }
   .t-sizerow input { width: 70px; }
+  #pvQ button { padding: 2px 10px; }
+  #pvQ button[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
   .b-msg { margin: 60px auto; max-width: 520px; padding: 20px; }
 </style>
 </head>
@@ -113,13 +115,14 @@
     <button id="pvPrev">◀ Page</button>
     <button id="pvNext">Page ▶</button>
     <span id="pvLabel" style="font-weight:700"></span>
+    <span id="pvQ" class="t-row" style="gap:6px"></span>
     <span class="cl-grow"></span>
-    <span class="t-hint">This is the real student page at Chromebook size. Questions show here, but students only see them after you open them.</span>
+    <span class="t-hint">The real student page at Chromebook size. Pick a question to see it as students do once you open it.</span>
   </div>
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=17"></script>
+<script src="common.js?v=19"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -333,8 +336,9 @@ function blockBody(b, sel) {
   }
   if (b.type === "question" && sel) {
     b.options ||= ["", ""];
+    const qn = page.blocks.filter((x) => x.type === "question").indexOf(b) + 1;
     return [el("div", { class: "cl-qblock-t t-qedit" },
-      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question " + qn + " · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
       area(b, "prompt", "cl-ask-prompt", "Type the question", 2),
       b.kind === "mc" ? choiceList(b) : el("div", { class: "t-fakebox", text: "Students write their answer here." }))];
   }
@@ -535,7 +539,18 @@ function renderTools() {
       el("p", { class: "t-hint", text: "Smallest size is " + MIN_FONT + " (about 18 px on a Chromebook). Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
   } else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
   else if (b.type === "question") {
+    const qsOn = page.blocks.filter((x) => x.type === "question"), at = qsOn.indexOf(b);
+    const swapQ = (d) => {
+      const other = qsOn[at + d]; if (!other) return;
+      const i = page.blocks.indexOf(b), j = page.blocks.indexOf(other);
+      [page.blocks[i], page.blocks[j]] = [page.blocks[j], page.blocks[i]];
+      changed(); renderStage(); renderTools();
+    };
     parts.push(
+      el("div", { class: "cl-field" }, el("span", { text: "Order students see it: question " + (at + 1) + " of " + qsOn.length }),
+        el("div", { class: "t-row" },
+          el("button", { class: "t-small", text: "▲ Earlier", disabled: at === 0, onclick: () => swapQ(-1) }),
+          el("button", { class: "t-small", text: "Later ▼", disabled: at === qsOn.length - 1, onclick: () => swapQ(1) }))),
       el("label", { class: "cl-field" }, el("span", { text: "Kind of answer" }),
         el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderStage(); } },
           el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
@@ -672,11 +687,23 @@ async function uploadSim(file, id) {
 }
 
 // ---------------------------------------------------------------- preview: the real student page in a Chromebook-sized frame
-let pvFrame = null, pvOn = false;
+let pvFrame = null, pvOn = false, pvQ = -1, pvEnds = 0, pvSeq = 0;
+function pvQuestions() { return (ed.pages[edPage].blocks || []).filter((x) => x.type === "question"); }
+function pvAsk() {
+  const q = pvQuestions()[pvQ];
+  if (!q) return null;
+  return { id: "pvq" + pvSeq, prompt: q.prompt || "", endsAt: pvEnds, part: 1, parts: 1, allowSim: false, imageId: "", sim: "", blockId: q.id, pageId: ed.pages[edPage].id,
+    options: q.kind === "mc" ? (q.options || []).filter((o) => String(o).trim()) : [], round: 1, mine: "", done: false };
+}
+function pvSetQ(i) {
+  pvQ = i; pvSeq++; const q = pvQuestions()[i];
+  pvEnds = q ? Date.now() + (Number(q.min) || 3) * 60000 : 0;
+  pvRender();
+}
 function pvState() {
   const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg, questions: [] }));
   return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {},
-    now: Date.now(), paused: false, qpaused: false, ask: null, show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
+    now: Date.now(), paused: false, qpaused: false, ask: pvAsk(), show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
 }
 function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady) pvSend(); });
@@ -687,19 +714,26 @@ function pvFit() {
   pvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
 }
 function pvRender() {
+  const qs = pvQuestions();
+  if (pvQ >= qs.length) pvQ = -1;
+  $("pvQ").replaceChildren(...(qs.length ? [
+    el("span", { text: "Students see:", style: "font-weight:700" }),
+    el("button", { "aria-pressed": String(pvQ === -1), text: "No question yet", onclick: () => pvSetQ(-1) }),
+    ...qs.map((q, i) => el("button", { "aria-pressed": String(pvQ === i), text: "Question " + (i + 1), title: (q.prompt || "").slice(0, 80), onclick: () => pvSetQ(i) })),
+    el("button", { text: "Next question ▶", disabled: pvQ >= qs.length - 1, onclick: () => pvSetQ(pvQ + 1) })] : []));
   $("pvLabel").textContent = "Page " + (edPage + 1) + " of " + ed.pages.length;
   $("pvPrev").disabled = edPage === 0;
   $("pvNext").disabled = edPage >= ed.pages.length - 1;
   pvSend();
 }
 $("bPreviewBtn").onclick = () => {
-  pvOn = true; $("bPreview").hidden = false;
+  pvOn = true; pvQ = -1; $("bPreview").hidden = false;
   if (!pvFrame) { pvFrame = el("iframe", { src: "/?preview=1", title: "Student screen preview" }); $("bPreviewHold").append(pvFrame); }
   pvFit(); pvRender();
 };
 $("pvBack").onclick = () => { pvOn = false; $("bPreview").hidden = true; renderAll(); };
-$("pvPrev").onclick = () => { edPage--; pvRender(); };
-$("pvNext").onclick = () => { edPage++; pvRender(); };
+$("pvPrev").onclick = () => { edPage--; pvQ = -1; pvRender(); };
+$("pvNext").onclick = () => { edPage++; pvQ = -1; pvRender(); };
 window.addEventListener("resize", pvFit);
 
 // ---------------------------------------------------------------- opening and leaving
