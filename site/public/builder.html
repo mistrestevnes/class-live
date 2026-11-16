@@ -140,7 +140,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=26"></script>
+<script src="common.js?v=27"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -409,7 +409,6 @@ function blockBody(b, sel) {
     const qn = ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(b) + 1;
     const mc = b.kind === "mc";
     const card = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard t-qedit" },
-      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question " + qn }), el("span", { class: "cl-ask-time", text: clockText(Math.round((Number(b.min) || 3) * 60)) })),
       area(b, "prompt", "cl-ask-prompt", "Type the question", 2),
       mc ? choiceList(b) : el("textarea", { rows: 6, disabled: true, "aria-label": "Your answer" }),
       el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
