@@ -333,6 +333,12 @@ async function confirmDeleteState(id) {
   const nm = sts[i].name || "State " + (i + 1);
   if (await askYesNo("Delete \"" + nm + "\" (State " + (i + 1) + ")? " + (only ? only + (only === 1 ? " element appears" : " elements appear") + " only in this state and will be deleted too. " : "") + "Elements shared with other states stay in them. This can't be undone.", "Delete")) deleteState(id);
 }
+function moveState(id, d) {
+  const pg = ed.pages[edPage], i = pg.states.findIndex((x) => x.id === id), j = i + d;
+  if (i < 0 || j < 0 || j >= pg.states.length) return;
+  [pg.states[i], pg.states[j]] = [pg.states[j], pg.states[i]];
+  changed(); renderAll(); if (pvOn) pvRender();
+}
 function renderStates() {
   const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
   $("bStateNum").hidden = false;
@@ -341,6 +347,9 @@ function renderStates() {
     el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
     ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
     el("button", { text: "+ State", title: "Add another state to this page", onclick: addState }),
+    ...(sts.length > 1 ? [
+      el("button", { text: "Move earlier", title: "Move the state you're editing one place earlier", disabled: sts[0].id === cur, onclick: () => moveState(cur, -1) }),
+      el("button", { text: "Move later", title: "Move the state you're editing one place later", disabled: sts[sts.length - 1].id === cur, onclick: () => moveState(cur, 1) })] : []),
     ...(sts.length > 1 ? [el("button", { text: "Delete this state", title: "Delete the state you're editing", onclick: () => confirmDeleteState(cur) })] : []),
     ...(sts.length > 1 ? [el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { $("winPages").classList.remove("min"); } })] : []));
   const list = $("bStateList");
