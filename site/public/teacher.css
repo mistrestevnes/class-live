@@ -277,3 +277,59 @@ html.teacher #liveView .t-cols.idle > aside { display: none; }
 .cal-mnum { font-weight: bold; }
 .cal-mline { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cal-bar { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+
+/* a question block asked again after discussion: each student's rounds side by side */
+.t-roundrow { display: flex; gap: 10px; margin-top: 4px; }
+.t-round { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--aero-line); border-radius: 6px; background: var(--aero-well); white-space: pre-wrap; }
+.t-round.cur { border-color: var(--aero-emerald); }
+.t-round-label { font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: var(--aero-ink-muted); white-space: normal; }
+.t-ans-text.t-rounds { flex: 1 1 100%; }
+.t-qctl { margin-top: 10px; gap: 10px; align-items: center; }
+.t-qrun { font-weight: 700; color: var(--aero-emerald); }
+
+/* ---------- building a page: the page in the middle (edited in place), the palette / settings on the right */
+#edBody:has(> .t-build) { overflow: hidden; display: flex; }
+.t-build { display: flex; gap: 14px; flex: 1; min-height: 0; min-width: 0; }
+.t-canvas { flex: 1; min-width: 0; overflow: auto; padding: 14px 18px 60px; }
+.t-insp { width: 290px; flex: none; overflow: auto; align-self: stretch; }
+.t-pagename { gap: 8px; margin-bottom: 12px; color: var(--aero-ink-muted); }
+.t-pagename input { flex: 1; max-width: 360px; }
+html.teacher .t-editpage.cl-page { font-size: 18px; font-weight: 400; line-height: 1.5; }
+.t-editpage > * + * { margin-top: 12px; }
+.t-eb { position: relative; padding: 6px 10px 6px 44px; border: 2px solid transparent; border-radius: 8px; }
+.t-eb:hover { border-color: var(--aero-line-strong); }
+.t-eb.sel { border-color: var(--aero-emerald); background: rgba(30, 94, 70, .05); }
+.t-grip, .t-trash { position: absolute; top: 6px; min-height: 0 !important; padding: 2px 6px !important; line-height: 1; opacity: 0; touch-action: none; }
+.t-grip { left: 6px; width: 26px; padding: 0 !important; cursor: grab; letter-spacing: -3px; text-align: center; }
+.t-trash { right: 6px; z-index: 2; }
+.t-eb:hover .t-grip, .t-eb:hover .t-trash, .t-eb.sel .t-grip, .t-eb.sel .t-trash { opacity: 1; }
+@media (hover: none) { .t-grip, .t-trash { opacity: 1; } }
+html.teacher .t-in { display: block; width: 100%; font: inherit; color: inherit; background: transparent; border: 1px dashed transparent; border-radius: 4px; padding: 2px 4px; resize: none; overflow: hidden; }
+html.teacher .t-in:hover { border-color: var(--aero-line-strong); }
+html.teacher .t-in:focus { outline: none; border-color: var(--aero-emerald); background: #FFFFFF; }
+html.teacher .t-in.cl-heading { font-family: var(--aero-font-head); font-size: 1.6em; font-weight: 600; line-height: 1.2; }
+html.teacher .t-in.cl-question, html.teacher .t-in.cl-ask-prompt { font-size: 1.05em; font-weight: 600; }
+.t-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.t-choice { display: flex; align-items: center; gap: 8px; padding: 4px 8px; cursor: default; }
+.t-choice .t-in { flex: 1; }
+.t-fakebox { margin-top: 8px; padding: 18px 12px; border: 1px solid var(--aero-line-strong); border-radius: 6px; background: #FFFFFF; color: var(--aero-ink-muted); font-size: .85em; }
+.t-media { position: relative; }
+.t-media .cl-sim.height-tall { height: 360px; }
+.t-cover { position: absolute; inset: 0; cursor: pointer; }
+.t-empty { padding: 40px 10px; text-align: center; border: 2px dashed var(--aero-line-strong); border-radius: 8px; }
+.t-usedby { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 28px; padding-top: 10px; border-top: 1px solid var(--aero-line); color: var(--aero-ink-muted); }
+.t-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+html.teacher .t-pal { min-height: 52px; font-size: 14px; cursor: grab; touch-action: none; }
+.t-ghost { position: fixed; z-index: 100; pointer-events: none; padding: 8px 14px; border-radius: 6px; background: var(--aero-emerald); color: #FFFFFF; font-weight: 700; box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+.t-dropline { height: 4px; margin: 4px 0; border-radius: 2px; background: var(--aero-emerald); }
+body.t-dragging, body.t-dragging * { cursor: grabbing !important; user-select: none; }
+.t-insp .cl-field { display: block; margin-bottom: 10px; }
+.t-insp .t-block-head { margin-bottom: 8px; }
+/* question blocks in the Control room preview: teacher-sized */
+html.teacher #lvPage .cl-qblock-t { padding: 10px 14px; }
+html.teacher #lvPage .cl-qblock-t .cl-ask-label { font-size: 12px; }
+html.teacher #lvPage .cl-qblock-t .cl-ask-time { font-size: 14px; }
+html.teacher #lvPage .cl-qblock-t .cl-ask-prompt { font-size: 15px; margin-bottom: 6px; }
+html.teacher #lvPage .cl-qblock-t .cl-option { min-height: 0; padding: 4px 10px; font-size: 13px; }
+html.teacher #lvPage .cl-qblock-t .cl-letter { width: 24px; height: 24px; font-size: 12px; }
+html.teacher #lvPage .cl-qblock-t .cl-options { gap: 4px; }

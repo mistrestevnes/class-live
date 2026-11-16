@@ -258,6 +258,15 @@ function renderPage(page, opts = {}) {
         el("video", { src: "/video/" + b.videoId, controls: true, controlsList: "nodownload", disablePictureInPicture: true, playsinline: true, preload: "metadata", "data-video-id": b.videoId }),
         b.caption ? el("figcaption", {}, inline(b.caption)) : null);
       root.append(fig);
+    } else if (b.type === "question") {
+      // a question the teacher opens during class: students see it (in this spot) only once it has been opened
+      if (opts.preview) {
+        const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
+        root.append(el("div", { class: "cl-qblock cl-qblock-t", "data-id": b.id || "" },
+          el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" }), el("span", { class: "cl-ask-time", text: (b.min || 3) + " min" })),
+          el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
+          mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o))))) : null));
+      } else root.append(el("div", { class: "cl-qblock", "data-id": b.id || "", hidden: true }));
     } else if (b.type === "poll") {
       root.append(renderPoll(b, opts));
     }

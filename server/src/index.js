@@ -790,6 +790,14 @@ export class Classroom extends DurableObject {
           sim: /^\/(sim|video)\/[a-z0-9]+$/.test((p && p.sim) || "") ? p.sim : "", // an uploaded sim, or an uploaded video
         })).filter((p) => p.prompt);
         if (!parts.length) return;
+        // a question block on a page (opened by the teacher, answered in its place on the page); opening it again is a redo round
+        const blockId = /^[a-z0-9]{4,16}$/.test(msg.blockId || "") && this.pages().some((pg) => pg.id === msg.pageId) ? msg.blockId : "";
+        if (blockId) {
+          parts = parts.slice(0, 1);
+          parts[0].blockId = blockId; parts[0].pageId = msg.pageId;
+          parts[0].options = Array.isArray(msg.options) ? msg.options.map((o) => String(o || "").trim().slice(0, 300)).filter(Boolean).slice(0, 8) : [];
+          if (parts[0].options.length < 2) parts[0].options = [];
+        }
         if (msg.preparedId) (this.live.sent ||= {})[String(msg.preparedId).replace(/[^a-z0-9]/gi, "").slice(0, 20)] = Date.now(); // for the "asked" mark
         this.live.askSet = { setId: rid(6), parts, i: 0, allowSim: !!msg.allowSim };
         await this.startPart(0);
@@ -933,10 +941,17 @@ export class Classroom extends DurableObject {
     this.live.ask = { id, prompt: p.prompt, seconds: p.seconds, startedAt: now, endsAt: now + p.seconds * 1000,
       part: i + 1, parts: set.parts.length, allowSim: !!set.allowSim, paused: false, pausedAt: 0,
       imageId: p.imageId || "", sim: p.sim || "" };
+    let round = 0;
+    if (p.blockId) {
+      const bq = ((this.live.bq ||= {})[p.blockId] ||= []);
+      bq.push(id); round = bq.length;
+      Object.assign(this.live.ask, { blockId: p.blockId, pageId: p.pageId, options: p.options || [], round });
+    }
     this.live.show = null; // a new question takes the middle of the screen
     this.qa[id] = {};
     this.qs.unshift({ id, prompt: p.prompt, seconds: p.seconds, startedAt: now, lesson: this.liveLesson ? this.liveLesson.title : "",
-      block: this.live.periodName || "", part: i + 1, parts: set.parts.length, setId: set.setId, sessionId: this.live.sessionId });
+      block: this.live.periodName || "", part: i + 1, parts: set.parts.length, setId: set.setId, sessionId: this.live.sessionId,
+      ...(p.blockId ? { blockId: p.blockId, round, options: p.options || [] } : {}) });
     if (this.qs.length > 500) for (const old of this.qs.splice(500)) await this.ctx.storage.delete("qa:" + old.id);
     await this.ctx.storage.put("qs", this.qs);
     await this.ctx.storage.put("live", this.live);
@@ -1204,7 +1219,8 @@ export class Classroom extends DurableObject {
     return {
       paused: !!L.paused,
       qpaused: qp, // the question is paused: students get a pause screen, the TV shows the page
-      ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "" } : null,
+      ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "",
+        ...(a.blockId ? { blockId: a.blockId, pageId: a.pageId, options: a.options || [], round: a.round || 1 } : {}) } : null,
       show: q ? { qid: sh.qid, prompt: q.prompt, answers: sh.codes.filter((c) => qa[c]).map((c) => qa[c].text) } : null,
     };
   }
@@ -1278,8 +1294,22 @@ export class Classroom extends DurableObject {
     const a = sh.ask;
     const mine = a && stu && this.qa[a.id] && this.qa[a.id][stu.name];
     if (a) { a.mine = mine ? mine.text : ""; a.done = !!(mine && mine.done); }
+    // question blocks: this student's answers, round by round (shown in the block once it closes, and above a redo)
+    const blockAns = {};
+    if (inb && stu && this.live) for (const [bid, ids] of Object.entries(this.live.bq || {})) {
+      blockAns[bid] = ids.map((id) => {
+        if (!this.qa[id]) {
+          const busy = (this._qaLoading ||= new Set());
+          if (!busy.has(id)) { busy.add(id); this.loadQA(id).then(() => { busy.delete(id); this.broadcast(); }); }
+          return "";
+        }
+        return (this.qa[id][stu.name] || {}).text || "";
+      });
+    }
+    if (a && a.blockId) a.prev = (blockAns[a.blockId] || []).slice(0, -1);
     return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac,
       spMine: inb ? this.spMine(stu) : {},
+      blockAns,
       spExtra: inb && this.live ? this.live.spExtra || {} : {},
       myFb: inb && stu && this.live ? this.myFeedback(stu) : [],
       myQs: inb && stu && this.live ? this.sq.filter((x) => x.code === stu.name).slice(-20).map((x) => ({ id: x.id, text: x.text, reply: x.reply, at: x.at })) : [] };

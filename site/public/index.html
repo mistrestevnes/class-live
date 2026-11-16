@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=24">
+<link rel="stylesheet" href="app.css?v=25">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -74,6 +74,8 @@
       <div class="cl-ask-top"><span class="cl-ask-label" id="askLabel">Question</span><span class="cl-ask-time" id="askTime"></span></div>
       <div class="cl-ask-prompt" id="askPrompt"></div>
       <div id="askMedia" hidden></div>
+      <div class="cl-askprev" id="askPrev" hidden></div>
+      <div class="cl-options" id="askOpts" hidden></div>
       <textarea id="askText" rows="6" aria-label="Your answer"></textarea>
       <div class="cl-ask-foot"><span id="askNote" class="aero-muted"></span><button id="askToSim" hidden>Go back to the sim</button><button class="aero-btn-primary" id="askSubmit">Submit</button></div>
     </section>
@@ -109,7 +111,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=15"></script>
+<script src="common.js?v=16"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -275,6 +277,8 @@ function render() {
     text: closed ? (mine === undefined ? "Voting is closed." : "Voting is closed. Your answer was " + LETTERS[mine] + ".")
       : mine === undefined ? "Tap an answer." : "Your answer is saved. You can change it until your teacher closes voting.",
   })) : null);
+  fillQBlocks(pg);
+  placeAsk();
   const onlySim = (pg.blocks || []).length === 1 && pg.blocks[0].type === "sim";
   box.style.padding = onlySim ? "10px" : "";
   // pages with a sim use the full screen width
@@ -357,13 +361,58 @@ function setMedia(box, a) {
   box.hidden = !box.firstChild;
 }
 
+// ---------- question blocks: a question the teacher opens is answered in its own spot on the page
+const askHome = $("askBox").parentElement;
+function blockAskInfo() {
+  const a = state.live && !(state.paused || state.qpaused) ? state.ask : null;
+  if (!a || !a.blockId) return null;
+  const idx = (state.pages || []).findIndex((p) => p.id === a.pageId);
+  return { a, idx, reachable: idx >= 0 && idx >= (state.from || 0) && idx <= state.unlocked };
+}
+// put the question box in its block when the student is on that page, else back in the cover
+function placeAsk() {
+  const bi = blockAskInfo();
+  const slot = bi && bi.reachable && page === bi.idx && $("pageBox").querySelector('.cl-qblock[data-id="' + bi.a.blockId + '"]');
+  const box = $("askBox");
+  if (slot) {
+    if (box.parentElement !== slot) { slot.replaceChildren(box); setTimeout(() => box.scrollIntoView({ block: "nearest", behavior: "smooth" }), 50); }
+    slot.hidden = false;
+    box.classList.add("cl-inline");
+    box.hidden = !!state.show;
+  } else {
+    if (box.parentElement !== askHome) askHome.append(box);
+    box.classList.remove("cl-inline");
+  }
+}
+// closed question blocks show the student's own answers, read only; blocks never opened stay hidden
+function fillQBlocks(pg) {
+  const bi = blockAskInfo();
+  for (const slot of $("pageBox").querySelectorAll(".cl-qblock")) {
+    const id = slot.dataset.id;
+    if (bi && bi.a.blockId === id && bi.reachable && page === bi.idx) continue; // running: placeAsk fills it
+    const rounds = (state.blockAns || {})[id];
+    const b = (pg.blocks || []).find((x) => x.id === id);
+    if (!rounds || !rounds.length || !b) { slot.hidden = true; slot.replaceChildren(); continue; }
+    slot.hidden = false;
+    slot.replaceChildren(el("section", { class: "aero-panel cl-cover-box cl-inline cl-closedq" },
+      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" }), el("span", { class: "cl-ask-label", text: "Closed" })),
+      el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "")),
+      ...rounds.map((t, i) => el("div", { class: "cl-myans" },
+        el("div", { class: "cl-ask-label", text: rounds.length === 1 ? "Your answer" : i === 0 ? "Your first answer" : "After discussion" + (rounds.length > 2 ? " (" + (i + 1) + ")" : "") }),
+        el("div", { class: "cl-myans-text", text: t || "(no answer)" })))));
+  }
+}
+
 function applyCover() {
   const live = !!state.live;
   const a = live ? state.ask : null;
   const sh = live ? state.show : null;
   const paused = live && (!!state.paused || !!state.qpaused);
   if (!a || a.id !== askId) { askMin = false; askEditing = false; }
-  const askUp = !!a && !askMin;
+  const bi = blockAskInfo();
+  if (bi && bi.reachable && a.id !== askId && page !== bi.idx) { page = bi.idx; reportPage(); setTimeout(render, 0); } // just opened: go to its page
+  const inlineQ = !!(bi && bi.reachable && page === bi.idx);
+  const askUp = !!a && !askMin && !inlineQ;
   const want = paused || askUp || !!sh;
   // a 3-second countdown before the sim stops (not on the first load, and not when a student steps back to a question)
   if (!want) { coverOn = false; cdUntil = 0; skipCd = false; }
@@ -381,6 +430,7 @@ function applyCover() {
   $("pausedBox").hidden = !paused || askUp || !!sh;
   $("showBox").hidden = !sh;
   $("askBox").hidden = !askUp || !!sh; // answers on display take the middle; the question comes back after
+  placeAsk();
   $("askBack").hidden = !(a && askMin && !frozen);
   updateStage();
   if (sh) {
@@ -396,11 +446,23 @@ function applyCover() {
   }
   $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim) || animOf(a));
   $("askToSim").textContent = backLabel(a);
-  $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
+  $("askLabel").textContent = a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : a.round > 1 ? "Question · answer again" : "Question";
+  if (inlineQ) $("askToSim").hidden = true;
   if (a.id !== askId) {
     askId = a.id; askDirty = false;
     $("askPrompt").replaceChildren(formatText(a.prompt));
     setMedia($("askMedia"), a);
+    const prev = (a.prev || []).filter((t, i) => i < (a.round || 1) - 1);
+    $("askPrev").hidden = !prev.length;
+    $("askPrev").replaceChildren(...prev.map((t, i) => el("div", { class: "cl-myans" },
+      el("div", { class: "cl-ask-label", text: prev.length === 1 ? "Your first answer" : "Answer " + (i + 1) }),
+      el("div", { class: "cl-myans-text", text: t || "(no answer)" }))));
+    // multiple choice: buttons instead of the writing box
+    const opts = a.options || [];
+    $("askOpts").hidden = !opts.length;
+    $("askText").hidden = !!opts.length;
+    $("askOpts").replaceChildren(...opts.map((o, i) => el("button", { class: "cl-option", "data-v": LETTERS[i] + ". " + o, onclick: () => pickAskOption(LETTERS[i] + ". " + o) },
+      el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o)))));
     $("askText").value = a.mine || "";
     $("askText").disabled = false;
     $("askNote").textContent = "";
@@ -422,6 +484,7 @@ function tickAsk() {
   else if (!over && left <= 10000 && toastKey !== a.id) { toastKey = a.id; showToast("10 seconds left", 3500); }
   if (over && askMin) { askMin = false; skipCd = true; applyCover(); return; } // time ran out while they were on the sim: bring the question back
   if (over) {
+    for (const b of $("askOpts").children) b.disabled = true;
     if (!$("askText").disabled) { if (askDirty) saveAsk(); $("askText").disabled = true; }
     $("askText").readOnly = false;
     $("askSubmit").disabled = true;
@@ -431,11 +494,21 @@ function tickAsk() {
     return;
   }
   const done = !!a.done && !askEditing;
+  for (const b of $("askOpts").children) { b.disabled = over; b.setAttribute("aria-pressed", String(b.dataset.v === $("askText").value)); }
+  if ((a.options || []).length) $("askSubmit").hidden = true; else $("askSubmit").hidden = false;
   $("askText").disabled = false;
   $("askText").readOnly = done;
   $("askSubmit").disabled = false;
   $("askSubmit").textContent = done ? "Change my answer" : "Submit";
   $("askNote").textContent = done ? (a.part < a.parts ? "Submitted. Wait for the next part." : "Submitted.") : "";
+}
+function pickAskOption(v) {
+  const a = state.ask;
+  if (!a || !askId || a.endsAt <= serverNow()) return;
+  $("askText").value = v;
+  link.send({ t: "askSubmit", qid: askId, text: v });
+  a.done = true; askEditing = false;
+  tickAsk();
 }
 function saveAsk() {
   if (!askId) return;

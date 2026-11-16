@@ -216,3 +216,12 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-trivia .cl-letter { width: 32px; height: 32px; }
 .cl-trivia-verdict { margin: 10px 0 2px; }
 #trWhy { margin: 0 0 4px; font-size: 1rem; }
+
+/* question blocks: a question the teacher opens, answered in its spot on the page */
+.cl-qblock .cl-inline { width: auto; max-height: none; overflow: visible; padding: 16px 20px; border: 2px solid var(--aero-emerald); background: var(--aero-well); box-shadow: none; }
+.cl-qblock .cl-closedq { border-color: var(--aero-line-strong); }
+.cl-qblock-t { padding: 14px 18px; border: 2px dashed var(--aero-line-strong); border-radius: var(--aero-radius); background: var(--aero-well); }
+.cl-askprev { margin-bottom: 12px; }
+.cl-myans { margin-top: 10px; }
+.cl-myans-text { white-space: pre-wrap; background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: 6px; padding: 8px 12px; font-size: 20px; line-height: 1.45; }
+#askOpts { margin-bottom: 10px; }

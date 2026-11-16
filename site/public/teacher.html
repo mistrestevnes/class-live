@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=24">
+<link rel="stylesheet" href="app.css?v=25">
 <link rel="stylesheet" href="teacher.css?v=8">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -245,7 +245,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=15"></script>
+<script src="common.js?v=16"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -781,29 +781,175 @@ function renderEditor() {
     ed.plan = ed.plan.filter((x) => x !== item); edItem = null; changed(); renderEditor(); }));
   if (edPreview) return renderPreview(body);
 
+  // the page drawn the way students see it, edited in place; a palette (or the selected block's settings) on the right
   const blocks = page.blocks || (page.blocks = []);
-  const hasPoll = blocks.some((b) => b.type === "poll");
-  const items = [];
-  items.push(el("div", { class: "aero-panel t-block" },
-    el("label", { class: "cl-field", style: "margin:0" },
-      el("span", { text: "Page name (only you see this)" }),
-      el("input", { type: "text", value: page.name || "", placeholder: pageLabel({ blocks }, edPage),
-        oninput: (e) => { page.name = e.target.value; changed(); refreshPageLabels(); } }))));
-  blocks.forEach((b, i) => items.push(blockEditor(page, b, i)));
-  items.push(el("div", { class: "aero-bar t-addbar" },
-    el("span", { text: "Add:" }),
-    ...[["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["poll", "Poll"], ["sim", "Sim"], ["video", "Video"]].map(([type, label]) =>
-      el("button", { class: "t-small", text: "+ " + label, disabled: type === "poll" && hasPoll,
-        title: type === "poll" && hasPoll ? "One poll per page" : "",
-        onclick: () => { blocks.push(newBlock(type)); changed(); renderEditor(); } }))));
+  if (edSel && !blocks.includes(edSel)) edSel = null;
+  const pageEl = el("div", { class: "cl-page t-editpage" });
+  blocks.forEach((b, i) => pageEl.append(editBlock(page, b, i)));
+  if (!blocks.length) pageEl.append(el("p", { class: "t-hint t-empty", text: "This page is empty. Drag something here from the right, or click it to add it at the bottom." }));
   const usedBy = ed.plan.filter((x) => x.pageId === page.id);
-  items.push(el("div", { class: "aero-panel t-block" },
-    el("div", { class: "t-block-head" }, el("h3", { text: "Plan items that go to this page" }),
-      el("button", { class: "t-small aero-btn-primary", text: "+ Add a question after this page", onclick: () => questionForPage(page) })),
-    usedBy.length ? el("div", { class: "t-row", style: "flex-wrap:wrap" }, ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item",
-      onclick: () => { edItem = x.id; renderEditor(); } })))
-      : el("p", { class: "t-hint", style: "margin:0", text: "None yet." })));
-  body.replaceChildren(...items);
+  const canvas = el("div", { class: "aero-panel t-canvas", onclick: (e) => { if (e.target === canvas || e.target === pageEl) { edSel = null; renderSide(); markSel(); } } },
+    el("label", { class: "t-row t-pagename" }, el("span", { text: "Page name (only you see this)" }),
+      el("input", { type: "text", value: page.name || "", placeholder: pageLabel({ blocks }, edPage),
+        oninput: (e) => { page.name = e.target.value; changed(); refreshPageLabels(); } })),
+    pageEl,
+    el("div", { class: "t-usedby" },
+      el("span", { text: "Plan items that go to this page: " }),
+      ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item", onclick: () => { edItem = x.id; renderEditor(); } })),
+      el("button", { class: "t-small", text: "+ Add a question after this page", onclick: () => questionForPage(page) })));
+  edSide = el("aside", { class: "aero-panel t-insp" });
+  body.replaceChildren(el("div", { class: "t-build" }, canvas, edSide));
+  renderSide();
+  requestAnimationFrame(() => body.querySelectorAll("textarea.t-in").forEach(grow));
+}
+
+// ---------- building a page: blocks edited in place, dragged into place
+let edSel = null, edSide = null, edFocus = null;
+const grow = (t) => { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; };
+const newId = () => Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, "x");
+const PALETTE = [["heading", "Heading"], ["text", "Text"], ["image", "Picture"], ["sim", "Sim"], ["video", "Video"], ["poll", "Poll"], ["question", "Question"]];
+function markSel() {
+  for (const w of document.querySelectorAll(".t-editpage > .t-eb")) w.classList.toggle("sel", ed.pages[edPage].blocks[+w.dataset.i] === edSel);
+}
+function selectBlock(b) { if (edSel === b) return; edSel = b; renderSide(); markSel(); }
+// the right-hand column: the palette, or the settings of the selected block
+function renderSide() {
+  if (!edSide) return;
+  const page = ed.pages[edPage], blocks = page.blocks;
+  if (!edSel) {
+    const hasPoll = blocks.some((b) => b.type === "poll");
+    edSide.replaceChildren(
+      el("h3", { text: "Add to the page" }),
+      el("p", { class: "t-hint", text: "Drag onto the page, or click to add at the bottom." }),
+      el("div", { class: "t-palette" }, ...PALETTE.map(([type, label]) => {
+        const off = type === "poll" && hasPoll;
+        return el("button", { class: "t-pal", text: label, disabled: off, title: off ? "One poll per page" : "",
+          onpointerdown: (e) => { if (!off) startDrag(e, { type, label }); } });
+      })));
+    return;
+  }
+  const b = edSel, i = blocks.indexOf(b);
+  const head = el("div", { class: "t-block-head" }, el("h3", { text: BLOCK_NAMES[b.type] || b.type }),
+    el("button", { class: "t-small", text: "Remove", onclick: () => removeBlock(page, b) }),
+    el("button", { class: "t-small aero-btn-primary", text: "Done", onclick: () => { edSel = null; renderSide(); markSel(); } }));
+  const parts = [head];
+  if (b.type === "heading" || b.type === "text") parts.push(el("p", { class: "t-hint", text: "Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
+  else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
+  else if (b.type === "question") {
+    parts.push(
+      el("label", { class: "cl-field" }, el("span", { text: "Kind of answer" }),
+        el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderEditor(); } },
+          el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
+          el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }))),
+      el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
+        el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
+          oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
+      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question on this page in the Control room. It appears in this spot on their page. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
+  } else {
+    const box = blockEditor(page, b, i); // pictures, sims and videos keep their full settings
+    box.firstChild.remove();
+    box.classList.remove("aero-panel");
+    parts.push(...box.childNodes);
+  }
+  edSide.replaceChildren(...parts);
+}
+async function removeBlock(page, b) {
+  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?", "Remove"))) return;
+  page.blocks.splice(page.blocks.indexOf(b), 1);
+  if (edSel === b) edSel = null;
+  changed(); renderEditor();
+}
+// one block on the page being built
+function editBlock(page, b, i) {
+  const wrap = el("div", { class: "t-eb" + (b === edSel ? " sel" : ""), "data-i": i,
+    onclick: () => selectBlock(b) });
+  const grip = el("button", { class: "t-grip", "aria-label": "Drag to move", title: "Drag to move", text: "⋮⋮",
+    onpointerdown: (e) => startDrag(e, { from: i, label: BLOCK_NAMES[b.type] || b.type }) });
+  const trash = el("button", { class: "t-trash", "aria-label": "Remove", title: "Remove", text: "✕", onclick: (e) => { e.stopPropagation(); removeBlock(page, b); } });
+  const area = (cls, key, ph, rows) => el("textarea", { class: "t-in " + cls, rows: rows || 1, value: b[key] || "", placeholder: ph,
+    onfocus: () => selectBlock(b),
+    oninput: (e) => { b[key] = e.target.value; grow(e.target); changed(); refreshPageLabels(); } });
+  const choices = (label) => {
+    const list = el("div", { class: "cl-options t-choices" });
+    const draw = () => list.replaceChildren(...b.options.map((o, j) => el("div", { class: "cl-option t-choice" },
+      el("span", { class: "cl-letter", text: LETTERS[j] }),
+      el("input", { class: "t-in", type: "text", value: o, placeholder: "Choice " + LETTERS[j], onfocus: () => selectBlock(b),
+        oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
+      el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
+        onclick: (e) => { e.stopPropagation(); b.options.splice(j, 1); changed(); draw(); } }))),
+      el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
+        onclick: (e) => { e.stopPropagation(); b.options.push(""); changed(); draw(); list.querySelectorAll("input")[b.options.length - 1].focus(); } }));
+    draw();
+    return list;
+  };
+  let content;
+  if (b.type === "heading") content = area("cl-heading", "text", "Heading");
+  else if (b.type === "text") content = area("t-text", "text", "Type here…", 2);
+  else if (b.type === "poll") { b.options ||= ["", ""]; content = el("div", { class: "cl-poll" }, area("cl-question", "question", "Poll question"), choices()); }
+  else if (b.type === "question") {
+    b.options ||= ["", ""];
+    content = el("div", { class: "cl-qblock-t" },
+      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+      area("cl-ask-prompt", "prompt", "Type the question", 2),
+      b.kind === "mc" ? choices() : el("div", { class: "t-fakebox", text: "Students write their answer here." }));
+  } else {
+    // pictures, sims and videos: drawn as students see them; click for their settings
+    content = el("div", { class: "t-media" }, ...renderPage({ blocks: [b] }, { preview: true }).childNodes, el("div", { class: "t-cover" }));
+  }
+  wrap.append(grip, trash, content);
+  return wrap;
+}
+// dragging from the palette (a new block) or by a block's grip (moving it); a click on a palette item adds at the bottom
+function startDrag(e, what) {
+  if (e.button > 0) return;
+  e.preventDefault();
+  const page = ed.pages[edPage], blocks = page.blocks;
+  const sx = e.clientX, sy = e.clientY;
+  let ghost = null, line = null, target = -1;
+  const pe = document.querySelector(".t-editpage"), canvas = document.querySelector(".t-canvas");
+  const move = (ev) => {
+    if (!ghost) {
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      ghost = el("div", { class: "t-ghost", text: what.label });
+      line = el("div", { class: "t-dropline" });
+      document.body.append(ghost);
+      document.body.classList.add("t-dragging");
+    }
+    ghost.style.left = ev.clientX + 14 + "px"; ghost.style.top = ev.clientY + 10 + "px";
+    const cr = canvas.getBoundingClientRect();
+    if (ev.clientX < cr.left || ev.clientX > cr.right || ev.clientY < cr.top - 30 || ev.clientY > cr.bottom + 30) { target = -1; line.remove(); return; }
+    if (ev.clientY < cr.top + 40) canvas.scrollTop -= 12; else if (ev.clientY > cr.bottom - 40) canvas.scrollTop += 12;
+    const els = [...pe.querySelectorAll(":scope > .t-eb")];
+    let idx = els.length;
+    for (let k = 0; k < els.length; k++) { const br = els[k].getBoundingClientRect(); if (ev.clientY < br.top + br.height / 2) { idx = k; break; } }
+    target = idx;
+    if (idx < els.length) pe.insertBefore(line, els[idx]); else pe.append(line);
+  };
+  const end = (ev) => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", end);
+    document.body.classList.remove("t-dragging");
+    if (ghost) { ghost.remove(); line.remove(); }
+    if (!ghost) { if (what.type) addBlockAt(what.type, blocks.length); return; } // a click
+    if (target < 0 || ev.type === "pointercancel") return;
+    if (what.type) return addBlockAt(what.type, target);
+    let to = target;
+    if (to > what.from) to--;
+    if (to === what.from) return;
+    const [x] = blocks.splice(what.from, 1);
+    blocks.splice(to, 0, x);
+    changed(); renderEditor();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
+}
+function addBlockAt(type, at) {
+  const blocks = ed.pages[edPage].blocks;
+  if (type === "poll" && blocks.some((b) => b.type === "poll")) return;
+  const b = newBlock(type);
+  blocks.splice(at, 0, b);
+  edSel = b;
+  changed(); renderEditor();
+  const w = document.querySelectorAll(".t-editpage > .t-eb")[at];
+  if (w) { w.scrollIntoView({ block: "nearest" }); const f = w.querySelector("textarea, input"); if (f) f.focus(); }
 }
 
 // ---------- one plan item: what it's called, notes for me, where it sends students, and its questions
@@ -1010,10 +1156,11 @@ function newBlock(type) {
   if (type === "image") return { type, imageId: "", caption: "", size: "medium" };
   if (type === "sim") return { type, url: "", height: "tall" };
   if (type === "video") return { type, videoId: "", caption: "" };
+  if (type === "question") return { type, id: newId(), prompt: "", min: 3, kind: "text", options: ["", ""] };
   return { type, text: "" };
 }
 
-const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Image", poll: "Poll", sim: "Sim", video: "Video" };
+const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Picture", poll: "Poll", sim: "Sim", video: "Video", question: "Question" };
 
 function blockEditor(page, b, i) {
   const blocks = page.blocks;
@@ -1240,6 +1387,7 @@ function renderLive() {
   }
   mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null });
   renderSimProg(page);
+  qBlockControls(page);
 
   const next = live.unlocked + 1;
   const more = next < lesson.pages.length;
@@ -1499,6 +1647,33 @@ function actTable(act, live) {
       el("td", { text: x.who }), el("td", { text: String(x.n) }), el("td", { text: fmtDur(x.away) }),
       live ? el("td", { text: x.now ? "Away" : "Here" }) : null)));
 }
+// ---------- question blocks on the page: Open (and Reopen for a redo) from the Control room preview
+function qBlockControls(page) {
+  const live = tstate && tstate.live;
+  for (const slot of $("lvPage").querySelectorAll(".cl-qblock-t")) {
+    const b = (page.blocks || []).find((x) => x.type === "question" && x.id === slot.dataset.id);
+    if (!b) continue;
+    const ids = (live && live.bq && live.bq[b.id]) || [];
+    const a = live && live.ask;
+    const running = !!(a && a.blockId === b.id);
+    const key = JSON.stringify([ids, running, a && a.id, !!a]);
+    if (slot._ctlKey === key && slot.querySelector(".t-qctl")) continue;
+    slot._ctlKey = key;
+    const old = slot.querySelector(".t-qctl"); if (old) old.remove();
+    const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
+    const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
+    const see = () => { setTab("resp"); openSaved(ids[ids.length - 1]); };
+    slot.append(el("div", { class: "t-row t-qctl" },
+      running ? el("span", { class: "t-qrun", text: ids.length > 1 ? "Open now · answering again" : "Open now" }) : null,
+      running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
+      !running && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,
+        title: a ? "Another question is open" : "", onclick: open }) : null,
+      !running && ids.length ? el("span", { class: "t-qrun", text: "Closed" + (ids.length > 1 ? " · asked " + ids.length + " times" : "") }) : null,
+      !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null,
+      !running && ids.length ? el("button", { class: "aero-btn-primary", text: "Reopen for a redo", disabled: !!a, title: a ? "Another question is open" : "", onclick: open }) : null));
+  }
+}
+
 // ---------- sim progress: which students' sims on this page reported which events (e.g. level1Done)
 let simProgAsked = false;
 // "level2Done" -> "Level 2 done"
@@ -1719,6 +1894,23 @@ function renderTimeUp(info) {
 
 // ---------- the Responses tab: one question's answers (the running one, or one picked from the list), with feedback
 const fbDraft = {};
+// question blocks opened more than once (a redo after discussion): every round's answers, side by side
+const roundCache = {}; // qid -> { at, answers }
+function roundLabel(r, n) { return r === 1 ? "First answer" : "After discussion" + (n > 2 ? " " + (r - 1) : ""); }
+function otherRounds(q) {
+  if (!q || !q.blockId) return [];
+  const all = (tstate.qs || []).filter((x) => x.blockId === q.blockId && x.sessionId === q.sessionId).sort((x, y) => x.round - y.round);
+  if (all.length < 2) return [];
+  return all.map((x) => {
+    const c = roundCache[x.id];
+    const live = tstate.live && tstate.live.ask && tstate.live.ask.id === x.id;
+    if (x.id !== q.id && (!c || (live && Date.now() - c.at > 3000))) {
+      roundCache[x.id] = { at: Date.now(), answers: c ? c.answers : {} };
+      tapi("/api/answers?q=" + encodeURIComponent(x.id)).then((a) => { roundCache[x.id] = { at: Date.now(), answers: a }; renderAnswers(); }).catch(() => {});
+    }
+    return { round: x.round, id: x.id, n: all.length, answers: x.id === q.id ? null : (roundCache[x.id] || {}).answers || {} };
+  });
+}
 function renderAnswers() {
   const box = $("lvAnswers");
   const live = tstate && tstate.live;
@@ -1741,7 +1933,8 @@ function renderAnswers() {
     ? Object.entries(tstate.spCounts || {}).find(([, c]) => c.qid === q.id) : null;
   const spQid = spEntry ? spEntry[0].split(".")[0] : "", spEnds = spEntry ? spEntry[1].ends : 0;
   const spOpen = !!spEntry && spEnds > now;
-  const key = [q.id, isLive, JSON.stringify(answers), shown.join(), !!live, askOpen, isLive && a.paused, spQid, spOpen].join("|");
+  const rounds = otherRounds(isLive ? { ...q, sessionId: live.sessionId } : q);
+  const key = [q.id, isLive, JSON.stringify(answers), shown.join(), !!live, askOpen, isLive && a.paused, spQid, spOpen, JSON.stringify(rounds)].join("|");
   if (box._key === key) return;
   // don't rebuild while a feedback box is being typed in
   const typing = document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA";
@@ -1749,7 +1942,9 @@ function renderAnswers() {
   box._key = key;
   const btn = (text, onclick, cls) => el("button", { text, onclick, class: cls || "" });
   const top = box.scrollTop;
-  const partTxt = q.parts > 1 ? " · part " + q.part + " of " + q.parts : "";
+  const partTxt = (q.parts > 1 ? " · part " + q.part + " of " + q.parts : "") + (rounds.length ? " · " + roundLabel(q.round, rounds.length).toLowerCase() : "");
+  // students who answered in another round show up too
+  if (rounds.length) for (const r of rounds) if (r.answers) for (const [c, v] of Object.entries(r.answers)) if ((v.text || "").trim() && !withText.some(([x]) => x === c)) withText.push([c, { text: "" }]);
   box.replaceChildren(
     el("div", { class: "t-row" },
       ...(isLive && !a.paused ? [
@@ -1787,9 +1982,11 @@ function renderAnswers() {
         };
         const thumbOn = !!(x.fb && x.fb.thumb);
         return el("li", { class: (on ? "shown " : "") + (x.done ? "done" : ""), style: "flex-wrap:wrap" },
-          el("div", { class: "t-ans-text" },
+          el("div", { class: "t-ans-text" + (rounds.length ? " t-rounds" : "") },
             el("span", { class: "t-who-name" }, named ? x.name : "", x.done ? el("span", { class: "t-done", text: (named ? " · " : "") + "✓ Submitted" }) : (isLive || (live && q.sp && q.sessionId === live.sessionId) ? el("span", { class: "t-writing", text: (named ? " · " : "") + "still writing" }) : null)),
-            x.text),
+            ...(rounds.length ? [el("div", { class: "t-roundrow" }, ...rounds.map((r) => el("div", { class: "t-round" + (r.answers ? "" : " cur") },
+              el("div", { class: "t-round-label", text: roundLabel(r.round, r.n) }),
+              el("div", { text: (r.answers ? ((r.answers[x.code] || {}).text || "") : x.text) || "—" }))))] : [x.text])),
           live ? el("button", { class: on ? "aero-btn-primary" : "", text: on ? "On the TV" : "Show on TV", "aria-pressed": on ? "true" : "false",
             onclick: () => link.send({ t: "show", qid: q.id, code: x.code, on: !on }) }) : null,
           x.done ? el("div", { class: "t-fb", style: "flex-basis:100%" },
@@ -1813,7 +2010,7 @@ function renderQs() {
     onclick: () => openSaved(q.id),
   },
     el("span", { style: "white-space:pre-wrap" }, q.parts > 1 ? "Part " + q.part + "/" + q.parts + ": " : "", formatText(q.prompt)),
-    el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
+    el("span", { class: "t-q-when", text: (a && a.id === q.id ? "Running now · " : "") + (q.round > 1 ? "after discussion · " : "") + (q.block ? q.block + " · " : "") + new Date(q.startedAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) }))))
     : [el("li", { class: "t-hint", text: "Questions you ask show up here." })]));
 }
 // a self-paced question being watched while students type: pull its answers again (at most every 2 seconds)
