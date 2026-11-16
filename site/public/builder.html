@@ -289,12 +289,24 @@ function addState() {
   if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
   const from = curSid();
   const st = { id: newId(), name: "State " + (pg.states.length + 1) };
-  // the new state starts with the elements of the state you were on (the same elements, so a sim keeps running)
+  // the new state starts with copies of the elements of the state you were on, so changing one does not change the other.
+  // A sim or a video stays the same element, so it keeps running.
+  const old = pg.states.map((x) => x.id);
+  const copies = [];
   for (const b of pg.blocks) {
-    if (!Array.isArray(b.states) || !b.states.length) continue; // in every state already
-    if (b.states.includes(from)) b.states.push(st.id);
-    if (Array.isArray(b.lock) && b.lock.includes(from)) b.lock.push(st.id);
+    if (!Array.isArray(b.states) || !b.states.length) b.states = old.slice(); // it was in every state; keep it only in those
+    if (!b.states.includes(from)) continue;
+    if (b.type === "sim" || b.type === "video") {
+      b.states.push(st.id);
+      if (Array.isArray(b.lock) && b.lock.includes(from)) b.lock.push(st.id);
+      continue;
+    }
+    const c = JSON.parse(JSON.stringify(b));
+    c.states = [st.id]; delete c.lock; delete c.simStates;
+    if (c.type === "question") { c.id = newId(); }
+    copies.push(c);
   }
+  pg.blocks.push(...copies);
   pg.states.push(st); edState = st.id; changed(); renderAll();
 }
 function deleteState(id) {
