@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=27">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -39,7 +39,7 @@
           </div>
         </div>
       </section>
-      <section class="aero-panel" id="pageBox" hidden></section>
+      <section class="cl-canvasbox" id="pageBox" hidden></section>
     </div>
   </main>
   <!-- questions that start on their own: they sit beside the sim, so the sim stays in use -->
@@ -111,7 +111,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=16"></script>
+<script src="common.js?v=17"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -252,6 +252,7 @@ function render() {
   $("waiting").hidden = !!live;
   if (!live && !triviaCur) showTrivia();
   $("pageBox").hidden = !live;
+  document.body.classList.toggle("cl-paged", !!live); // the page fills the space between the header and the buttons
   $("nav").hidden = !live;
   $("pageNum").hidden = !live;
   $("title").textContent = live ? state.title : "Class Live";
@@ -279,10 +280,6 @@ function render() {
   })) : null);
   fillQBlocks(pg);
   placeAsk();
-  const onlySim = (pg.blocks || []).length === 1 && pg.blocks[0].type === "sim";
-  box.style.padding = onlySim ? "10px" : "";
-  // pages with a sim use the full screen width
-  box.parentElement.style.maxWidth = (pg.blocks || []).some((b) => b.type === "sim") ? "none" : "";
 
   // fullscreen: the page's sim, or else its first image
   const fsTarget = box.querySelector(".cl-sim") || box.querySelector(".cl-figure");
@@ -375,7 +372,7 @@ function placeAsk() {
   const slot = bi && bi.reachable && page === bi.idx && $("pageBox").querySelector('.cl-qblock[data-id="' + bi.a.blockId + '"]');
   const box = $("askBox");
   if (slot) {
-    if (box.parentElement !== slot) { slot.replaceChildren(box); setTimeout(() => box.scrollIntoView({ block: "nearest", behavior: "smooth" }), 50); }
+    if (box.parentElement !== slot) slot.replaceChildren(box);
     slot.hidden = false;
     box.classList.add("cl-inline");
     box.hidden = !!state.show;

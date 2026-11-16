@@ -231,3 +231,46 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-figure.size-full img { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; border: 0; border-radius: 0; }
 .cl-figure.size-full figcaption { color: #FFFFFF; margin: 6px 0 0; }
 .cl-figure.size-full:fullscreen { height: 100vh; }
+
+/* ---- freeform pages: a 1600 x 900 canvas scaled to fit (--s is how much; --is is its inverse) ---- */
+.cl-canvas-fit { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; margin: 0 auto; border-radius: var(--aero-radius-sm); flex: none; }
+.cl-canvas { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform: scale(var(--s, .5)); transform-origin: 0 0; font-size: 36px; line-height: 1.4;
+  /* the same type on every page that shows it (the teacher pages set their own) */
+  font-family: var(--aero-font-body); font-weight: 400; font-style: normal; letter-spacing: .02em; word-spacing: .08em; text-transform: none; text-align: left; font-feature-settings: "cv05", "cv08"; }
+.cl-cblock { position: absolute; box-sizing: border-box; overflow: hidden; }
+.cl-ctextin { box-sizing: border-box; height: 100%; padding: 8px 14px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
+.cl-ctextin.cl-chead { font-weight: 700; line-height: 1.2; white-space: pre-wrap; }
+.cl-ctextin .cl-text p { margin: 0 0 .7em; }
+.cl-canvas .cl-figure { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.cl-canvas .cl-figure img { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; border: 0; border-radius: 0; }
+.cl-canvas .cl-figure video { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; background: #000000; }
+.cl-canvas .cl-figure figcaption { font-size: 30px; line-height: 1.3; margin: 6px 0 0; color: inherit; }
+/* a sim gets a real-size window (so it looks as it always has), placed in its box on the page */
+.cl-csim .cl-sim { position: absolute; left: 0; top: 0; width: calc(100% * var(--s, 1)); height: calc(100% * var(--s, 1)); transform: scale(calc(1 / var(--s, 1))); transform-origin: 0 0; }
+.cl-canvas .cl-ph { width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #0B1C15; color: #E8EEEA; font-size: 32px; text-align: center; padding: 20px; }
+.cl-canvas .cl-ph-kind { font-weight: 700; font-size: 40px; }
+/* polls, and questions the teacher opens: bigger type, because the canvas is scaled down */
+.cl-cpoll { overflow: auto; padding: 8px; font-size: 32px; line-height: 1.4; }
+.cl-canvas .cl-option { min-height: 76px; padding: 12px 24px; font-size: 1em; }
+.cl-canvas .cl-letter { width: 54px; height: 54px; }
+.cl-canvas .cl-bar-track { height: 34px; border-radius: 17px; }
+.cl-canvas .cl-result-num { min-width: 160px; }
+.cl-canvas .cl-qblock { overflow: auto; }
+.cl-canvas .cl-qblock .cl-inline { font-size: 30px; padding: 20px 26px; }
+.cl-canvas .cl-ask-label { font-size: 30px; }
+.cl-canvas .cl-ask-prompt { font-size: 32px; }
+.cl-canvas .cl-ask-time { font-size: 3rem; }
+.cl-canvas #askText { font-size: 30px; }
+.cl-canvas .cl-ask-foot button { min-height: 76px; padding: 10px 40px; font-size: 30px; }
+.cl-canvas .cl-ask-foot .aero-muted, .cl-canvas #askNote { font-size: 30px; }
+.cl-canvas .cl-myans-text { font-size: 30px; }
+.cl-canvas .cl-qcard { height: 100%; box-sizing: border-box; overflow: hidden; font-size: 30px; }
+/* the box that holds a page on the student and TV pages */
+.cl-canvasbox { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
+.cl-paged .cl-main { display: flex; flex-direction: column; overflow: hidden; }
+.cl-paged .cl-center { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; display: flex; flex-direction: column; }
+/* a question box fills its block: the writing area takes the room that is left and Submit stays at the bottom */
+.cl-canvas .cl-qblock:not([hidden]) { display: flex; flex-direction: column; }
+.cl-canvas .cl-qblock > .cl-inline { flex: 1 1 auto; min-height: 0; margin: 0; display: flex; flex-direction: column; overflow: auto; }
+.cl-canvas .cl-qblock > .cl-inline #askText { flex: 1 1 auto; min-height: 90px; height: auto; resize: none; }
+.cl-canvas .cl-qblock > .cl-inline .cl-ask-foot { flex: none; }

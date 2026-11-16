@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Screen</title>
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=27">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
   /* the TV page: open on the iPad and leave it. No controls, no names. */
   body { font-size: 20px; }
   .s-main { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 24px; }
   .s-main .aero-panel { max-width: 1200px; margin: 0 auto; }
-  .s-main.wide .aero-panel { max-width: none; }
+  .s-main.paged { display: flex; flex-direction: column; overflow: hidden; padding: 10px 14px 14px; }
   #waiting { text-align: center; max-width: 700px; margin: 12vh auto 0; }
   #showBox .cl-card, #askBox .cl-ask-prompt { font-size: 26px; }
   #askBox { text-align: center; }
@@ -31,7 +31,7 @@
       <h1>Class Live</h1>
       <p class="aero-muted">Waiting for class to start.</p>
     </section>
-    <section class="aero-panel" id="pageBox" hidden></section>
+    <section class="cl-canvasbox" id="pageBox" hidden></section>
   </main>
 
   <div class="cl-cover" id="cover" hidden>
@@ -59,7 +59,7 @@
     <button class="aero-btn-primary" id="tvBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=16"></script>
+<script src="common.js?v=17"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let state = { live: false };
@@ -94,9 +94,8 @@ function apply(s) {
   if (live) {
     $("pageNum").textContent = "Page " + (s.pageNum + 1);
     mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results });
-    const sim = (s.page.blocks || []).some((b) => b.type === "sim");
-    $("main").classList.toggle("wide", sim);
   }
+  $("main").classList.toggle("paged", !!live);
   // the middle window: answers on display, else the running question, else paused
   const a = live ? s.ask : null, sh = live ? s.show : null, paused = live && s.paused;
   if (!a || a.id !== askShown) tvMin = false;

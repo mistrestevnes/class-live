@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=27">
 <link rel="stylesheet" href="teacher.css?v=9">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -245,7 +245,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=16"></script>
+<script src="common.js?v=17"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -633,7 +633,7 @@ function renderPreview(body) {
 }
 let edSaveTimer = null;
 
-function newPage() { return { id: randomId(8), name: "", blocks: [{ type: "heading", text: "" }, { type: "text", text: "" }] }; }
+const newPage = newCanvasPage;
 
 function pageLabel(p, i) {
   if (p.name) return p.name;
