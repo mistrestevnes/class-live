@@ -313,8 +313,8 @@ function deleteState(id) {
 }
 function renderStates() {
   const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
-  $("bStateNum").hidden = sts.length < 2;
-  $("bStateNum").textContent = "State " + (sts.findIndex((x) => x.id === cur) + 1);
+  $("bStateNum").hidden = false;
+  $("bStateNum").textContent = "Page " + (edPage + 1) + ", State " + (sts.findIndex((x) => x.id === cur) + 1);
   $("bStates").replaceChildren(
     el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
     ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
