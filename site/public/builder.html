@@ -23,7 +23,24 @@
   .b-win-body { overflow: auto; padding: 4px 12px 12px; }
   .b-win.min .b-win-body { display: none; }
   .b-win.min { width: auto !important; }
-  #winPages { left: 36px; top: 96px; width: 230px; }
+  .b-canvas { margin-left: calc(var(--side, 220px) + 8px); }
+  .b-side { position: fixed; left: 16px; top: 62px; bottom: 16px; width: var(--side, 220px); z-index: 20; display: flex; flex-direction: column; padding: 8px 10px; box-sizing: border-box; }
+  .b-side-title { font: 700 12px Helvetica, Arial, sans-serif; margin: 0 0 6px; }
+  .b-thumbs { list-style: none; margin: 0; padding: 0 4px 0 0; flex: 1 1 0; min-height: 0; overflow-y: auto; }
+  .b-thumbs li { margin: 0 0 10px; }
+  .b-thumbs button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; min-height: 0; }
+  .b-thumbs .b-tlabel { display: block; font: 700 12px Helvetica, Arial, sans-serif; margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
+  .b-thumb > * { pointer-events: none; }
+  .b-thumbs button[aria-pressed="true"], .b-thumbs button:hover { background: none !important; color: inherit !important; }
+  .b-thumbs button[aria-pressed="true"] .b-thumb { outline: 4px solid #17A673; }
+  .b-side-tools { flex: none; border-top: 1px solid rgba(0, 0, 0, .15); padding-top: 8px; max-height: 45%; overflow-y: auto; }
+  .b-side .cl-field { display: block; margin-bottom: 8px; }
+  .b-side .cl-field span { font-size: 12px; font-weight: 700; display: block; margin-bottom: 2px; }
+  .b-side h3 { font-size: 13px; }
+  .b-pal { display: flex; flex-direction: column; gap: 4px; }
+  .b-pal button, html.teacher .b-pal .t-pal { font-size: 12px !important; padding: 3px 8px !important; min-height: 0 !important; text-align: left; }
+  #winTools.b-adding { width: auto; }
   #winTools { right: 36px; top: 96px; width: 290px; }
   .b-win .t-pages { margin-bottom: 8px; }
   .b-win .t-pages button { padding: 4px 8px; font-size: 12px; }
@@ -51,6 +68,10 @@
   .t-ta { display: block; width: 100%; height: 100%; box-sizing: border-box; padding: 8px 14px; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; line-height: 1.4; resize: none; overflow: auto; }
   .t-ta.cl-chead { font-weight: 700; line-height: 1.2; }
   .t-ph { padding: 8px 14px; opacity: .45; }
+  .t-rich.t-in { font-weight: inherit !important; }
+  .t-rich { white-space: pre-wrap; outline: 0; cursor: text; min-height: 1.4em; }
+  .t-rich b { font-weight: 700; } .t-rich i { font-style: italic; font-weight: inherit; } .t-rich b i { font-weight: 700; }
+  .t-rich.t-empty::before { content: attr(data-ph); opacity: .45; pointer-events: none; }
   .t-poll, .t-qedit { font-size: 30px; }
   .t-cb.over > .t-body { outline: calc(3px * var(--is, 1.6)) dashed #C0392B; outline-offset: calc(-3px * var(--is, 1.6)); }
   .t-cb.over::after { content: "Text is cut off. Make the box bigger or the text smaller."; position: absolute; left: 0; top: 100%; margin-top: calc(6px * var(--is, 1.6)); z-index: 6; font: 700 calc(13px * var(--is, 1.6)) Helvetica, Arial, sans-serif; color: #FFFFFF; background: #C0392B; padding: calc(3px * var(--is, 1.6)) calc(8px * var(--is, 1.6)); border-radius: calc(4px * var(--is, 1.6)); white-space: nowrap; }
@@ -107,11 +128,11 @@
   <div class="b-sheet" id="bSheet"></div>
 </main>
 
-<aside class="aero-panel b-win min" id="winPages" hidden>
-  <div class="b-win-head"><span class="t-title" id="winPagesTitle">Pages</span><button class="t-small" id="winPagesMin" aria-label="Open or close the Pages window">▾</button></div>
-  <div class="b-win-body">
-    <ul class="t-pages" id="bPages"></ul>
-    <div class="t-row" style="margin-bottom:10px">
+<aside class="aero-panel b-side" id="winPages" hidden>
+  <div class="b-side-title" id="winPagesTitle">Pages</div>
+  <ul class="b-thumbs" id="bPages"></ul>
+  <div class="b-side-tools">
+    <div class="t-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
       <button class="t-small" id="pgAdd">+ Page</button>
       <button class="t-small" id="pgUp" aria-label="Move page up">▲</button>
       <button class="t-small" id="pgDown" aria-label="Move page down">▼</button>
@@ -144,7 +165,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=32"></script>
+<script src="common.js?v=33"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -185,7 +206,7 @@ function pageLabel(p, i) {
 
 // ---------------------------------------------------------------- saving (one save at a time, in order)
 function setSave(text) { $("saveState").textContent = text; $("saveState").classList.toggle("aero-chip-warn", /n't/.test(text)); }
-function changed() { setSave("Saving…"); clearTimeout(edSaveTimer); edSaveTimer = setTimeout(saveNow, 700); }
+function changed() { if (ed) thumbsSoon(); setSave("Saving…"); clearTimeout(edSaveTimer); edSaveTimer = setTimeout(saveNow, 700); }
 let saveChain = Promise.resolve();
 function saveNow() {
   clearTimeout(edSaveTimer); edSaveTimer = null;
@@ -239,25 +260,42 @@ function makeWin(win, onToggle) {
 function fitCanvas() {
   $("bCanvas").style.setProperty("--padR", $("winTools").classList.contains("min") ? "210px" : "350px");
 }
-makeWin($("winPages"), () => {});
 makeWin($("winTools"), fitCanvas);
 
 // ---------------------------------------------------------------- the pages window
+const thumbBoxes = new Map(); // page id -> its thumbnail, kept so an unchanged page isn't drawn again (and its sims don't reload)
+let thumbTimer = null;
+function drawThumbs() {
+  clearTimeout(thumbTimer); thumbTimer = null;
+  for (const p of ed.pages) {
+    const box = thumbBoxes.get(p.id);
+    if (box && box.isConnected) { try { mountPage(box, p, { stateId: pageStates(p)[0].id, preview: true }); } catch {} }
+  }
+}
+const thumbsSoon = () => { clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbs, 900); };
 function renderPages() {
-  $("bPages").replaceChildren(...ed.pages.map((p, i) => el("li", {},
-    el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; edSel = null; renderAll(); } },
-      el("span", { class: "t-num", text: i + 1 }),
-      el("span", { class: "t-label", text: pageLabel(p, i) })))));
+  const ids = new Set(ed.pages.map((p) => p.id));
+  for (const k of [...thumbBoxes.keys()]) if (!ids.has(k)) thumbBoxes.delete(k);
+  $("bPages").replaceChildren(...ed.pages.map((p, i) => {
+    let box = thumbBoxes.get(p.id);
+    if (!box) { box = el("div", { class: "b-thumb", inert: "" }); thumbBoxes.set(p.id, box); }
+    return el("li", {},
+      el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; edSel = null; renderAll(); } },
+        el("span", { class: "b-tlabel t-label", text: (i + 1) + ". " + pageLabel(p, i) }), box));
+  }));
   $("pgUp").disabled = edPage === 0;
   $("pgDown").disabled = edPage === ed.pages.length - 1;
   $("winPagesTitle").textContent = "Pages · " + (edPage + 1) + " of " + ed.pages.length;
   const pn = $("pgName");
   if (document.activeElement !== pn) pn.value = ed.pages[edPage].name || "";
   pn.placeholder = pageLabel({ blocks: ed.pages[edPage].blocks }, edPage);
+  thumbsSoon();
+  const cur = $("bPages").children[edPage];
+  if (cur) cur.scrollIntoView({ block: "nearest" });
 }
 function refreshPageLabels() {
   const labels = $("bPages").querySelectorAll(".t-label");
-  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = pageLabel(p, i); });
+  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = (i + 1) + ". " + pageLabel(p, i); });
 }
 $("pgName").oninput = (e) => { ed.pages[edPage].name = e.target.value; changed(); refreshPageLabels(); };
 $("pgAdd").onclick = () => { ed.pages.splice(edPage + 1, 0, newPage()); edPage++; edSel = null; changed(); renderAll(); };
@@ -347,7 +385,7 @@ function renderStates() {
       el("button", { text: "Move earlier", title: "Move the state you're editing one place earlier", disabled: sts[0].id === cur, onclick: () => moveState(cur, -1) }),
       el("button", { text: "Move later", title: "Move the state you're editing one place later", disabled: sts[sts.length - 1].id === cur, onclick: () => moveState(cur, 1) })] : []),
     ...(sts.length > 1 ? [el("button", { text: "Delete this state", title: "Delete the state you're editing", onclick: () => confirmDeleteState(cur) })] : []),
-    ...(sts.length > 1 ? [el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { $("winPages").classList.remove("min"); } })] : []));
+    ...(sts.length > 1 ? [el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { const f = $("bStateList").querySelector("input"); if (f) { f.scrollIntoView({ block: "nearest" }); f.focus(); } } })] : []));
   const list = $("bStateList");
   if (sts.length < 2) { list.replaceChildren(); return; }
   list.replaceChildren(el("h3", { text: "States of this page" }),
@@ -424,6 +462,133 @@ function editBlock(page, b, i) {
 }
 const area = (b, key, cls, ph, rows) => el("textarea", { class: "t-in " + cls, rows: rows || 1, value: b[key] || "", placeholder: ph,
   oninput: (e) => { b[key] = e.target.value; grow(e.target); changed(); refreshPageLabels(); } });
+// The question text is edited as it looks: select words and use Bold / Italic (or Cmd+B / Cmd+I).
+// It is saved as plain text with **bold**, *italic* and ***both*** marks, the marks every page already shows that way.
+function richFromText(src) {
+  const box = document.createDocumentFragment();
+  String(src || "").replace(/\r/g, "").split("\n").forEach((line, i) => {
+    if (i) box.append(el("br"));
+    for (const part of line.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g)) {
+      if (!part) continue;
+      if (/^\*\*\*[^*]+\*\*\*$/.test(part)) box.append(el("b", {}, el("i", { text: part.slice(3, -3) })));
+      else if (/^\*\*[^*]+\*\*$/.test(part)) box.append(el("b", { text: part.slice(2, -2) }));
+      else if (/^\*[^*\s][^*]*\*$/.test(part)) box.append(el("i", { text: part.slice(1, -1) }));
+      else box.append(part);
+    }
+  });
+  return box;
+}
+function textFromRich(root) {
+  const runs = []; // [text, bold, italic]
+  const walk = (n, bo, it) => {
+    if (n.nodeType === 3) { runs.push([n.nodeValue.replace(/\u00a0/g, " "), bo, it]); return; }
+    if (n.nodeType !== 1) return;
+    const tag = n.tagName, cs = n.style || {};
+    if (tag === "BR") { runs.push(["\n", false, false]); return; }
+    const blockish = (tag === "DIV" || tag === "P") && n !== root;
+    if (blockish && runs.length && !runs[runs.length - 1][0].endsWith("\n")) runs.push(["\n", false, false]);
+    const b2 = bo || tag === "B" || tag === "STRONG" || /^(bold|[6-9]00)$/.test(cs.fontWeight || "");
+    const i2 = it || tag === "I" || tag === "EM" || cs.fontStyle === "italic";
+    for (const c of n.childNodes) walk(c, b2, i2);
+    if (blockish && runs.length && !runs[runs.length - 1][0].endsWith("\n")) runs.push(["\n", false, false]);
+  };
+  walk(root, false, false);
+  let out = "";
+  const flat = [];
+  for (const [t, bo, it] of runs) for (const piece of t.split(/(\n)/)) if (piece) flat.push([piece, piece === "\n" ? false : bo, piece === "\n" ? false : it]);
+  const merged = [];
+  for (const r of flat) { const l = merged[merged.length - 1]; if (l && l[1] === r[1] && l[2] === r[2] && r[0] !== "\n" && l[0] !== "\n") l[0] += r[0]; else merged.push(r.slice()); }
+  for (const [t, bo, it] of merged) {
+    const m = bo && it ? "***" : bo ? "**" : it ? "*" : "";
+    const core = t.trim();
+    if (!m || !core || t === "\n") { out += t.replace(/\*/g, "∗"); continue; }
+    const lead = t.match(/^\s*/)[0], trail = t.match(/\s*$/)[0];
+    out += lead + m + core.replace(/\*/g, "∗") + m + trail;
+  }
+  return out.replace(/\n+$/, "");
+}
+let richBox = null; // the question text being edited, so the Bold and Italic buttons can reach it
+function richPrompt(b) {
+  // a question made bold or italic as a whole becomes the same thing marked word by word
+  if (b.qbold || b.qital) {
+    const m = b.qbold && b.qital ? "***" : b.qbold ? "**" : "*";
+    b.prompt = String(b.prompt || "").split("\n").map((l) => (l.trim() && !/\*/.test(l) ? l.replace(/^(\s*)(.*?)(\s*)$/, "$1" + m + "$2" + m + "$3") : l)).join("\n");
+    delete b.qbold; delete b.qital; changed();
+  }
+  const box = el("div", { class: "t-in t-rich cl-ask-prompt", contenteditable: "true", "data-ph": "Type the question", spellcheck: "true" });
+  box.append(richFromText(b.prompt));
+  const save = () => { b.prompt = textFromRich(box); box.classList.toggle("t-empty", !box.textContent.trim()); changed(); refreshPageLabels(); };
+  box.classList.toggle("t-empty", !box.textContent.trim());
+  box.addEventListener("input", save);
+  box.addEventListener("focus", () => { richBox = box; });
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); document.execCommand("insertLineBreak"); }
+    if ((e.metaKey || e.ctrlKey) && /^[bi]$/i.test(e.key)) { e.preventDefault(); richStyle(e.key.toLowerCase() === "b" ? "bold" : "italic", box); }
+  });
+  box.addEventListener("paste", (e) => { e.preventDefault(); document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text/plain")); });
+  box._save = save;
+  return box;
+}
+// Bold / Italic on the selected words: the text is read into characters with their style, the style is
+// switched on the selection (off if every selected character already has it), and the box is drawn again.
+function richChars(root) {
+  const out = [];
+  const walk = (n, bo, it) => {
+    n._ci = out.length;
+    if (n.nodeType === 3) { for (const ch of n.nodeValue.replace(/\u00a0/g, " ")) out.push({ ch, b: bo, i: it }); n._ce = out.length; return; }
+    if (n.nodeType !== 1) { n._ce = out.length; return; }
+    if (n.tagName === "BR") { out.push({ ch: "\n", b: false, i: false }); n._ce = out.length; return; }
+    const blockish = (n.tagName === "DIV" || n.tagName === "P") && n !== root;
+    if (blockish && out.length && out[out.length - 1].ch !== "\n") out.push({ ch: "\n", b: false, i: false });
+    const b2 = bo || n.tagName === "B" || n.tagName === "STRONG", i2 = it || n.tagName === "I" || n.tagName === "EM";
+    for (const c of n.childNodes) walk(c, b2, i2);
+    n._ce = out.length;
+  };
+  walk(root, false, false);
+  return out;
+}
+const richIdx = (node, off) => node.nodeType === 3 ? node._ci + Math.min(off, node.nodeValue.length) : (node.childNodes[off] ? node.childNodes[off]._ci : node._ce);
+function richDraw(root, chars) {
+  root.replaceChildren();
+  let k = 0;
+  while (k < chars.length) {
+    const c = chars[k];
+    if (c.ch === "\n") { root.append(el("br")); k++; continue; }
+    let t = "";
+    while (k < chars.length && chars[k].ch !== "\n" && chars[k].b === c.b && chars[k].i === c.i) t += chars[k++].ch;
+    const node = c.b && c.i ? el("b", {}, el("i", { text: t })) : c.b ? el("b", { text: t }) : c.i ? el("i", { text: t }) : document.createTextNode(t);
+    root.append(node);
+  }
+  if (chars.length && chars[chars.length - 1].ch === "\n") root.append(el("br")); // so a last empty line can hold the cursor
+}
+function richPlace(root, idx) {
+  let n = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeType === 3) { if (idx <= n + node.nodeValue.length) return [node, idx - n]; n += node.nodeValue.length; }
+    else if (node.tagName === "BR") { if (idx <= n) return [node.parentNode, [...node.parentNode.childNodes].indexOf(node)]; n += 1; }
+  }
+  return [root, root.childNodes.length];
+}
+function richStyle(cmd, box) {
+  box = box || richBox;
+  const sel = getSelection();
+  if (!box || !box.isConnected || !sel.rangeCount || sel.isCollapsed) return false;
+  const r = sel.getRangeAt(0);
+  if (!box.contains(r.startContainer) || !box.contains(r.endContainer)) return false;
+  const chars = richChars(box), a = richIdx(r.startContainer, r.startOffset), z = richIdx(r.endContainer, r.endOffset);
+  const key = cmd === "bold" ? "b" : "i";
+  const sel2 = chars.slice(a, z).filter((c) => c.ch !== "\n" && c.ch.trim());
+  if (!sel2.length) return false;
+  const on = !sel2.every((c) => c[key]);
+  for (let k = a; k < z; k++) if (chars[k].ch !== "\n") chars[k][key] = on;
+  richDraw(box, chars);
+  const [sn, so] = richPlace(box, a), [en, eo] = richPlace(box, z);
+  const nr = document.createRange(); nr.setStart(sn, so); nr.setEnd(en, eo);
+  sel.removeAllRanges(); sel.addRange(nr); box.focus();
+  box._save();
+  return true;
+}
 function choiceList(b) {
   const list = el("div", { class: "cl-options t-choices" });
   const draw = () => list.replaceChildren(...b.options.map((o, j) => el("div", { class: "cl-option t-choice" },
@@ -452,7 +617,7 @@ function blockBody(b, sel) {
     const qn = ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(b) + 1;
     const mc = b.kind === "mc";
     const card = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard t-qedit" },
-      area(b, "prompt", "cl-ask-prompt", "Type the question", 2),
+      richPrompt(b),
       mc ? choiceList(b) : el("textarea", { rows: 6, disabled: true, "aria-label": "Your answer" }),
       el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
     applyQFormat(card, b);
@@ -495,8 +660,9 @@ function placeEl(b) {
 }
 function focusEditable() {
   requestAnimationFrame(() => {
-    const f = fitBox && fitBox.querySelector(".t-cb.sel textarea, .t-cb.sel input[type=text]");
-    if (f) { f.focus(); try { f.setSelectionRange(f.value.length, f.value.length); } catch {} }
+    const f = fitBox && fitBox.querySelector(".t-cb.sel .t-rich, .t-cb.sel textarea, .t-cb.sel input[type=text]");
+    if (f && f.classList.contains("t-rich")) { f.focus(); const r = document.createRange(); r.selectNodeContents(f); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+    else if (f) { f.focus(); try { f.setSelectionRange(f.value.length, f.value.length); } catch {} }
   });
 }
 
@@ -626,19 +792,22 @@ async function fitImageBox(b) { // the box takes the picture's shape, keeping it
   });
 }
 
+let bgOpen = false;
 function renderTools() {
+  $("winTools").classList.remove("b-adding");
   const page = ed.pages[edPage], tools = $("bTools");
   if (!edSel) {
-    $("winToolsTitle").textContent = "Add to the page";
+    $("winToolsTitle").textContent = "Add";
+    $("winTools").classList.add("b-adding");
     const hasPoll = page.blocks.some((b) => b.type === "poll");
+    const bgBox = el("div", { hidden: !bgOpen }, colorField("Page background", page.bg, (c) => { page.bg = c; changed(); renderStage(); }, BG_SWATCHES));
     tools.replaceChildren(
-      colorField("Page background", page.bg, (c) => { page.bg = c; changed(); renderStage(); }, BG_SWATCHES),
-      el("p", { class: "t-hint", style: "margin:0 0 8px", text: "Drag onto the page, or click to add." }),
-      el("div", { class: "t-palette" }, ...PALETTE.map(([type, label]) => {
+      el("div", { class: "b-pal" }, ...PALETTE.map(([type, label]) => {
         const off = type === "poll" && hasPoll;
-        return el("button", { class: "t-pal", text: label, disabled: off, title: off ? "One poll per page" : "",
+        return el("button", { class: "t-pal", text: label, disabled: off, title: off ? "One poll per page" : "Drag onto the page, or click to add",
           onpointerdown: (e) => { if (!off) startPalette(e, type, label); } });
-      })));
+      }), el("button", { text: "Background", "aria-pressed": String(bgOpen), onclick: () => { bgOpen = !bgOpen; renderTools(); } })),
+      bgBox);
     return;
   }
   const b = edSel;
@@ -693,9 +862,9 @@ function renderTools() {
             el("input", { type: "number", min: MIN_FONT, step: 2, value: f.size, "aria-label": "Question text size", onchange: (e) => setQ("qsize", Math.max(MIN_FONT, Math.round(+e.target.value) || QSIZE)) }),
             el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setQ("qsize", f.size + 4) })),
           el("div", { class: "t-row", style: "margin-top:6px" },
-            el("button", { class: "t-small", text: "Bold", style: "font-weight:900", "aria-pressed": String(f.bold), onclick: () => setQ("qbold", !f.bold) }),
-            el("button", { class: "t-small", text: "Italic", style: "font-style:italic", "aria-pressed": String(f.italic), onclick: () => setQ("qital", !f.italic) })),
-          el("p", { class: "t-hint", text: "Applies to the question and its choices, exactly as students see them." }));
+            el("button", { class: "t-small", text: "Bold", style: "font-weight:900", onpointerdown: (e) => e.preventDefault(), onclick: (e) => { if (!richStyle("bold")) e.target.parentNode.nextSibling.textContent = "First select some words in the question."; } }),
+            el("button", { class: "t-small", text: "Italic", style: "font-style:italic", onpointerdown: (e) => e.preventDefault(), onclick: (e) => { if (!richStyle("italic")) e.target.parentNode.nextSibling.textContent = "First select some words in the question."; } })),
+          el("p", { class: "t-hint", text: "Select words in the question, then click Bold or Italic (or press Cmd+B / Cmd+I). Click again to undo it." }));
       })(),
       el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
         el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",

@@ -169,10 +169,11 @@ function store(key, val) {
 //   x^2         -> superscript after a caret
 function inline(text) {
   const frag = document.createDocumentFragment();
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|[A-Za-zΔ]_[A-Za-z0-9]+|\^-?[0-9A-Za-z]+)/g);
+  const parts = text.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*\s][^*]*\*|[A-Za-zΔ]_[A-Za-z0-9]+|\^-?[0-9A-Za-z]+)/g);
   for (const part of parts) {
     if (!part) continue;
-    if (/^\*\*[^*]+\*\*$/.test(part)) frag.append(el("strong", { text: part.slice(2, -2) }));
+    if (/^\*\*\*[^*]+\*\*\*$/.test(part)) frag.append(el("strong", {}, el("em", { text: part.slice(3, -3) })));
+    else if (/^\*\*[^*]+\*\*$/.test(part)) frag.append(el("strong", { text: part.slice(2, -2) }));
     else if (/^\*[^*\s][^*]*\*$/.test(part)) frag.append(el("em", { text: part.slice(1, -1) }));
     else if (/^[A-Za-zΔ]_[A-Za-z0-9]+$/.test(part)) frag.append(part[0], el("sub", { text: part.slice(2) }));
     else if (/^\^-?[0-9A-Za-z]+$/.test(part)) frag.append(el("sup", { text: part.slice(1) }));
