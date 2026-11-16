@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=27">
-<link rel="stylesheet" href="teacher.css?v=9">
+<link rel="stylesheet" href="teacher.css?v=13">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1345,28 +1345,39 @@ function actTable(act, live) {
 // ---------- question blocks on the page: Open (and Reopen for a redo) from the Control room preview
 function qBlockControls(page) {
   const live = tstate && tstate.live;
-  for (const slot of $("lvPage").querySelectorAll(".cl-qblock-t")) {
-    const b = (page.blocks || []).find((x) => x.type === "question" && x.id === slot.dataset.id);
-    if (!b) continue;
-    const ids = (live && live.bq && live.bq[b.id]) || [];
-    const a = live && live.ask;
+  let strip = $("lvQctl");
+  if (!strip) { strip = el("div", { id: "lvQctl", class: "aero-panel t-qstrip" }); $("lvPage").after(strip); }
+  const qs = (page.blocks || []).filter((x) => x.type === "question");
+  if (!qs.length) { strip._key = ""; strip.replaceChildren(); strip.hidden = true; return; }
+  strip.hidden = false;
+  // students see one question at a time: the running one, otherwise the latest opened
+  const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
+  const a = live && live.ask;
+  let shownId = a && a.pageId === page.id && qs.some((q) => q.id === a.blockId) ? a.blockId : null;
+  if (!shownId) for (const q of qs) if (bqOf(q.id).length) shownId = q.id;
+  const key = JSON.stringify([page.id, qs.map((q) => [q.id, q.prompt, q.min, q.kind, q.options]), qs.map((q) => bqOf(q.id)), a && a.id, !!a, shownId]);
+  if (strip._key === key) return;
+  strip._key = key;
+  strip.replaceChildren(el("h3", { text: "Questions on this page · students see one at a time" }), ...qs.map((b, n) => {
+    const ids = bqOf(b.id);
     const running = !!(a && a.blockId === b.id);
-    const key = JSON.stringify([ids, running, a && a.id, !!a]);
-    if (slot._ctlKey === key && slot.querySelector(".t-qctl")) continue;
-    slot._ctlKey = key;
-    const old = slot.querySelector(".t-qctl"); if (old) old.remove();
+    const hiddenNow = ids.length > 0 && b.id !== shownId;
     const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const see = () => { setTab("resp"); openSaved(ids[ids.length - 1]); };
-    slot.append(el("div", { class: "t-row t-qctl" },
-      running ? el("span", { class: "t-qrun", text: ids.length > 1 ? "Open now · answering again" : "Open now" }) : null,
+    const status = running ? (ids.length > 1 ? "Open now · answering again" : "Open now")
+      : hiddenNow ? "Hidden from students (a later question was opened)"
+      : ids.length ? "Closed · students see their answers" + (ids.length > 1 ? " · asked " + ids.length + " times" : "")
+      : "Not shown to students yet";
+    return el("div", { class: "t-qrow" + (running ? " run" : "") },
+      el("div", { class: "t-qtext" }, el("strong", { text: (n + 1) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
+        el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") })),
       running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
       !running && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,
         title: a ? "Another question is open" : "", onclick: open }) : null,
-      !running && ids.length ? el("span", { class: "t-qrun", text: "Closed" + (ids.length > 1 ? " · asked " + ids.length + " times" : "") }) : null,
       !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null,
-      !running && ids.length ? el("button", { class: "aero-btn-primary", text: "Reopen for a redo", disabled: !!a, title: a ? "Another question is open" : "", onclick: open }) : null));
-  }
+      !running && ids.length ? el("button", { class: "aero-btn-primary", text: "Reopen for a redo", disabled: !!a, title: a ? "Another question is open" : "", onclick: open }) : null);
+  }));
 }
 
 // ---------- sim progress: which students' sims on this page reported which events (e.g. level1Done)

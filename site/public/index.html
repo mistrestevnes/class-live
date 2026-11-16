@@ -384,9 +384,15 @@ function placeAsk() {
 // closed question blocks show the student's own answers, read only; blocks never opened stay hidden
 function fillQBlocks(pg) {
   const bi = blockAskInfo();
+  // only one question shows at a time: the one running, otherwise the latest one that was opened
+  const qids = (pg.blocks || []).filter((x) => x.type === "question").map((x) => x.id);
+  const runId = bi && bi.reachable && page === bi.idx ? bi.a.blockId : null;
+  let shownId = runId;
+  if (!shownId && !PREVIEW) for (const q of qids) if (((state.blockAns || {})[q] || []).length) shownId = q;
   for (const slot of $("pageBox").querySelectorAll(".cl-qblock")) {
     const id = slot.dataset.id;
-    if (bi && bi.a.blockId === id && bi.reachable && page === bi.idx) continue; // running: placeAsk fills it
+    if (runId === id) continue; // running: placeAsk fills it
+    if (!PREVIEW && id !== shownId) { slot.hidden = true; slot.replaceChildren(); continue; }
     const rounds = (state.blockAns || {})[id];
     const b = (pg.blocks || []).find((x) => x.id === id);
     if (PREVIEW && b && (!rounds || !rounds.length)) {
