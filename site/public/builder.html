@@ -140,7 +140,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=25"></script>
+<script src="common.js?v=26"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -564,7 +564,7 @@ function colorField(label, value, onPick, swatches, autoLabel) {
   if (autoLabel) row.append(el("button", { class: "t-small", text: autoLabel, onclick: () => onPick("") }));
   return el("div", { class: "cl-field" }, el("span", { text: label }), row);
 }
-function setSize(b, n) { b.size = clamp(Math.round(n) || TEXT_SIZE, MIN_FONT, 200); changed(); renderStage(); renderTools(); }
+function setSize(b, n) { b.size = Math.max(MIN_FONT, Math.round(n) || TEXT_SIZE); changed(); renderStage(); renderTools(); }
 async function fitImageBox(b) { // the box takes the picture's shape, keeping its width
   await new Promise((res) => {
     const im = new Image();
@@ -612,10 +612,10 @@ function renderTools() {
       el("label", { class: "cl-field" }, el("span", { text: "Font size" }),
         el("div", { class: "t-sizerow" },
           el("button", { class: "t-small", text: "A−", "aria-label": "Smaller", disabled: size <= MIN_FONT, onclick: () => setSize(b, size - 4) }),
-          el("input", { type: "number", min: MIN_FONT, max: 200, step: 2, value: size, "aria-label": "Font size", onchange: (e) => setSize(b, +e.target.value) }),
+          el("input", { type: "number", min: MIN_FONT, step: 2, value: size, "aria-label": "Font size", onchange: (e) => setSize(b, +e.target.value) }),
           el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setSize(b, size + 4) }))),
       colorField("Text color", b.color || autoInk(page.bg), (c) => { b.color = c; changed(); renderStage(); if (!c) renderTools(); }, INK_SWATCHES, b.color ? "Automatic" : null),
-      el("p", { class: "t-hint", text: "Smallest size is " + MIN_FONT + " (about 14 px on a Chromebook). Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
+      el("p", { class: "t-hint", text: "Type any size you like. Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
   } else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
   else if (b.type === "question") {
     const qsOn = page.blocks.filter((x) => x.type === "question"), at = qsOn.indexOf(b);
@@ -639,8 +639,8 @@ function renderTools() {
         return el("div", { class: "cl-field" }, el("span", { text: "Question text" }),
           el("div", { class: "t-sizerow" },
             el("button", { class: "t-small", text: "A−", "aria-label": "Smaller", disabled: f.size <= MIN_FONT, onclick: () => setQ("qsize", Math.max(MIN_FONT, f.size - 4)) }),
-            el("input", { type: "number", min: MIN_FONT, max: 120, step: 2, value: f.size, "aria-label": "Question text size", onchange: (e) => setQ("qsize", clamp(Math.round(+e.target.value) || QSIZE, MIN_FONT, 120)) }),
-            el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setQ("qsize", Math.min(120, f.size + 4)) })),
+            el("input", { type: "number", min: MIN_FONT, step: 2, value: f.size, "aria-label": "Question text size", onchange: (e) => setQ("qsize", Math.max(MIN_FONT, Math.round(+e.target.value) || QSIZE)) }),
+            el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setQ("qsize", f.size + 4) })),
           el("div", { class: "t-row", style: "margin-top:6px" },
             el("button", { class: "t-small", text: "Bold", style: "font-weight:900", "aria-pressed": String(f.bold), onclick: () => setQ("qbold", !f.bold) }),
             el("button", { class: "t-small", text: "Italic", style: "font-style:italic", "aria-pressed": String(f.italic), onclick: () => setQ("qital", !f.italic) })),

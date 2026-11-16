@@ -209,7 +209,7 @@ function formatText(src) {
 // ---------------------------------------------------------------- freeform pages
 // A page is a 1600 x 900 canvas (16:9). Every block has x, y, w, h in canvas units and the whole canvas is scaled to fit
 // the screen showing it, so text wraps the same way everywhere. Text sizes are canvas units too: 24 is about 14 px on a Chromebook.
-const CANVAS_W = 1600, CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 24, HEAD_SIZE = 64, TEXT_SIZE = 36;
+const CANVAS_W = 1600, CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 1, HEAD_SIZE = 64, TEXT_SIZE = 36;
 // width and height a new block starts at
 const BLOCK_START = { heading: [1200, 110], text: [1000, 280], image: [640, 400], sim: [1200, 700], video: [960, 540], poll: [1100, 560], question: [1300, 540] };
 
