@@ -317,7 +317,7 @@ function clockText(sec) { return Math.floor(sec / 60) + ":" + String(sec % 60).p
 function questionCard(b, qn) {
   const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
   const box = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard" },
-    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question" + (qn ? " " + qn : "") }), el("span", { class: "cl-ask-time", text: clockText(Math.round((Number(b.min) || 3) * 60)) })),
+    el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-time", text: clockText(Math.round((Number(b.min) || 3) * 60)) })),
     el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
     mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o)))))
       : el("textarea", { rows: 6, "aria-label": "Your answer", disabled: true }),

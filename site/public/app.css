@@ -286,3 +286,13 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 
 /* a picture that fills its box: scaled up until the box is covered, extra edges trimmed, never stretched */
 .cl-canvas .cl-figure.fit-fill img { object-fit: cover; object-position: center; }
+
+/* question box: the timer is big and strong at the top, the only other text is the question, the answer field is white */
+#askBox .cl-ask-label, .cl-qcard .cl-ask-label { display: none; }
+.cl-inline .cl-ask-top, #askBox .cl-ask-top, .cl-qcard .cl-ask-top { justify-content: flex-end; margin-bottom: 4px; }
+.cl-inline .cl-ask-time, #askBox .cl-ask-time, .cl-qcard .cl-ask-time { font-size: 52px; line-height: 1; color: #B42318; }
+.cl-canvas .cl-ask-time, .cl-canvas #askBox .cl-ask-time, .cl-canvas .cl-qcard .cl-ask-time { font-size: 100px; line-height: 1; color: #B42318; }
+#askBox textarea, .cl-qcard textarea { background: #FFFFFF; color: #0B2A1F; border: 2px solid #8FB3A2; }
+.cl-canvas .cl-qblock > .cl-inline, .cl-canvas .cl-qcard { padding: 14px 22px; }
+.cl-canvas .cl-qblock > .cl-inline textarea, .cl-canvas .cl-qblock > .cl-inline #askText { min-height: 56px; }
+.cl-canvas .cl-ask-prompt { margin-bottom: 10px; }
