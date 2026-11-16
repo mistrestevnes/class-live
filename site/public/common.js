@@ -340,6 +340,7 @@ function blockInner(b, opts = {}) {
   }
   if (b.type === "sim") {
     const ok = /^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "");
+    if (opts.edit && opts.edit.simPreview && ok) return [el("div", { class: "cl-sim aero-stage" }, el("iframe", { src: b.url, title: "Simulation", allow: "autoplay", tabindex: "-1" }))];
     if (opts.edit) return ph("Sim", ok ? (opts.edit.simName ? opts.edit.simName(b.url) : b.url) : "Choose a sim in the window on the right");
     if (!ok) return null;
     return [el("div", { class: "cl-sim aero-stage" }, el("iframe", { src: b.url, title: "Simulation", allow: "fullscreen; autoplay", allowfullscreen: true, loading: "lazy" }))];
