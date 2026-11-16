@@ -13,6 +13,8 @@
   .b-top { flex: none; margin: 0 0 8px; gap: 10px; flex-wrap: nowrap; }
   .b-top .t-title-input { flex: 1; min-width: 120px; }
   .b-canvas { flex: 1; min-height: 0; overflow: hidden; margin: 0; padding: 76px var(--padR, 350px) 64px 40px; }
+  .b-canvas { position: relative; }
+  #bStateNum { position: absolute; left: 40px; right: var(--padR, 350px); top: 22px; text-align: center; font: 700 30px Helvetica, Arial, sans-serif; line-height: 1.1; pointer-events: none; }
   .b-sheet { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
   .b-win { position: fixed; z-index: 20; display: flex; flex-direction: column; padding: 0; max-height: calc(100vh - 150px); box-shadow: 0 8px 28px rgba(0, 0, 0, .4); }
   .b-win-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; cursor: grab; touch-action: none; user-select: none; font-size: 12px; font-weight: 700; font-family: Helvetica, Arial, sans-serif; }
@@ -100,6 +102,7 @@
 </header>
 
 <main class="aero-panel b-canvas" id="bCanvas" hidden>
+  <div id="bStateNum" hidden></div>
   <div class="b-sheet" id="bSheet"></div>
 </main>
 
@@ -301,6 +304,8 @@ function deleteState(id) {
 }
 function renderStates() {
   const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
+  $("bStateNum").hidden = sts.length < 2;
+  $("bStateNum").textContent = "State " + (sts.findIndex((x) => x.id === cur) + 1);
   $("bStates").replaceChildren(
     el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
     ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
