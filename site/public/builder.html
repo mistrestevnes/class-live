@@ -289,20 +289,16 @@ function addState() {
   if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
   const from = curSid();
   const st = { id: newId(), name: "State " + (pg.states.length + 1) };
-  // the new state starts with copies of the elements of the state you were on, so changing one does not change the other.
-  // A sim or a video stays the same element, so it keeps running.
+  // the new state starts with copies of the elements of the state you were on, so changing one does not change the other
   const old = pg.states.map((x) => x.id);
   const copies = [];
   for (const b of pg.blocks) {
     if (!Array.isArray(b.states) || !b.states.length) b.states = old.slice(); // it was in every state; keep it only in those
     if (!b.states.includes(from)) continue;
-    if (b.type === "sim" || b.type === "video") {
-      b.states.push(st.id);
-      if (Array.isArray(b.lock) && b.lock.includes(from)) b.lock.push(st.id);
-      continue;
-    }
     const c = JSON.parse(JSON.stringify(b));
-    c.states = [st.id]; delete c.lock; delete c.simStates;
+    c.states = [st.id];
+    if (Array.isArray(b.lock) && b.lock.includes(from)) c.lock = [st.id]; else delete c.lock;
+    if (b.simStates && b.simStates[from]) c.simStates = { [st.id]: b.simStates[from] }; else delete c.simStates;
     if (c.type === "question") { c.id = newId(); }
     copies.push(c);
   }
@@ -947,11 +943,14 @@ function splitShared(pg) {
   const out = [];
   for (const b of pg.blocks || []) {
     const ins = Array.isArray(b.states) && b.states.length ? b.states.filter((x) => sts.includes(x)) : sts.slice();
-    if (b.type === "sim" || b.type === "video" || ins.length < 2) { out.push(b); continue; }
+    if (ins.length < 2) { out.push(b); continue; }
     did = true;
+    const lock = Array.isArray(b.lock) ? b.lock.slice() : [], words = b.simStates ? { ...b.simStates } : null;
     ins.forEach((sid, k) => {
       const c = k ? JSON.parse(JSON.stringify(b)) : b;
       c.states = [sid];
+      if (lock.includes(sid)) c.lock = [sid]; else delete c.lock;
+      if (words && words[sid]) c.simStates = { [sid]: words[sid] }; else delete c.simStates;
       if (k && c.type === "question") c.id = newId();
       out.push(c);
     });
