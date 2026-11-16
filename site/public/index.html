@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
   <header class="cl-top aero-header">
     <h1 class="cl-title" id="title">Class Live</h1>
+    <span class="cl-grow"></span>
+    <span class="cl-ask-time cl-toptimer" id="topTime" hidden></span>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="pageNum" hidden></span>
     <span class="aero-chip cl-status connecting" id="status">Connecting…</span>
@@ -71,7 +73,7 @@
       <div class="cl-cards" id="showCards"></div>
     </section>
     <section class="aero-panel cl-cover-box" id="askBox" hidden>
-      <div class="cl-ask-top"><span class="cl-ask-label" id="askLabel">Question</span><span class="cl-ask-time" id="askTime"></span></div>
+      <span id="askLabel" hidden></span><span id="askTime" hidden></span>
       <div class="cl-ask-prompt" id="askPrompt"></div>
       <div id="askMedia" hidden></div>
       <div class="cl-askprev" id="askPrev" hidden></div>
@@ -111,7 +113,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=24"></script>
+<script src="common.js?v=25"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -451,7 +453,7 @@ function applyCover() {
   syncFreeze();
   if (!a) {
     if (askId && askDirty) saveAsk(); // paused or closed while typing: keep what they wrote
-    askId = null; clearInterval(askTimer); askTimer = null; return;
+    askId = null; clearInterval(askTimer); askTimer = null; $("topTime").hidden = true; return;
   }
   $("askToSim").hidden = !(a.allowSim || simOnPage(a.sim) || animOf(a));
   $("askToSim").textContent = backLabel(a);
@@ -488,6 +490,8 @@ function tickAsk() {
   const over = left <= 0;
   const t = Math.max(0, Math.ceil(left / 1000));
   $("askTime").textContent = over ? "Time's up" : clock(t);
+  $("topTime").textContent = over ? "Time's up" : clock(t);
+  $("topTime").hidden = false;
   $("askBackTime").textContent = over ? "Time's up" : clock(t);
   if (left > 11000) toastKey = ""; // time was added: warn again at 10 seconds
   else if (!over && left <= 10000 && toastKey !== a.id) { toastKey = a.id; showToast("10 seconds left", 3500); }

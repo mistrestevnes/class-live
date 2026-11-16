@@ -300,3 +300,6 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 /* page states: a block that doesn't show in this state, and a sim that is locked in it */
 .cl-canvas .cl-cblock.cl-nostate { display: none !important; }
 .cl-canvas .cl-cblock.cl-locked::after { content: "Locked for now"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 24, 18, .62); color: #FFFFFF; font: 700 44px Helvetica, Arial, sans-serif; pointer-events: none; }
+
+/* the timer lives at the top of the page (in the header), never in the question box */
+.cl-toptimer { font-size: 44px; line-height: 1; color: #FFD166; font-weight: 700; font-variant-numeric: tabular-nums; }
