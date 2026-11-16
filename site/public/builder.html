@@ -287,7 +287,14 @@ function setState(id) { edState = id; edSel = edSel; renderAll(); if (pvOn) pvRe
 function addState() {
   const pg = ed.pages[edPage];
   if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
+  const from = curSid();
   const st = { id: newId(), name: "State " + (pg.states.length + 1) };
+  // the new state starts with the elements of the state you were on (the same elements, so a sim keeps running)
+  for (const b of pg.blocks) {
+    if (!Array.isArray(b.states) || !b.states.length) continue; // in every state already
+    if (b.states.includes(from)) b.states.push(st.id);
+    if (Array.isArray(b.lock) && b.lock.includes(from)) b.lock.push(st.id);
+  }
   pg.states.push(st); edState = st.id; changed(); renderAll();
 }
 function deleteState(id) {
@@ -351,10 +358,10 @@ function renderAll() { renderPages(); renderStates(); renderStage(); renderTools
 function renderStage() {
   const page = ed.pages[edPage];
   canvasify(page);
-  if (edSel && !page.blocks.includes(edSel)) edSel = null;
+  if (edSel && (!page.blocks.includes(edSel) || !blockShowsIn(edSel, curSid()))) edSel = null;
   const bg = safeColor(page.bg) || CANVAS_BG;
   const cv = el("div", { class: "cl-canvas t-canvas", style: "background:" + bg + ";color:" + autoInk(bg) });
-  page.blocks.forEach((b, i) => cv.append(editBlock(page, b, i)));
+  page.blocks.forEach((b, i) => { if (blockShowsIn(b, curSid())) cv.append(editBlock(page, b, i)); }); // only this state's elements
   cv.append(el("div", { class: "t-guides" }));
   fitBox = el("div", { class: "cl-canvas-fit t-fit" }, cv);
   if (stageRO) stageRO.disconnect();
@@ -426,8 +433,11 @@ function blockBody(b, sel) {
   return blockInner(b, { edit: EDIT }) || [el("div", { class: "t-ph", text: BLOCK_NAMES[b.type] || b.type })];
 }
 async function removeBlock(page, b) {
-  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?", "Remove"))) return;
-  page.blocks.splice(page.blocks.indexOf(b), 1);
+  const sts = pageStates(page).map((x) => x.id), sid = curSid();
+  const others = sts.filter((id) => id !== sid && blockShowsIn(b, id));
+  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + (others.length ? " from this state?" : "?"), "Remove"))) return;
+  if (others.length) { b.states = others; if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => x !== sid); if (!b.lock.length) delete b.lock; } if (b.simStates) delete b.simStates[sid]; } // other states keep it
+  else page.blocks.splice(page.blocks.indexOf(b), 1);
   if (edSel === b) edSel = null;
   changed(); renderAll();
 }
@@ -435,7 +445,7 @@ async function removeBlock(page, b) {
 // ---- snapping: a block's edges and middle line up with the page's edges and middle and with other blocks
 function snapLines(skip) {
   const xs = [0, CANVAS_W / 2, CANVAS_W], ys = [0, CANVAS_H / 2, CANVAS_H];
-  for (const o of ed.pages[edPage].blocks) { if (o === skip) continue; xs.push(o.x, o.x + o.w / 2, o.x + o.w); ys.push(o.y, o.y + o.h / 2, o.y + o.h); }
+  for (const o of ed.pages[edPage].blocks) { if (o === skip || !blockShowsIn(o, curSid())) continue; xs.push(o.x, o.x + o.w / 2, o.x + o.w); ys.push(o.y, o.y + o.h / 2, o.y + o.h); }
   return { xs, ys };
 }
 function snapPick(vals, cands, tol) { // how far to move so one of vals lands on one of cands (null: nothing close enough)
@@ -534,6 +544,7 @@ function addBlock(type, cx, cy) {
   b.x = cx == null ? 100 + ((n * 40) % 400) : cx - b.w / 2;
   b.y = cy == null ? 90 + ((n * 40) % 300) : cy - b.h / 2;
   b.x = Math.round(clamp(b.x, 0, CANVAS_W - b.w)); b.y = Math.round(clamp(b.y, 0, CANVAS_H - b.h));
+  if (pageStates(page).length > 1) b.states = [curSid()]; // a new element goes only into the state being edited
   page.blocks.push(b);
   edSel = b;
   changed(); renderAll(); focusEditable();
@@ -607,10 +618,15 @@ function renderTools() {
   const parts = [el("div", { class: "t-block-head" },
     el("button", { class: "t-small", text: "Remove", onclick: () => removeBlock(page, b) }),
     el("button", { class: "t-small aero-btn-primary", text: "Done", onclick: () => { edSel = null; renderStage(); renderTools(); } }))];
-  if (pageStates(page).length > 1) {
-    const all = pageStates(page).map((x) => x.id);
-    parts.push(stateChecks("Shows in", Array.isArray(b.states) && b.states.length ? b.states : all, (next) => { if (next.length === all.length) delete b.states; else b.states = next; }, true));
-    if (b.type === "sim") parts.push(stateChecks("Locked in (students can see it but not use it)", Array.isArray(b.lock) ? b.lock : [], (next) => { if (next.length) b.lock = next; else delete b.lock; }, false));
+  if (b.type === "sim") {
+    const sid = curSid();
+    parts.push(el("div", { class: "cl-field b-checks" }, el("span", { text: "Students can see it but not use it" }),
+      el("label", {}, el("input", { type: "checkbox", checked: blockLockedIn(b, sid), onchange: (e) => {
+        const l = (Array.isArray(b.lock) ? b.lock : []).filter((x) => x !== sid);
+        if (e.target.checked) l.push(sid);
+        if (l.length) b.lock = l; else delete b.lock;
+        changed(); renderStage(); renderTools();
+      } }), el("span", { style: "display:inline;margin:0", text: pageStates(page).length > 1 ? "Locked in this state" : "Locked" }))));
   }
   const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
   if (b.type === "heading" || b.type === "text") {
