@@ -940,6 +940,25 @@ const leave = async (hash) => { if (edSaveTimer) saveNow(); await saveChain; toT
 $("bBack").onclick = () => leave("#/lessons");
 $("bPlan").onclick = () => leave("#/edit/" + ed.id);
 
+function splitShared(pg) {
+  const sts = Array.isArray(pg.states) && pg.states.length > 1 ? pg.states.map((x) => x.id) : null;
+  if (!sts) return false;
+  let did = false;
+  const out = [];
+  for (const b of pg.blocks || []) {
+    const ins = Array.isArray(b.states) && b.states.length ? b.states.filter((x) => sts.includes(x)) : sts.slice();
+    if (b.type === "sim" || b.type === "video" || ins.length < 2) { out.push(b); continue; }
+    did = true;
+    ins.forEach((sid, k) => {
+      const c = k ? JSON.parse(JSON.stringify(b)) : b;
+      c.states = [sid];
+      if (k && c.type === "question") c.id = newId();
+      out.push(c);
+    });
+  }
+  pg.blocks = out;
+  return did;
+}
 (async function init() {
   if (!token) return toTeacher();
   if (!lessonId) return toTeacher("#/lessons");
@@ -949,6 +968,8 @@ $("bPlan").onclick = () => leave("#/edit/" + ed.id);
   if (!ed.pages || !ed.pages.length) ed.pages = [newPage()];
   // older pages (blocks stacked top to bottom) become canvas pages the first time they are opened here
   if (ed.pages.some((pg) => pg.layout !== "canvas")) { ed.pages.forEach(canvasify); changed(); }
+  // an element shared by several states (made before + State copied them) becomes one copy per state, so changing one doesn't change the others
+  if (ed.pages.some(splitShared)) changed();
   edPage = Math.max(0, Math.min(ed.pages.length - 1, (parseInt(params.get("page"), 10) || 1) - 1));
   $("bTitle").value = ed.title || "";
   for (const id of ["bTop", "bCanvas", "winPages", "winTools"]) $(id).hidden = false;
