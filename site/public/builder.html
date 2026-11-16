@@ -144,7 +144,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=31"></script>
+<script src="common.js?v=32"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -283,7 +283,7 @@ function movePage(d) {
 // ---------------------------------------------------------------- page states
 let edState = "";
 const curSid = () => stateOfPage(ed.pages[edPage], edState);
-function setState(id) { edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
+function setState(id) { for (const b of ed.pages[edPage].blocks) simOverride.delete(b); edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
 function addState() {
   const pg = ed.pages[edPage];
   if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
@@ -791,17 +791,16 @@ function simList(b) {
   if (/^\d+$/.test(t)) return Array.from({ length: Math.min(+t, 30) }, (_, i) => ({ label: String(i + 1), msg: { classlive: "state", n: i + 1 } }));
   return t.split(",").map((w) => w.trim()).filter(Boolean).map((w) => ({ label: w, msg: /^\d+$/.test(w) ? { classlive: "state", n: +w } : { classlive: "state", state: w } }));
 }
-const simShown = new WeakMap();
 function simShowsField(b) {
   const row = el("div", { class: "t-row", style: "flex-wrap:wrap;gap:6px" });
   const fill = () => {
     const list = simList(b);
     row.replaceChildren(...(list.length ? [el("span", { style: "font-weight:700", text: "Sim shows:" })] : []), ...list.map((x) => el("button", {
-      class: "t-small", "aria-pressed": String(simShown.get(b) === x.label), text: x.label,
+      class: "t-small", "aria-pressed": String(simOverride.has(b) && JSON.stringify(simOverride.get(b)) === JSON.stringify(x.msg)), text: x.label,
       onclick: () => {
         const f = fitBox && [...fitBox.querySelectorAll(".cl-sim iframe")].find((i) => i._clBlock === b);
         if (!f) return;
-        f._clMsg = x.msg; postSimState(f); simShown.set(b, x.label); fill();
+        simOverride.set(b, x.msg); f._clMsg = x.msg; postSimState(f); fill();
       } })));
   };
   fill();

@@ -370,7 +370,9 @@ const stateAttrs = (b) => ({ "data-bs": Array.isArray(b.states) ? b.states.join(
 // Tells each sim on the page which state the page is in: {classlive:"state", state:"closeup"} when the sim has
 // a setting for this state (b.simStates[stateId]), otherwise {classlive:"state", n: position from 1}.
 // Sent when the state changes, every time the sim finishes loading, and when the sim asks with {classlive:"getState"}.
+const simOverride = new WeakMap(); // builder only: a state picked with the "Sim shows" buttons, kept until the page state changes
 function simStateMsg(page, b, sid) {
+  if (b && simOverride.has(b)) return simOverride.get(b);
   const word = b && b.simStates && String(b.simStates[sid] || "").trim();
   if (word) return { classlive: "state", state: word };
   return { classlive: "state", n: Math.max(1, pageStates(page).findIndex((x) => x.id === sid) + 1) };
