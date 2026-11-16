@@ -337,7 +337,7 @@ function blockInner(b, opts = {}) {
   }
   if (b.type === "image") {
     if (!b.imageId) return opts.edit ? ph("Picture", "Choose a picture in the window on the right") : null;
-    return [el("figure", { class: "cl-figure" }, el("img", { src: "/img/" + b.imageId, alt: b.caption || "" }), b.caption ? el("figcaption", {}, inline(b.caption)) : null)];
+    return [el("figure", { class: "cl-figure" + (b.fit === "fill" ? " fit-fill" : "") }, el("img", { src: "/img/" + b.imageId, alt: b.caption || "" }), b.caption ? el("figcaption", {}, inline(b.caption)) : null)];
   }
   if (b.type === "sim") {
     const ok = /^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "");

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=27">
+<link rel="stylesheet" href="app.css?v=28">
 <link rel="stylesheet" href="teacher.css?v=14">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -126,7 +126,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=21"></script>
+<script src="common.js?v=22"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -591,7 +591,11 @@ function renderTools() {
     parts.push(el("div", { class: "t-row", style: "margin-bottom:10px" },
       el("button", { class: "t-small", text: b.imageId ? "Replace picture" : "Choose picture", onclick: () => file.click() }), status, file),
       el("label", { class: "cl-field" }, el("span", { text: "Caption (optional)" }), el("input", { type: "text", value: b.caption || "", oninput: (e) => { b.caption = e.target.value; changed(); } , onchange: () => renderStage() })),
-      el("p", { class: "t-hint", text: "The whole picture always shows inside its box. Drag the corners to change the box." }));
+      el("label", { class: "cl-field" }, el("span", { text: "Fit in the box" }),
+        (() => { const sel = el("select", { onchange: (e) => { b.fit = e.target.value === "fill" ? "fill" : ""; changed(); renderStage(); renderTools(); } },
+          el("option", { value: "whole", text: "Whole picture (empty space if the shape differs)" }),
+          el("option", { value: "fill", text: "Fill the box (edges trimmed)" })); sel.value = b.fit === "fill" ? "fill" : "whole"; return sel; })()),
+      el("p", { class: "t-hint", text: b.fit === "fill" ? "The picture is scaled up until it covers the whole box, centered, never stretched. Whatever sticks out past the box is trimmed. Drag the corners to change the box, or make it as big as the page to fill the page." : "The whole picture shows inside its box. Drag the corners to change the box." }));
   } else if (b.type === "video") {
     const status = el("span", { class: "aero-muted" });
     const pick = el("select", { "aria-label": "Uploaded video", onchange: (e) => { b.videoId = e.target.value; changed(); renderStage(); } }, el("option", { value: "", text: "Loading…" }));

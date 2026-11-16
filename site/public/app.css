@@ -283,3 +283,6 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-inline.qi .cl-ask-prompt, .cl-inline.qi .cl-option { font-style: italic; }
 .cl-canvas .cl-qblock > .cl-inline textarea { flex: 1 1 auto; min-height: 90px; height: auto; resize: none; font-size: 30px; }
 .cl-canvas .cl-qcard .cl-ask-foot { flex: none; }
+
+/* a picture that fills its box: scaled up until the box is covered, extra edges trimmed, never stretched */
+.cl-canvas .cl-figure.fit-fill img { object-fit: cover; object-position: center; }
