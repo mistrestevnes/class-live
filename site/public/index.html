@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=35">
+<link rel="stylesheet" href="app.css?v=36">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -114,7 +114,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=29"></script>
+<script src="common.js?v=30"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -284,6 +284,7 @@ function render() {
   })) : null);
   fillQBlocks(pg);
   placeAsk();
+  growQ();
 
   // fullscreen: the page's sim, or else its first image
   const fsTarget = box.querySelector(".cl-sim") || box.querySelector(".cl-figure");
@@ -388,6 +389,33 @@ function placeAsk() {
     box.classList.remove("cl-inline", "qb", "qi"); box.style.removeProperty("--qfs");
   }
 }
+// A question box grows downward as the student writes, so the whole answer is always in view (never a scrollbar
+// inside the box). It starts at the size the teacher drew; if it runs past the bottom of the page, the page scrolls.
+function growQ(typing) {
+  const fit = $("pageBox").querySelector(".cl-canvas-fit"), cv = fit && fit.querySelector(".cl-canvas");
+  if (!cv) return;
+  let bottom = CANVAS_H;
+  for (const slot of cv.querySelectorAll(".cl-qblock")) {
+    if (!slot.dataset.h0) slot.dataset.h0 = String(parseFloat(slot.style.height) || 100);
+    slot.style.height = slot.dataset.h0 + "px";
+    if (slot.hidden || slot.classList.contains("cl-nostate")) continue;
+    for (let k = 0; k < 4; k++) {
+      let need = 0;
+      for (const n of [slot, ...slot.querySelectorAll(".cl-inline, textarea")]) if (n.offsetParent) need = Math.max(need, n.scrollHeight - n.clientHeight);
+      if (need <= 1) break;
+      slot.style.height = (slot.offsetHeight + need + 2) + "px";
+    }
+    bottom = Math.max(bottom, slot.offsetTop + slot.offsetHeight + 24);
+  }
+  const extra = Math.max(0, Math.ceil(bottom - CANVAS_H));
+  if (String(extra) !== (fit.dataset.extra || "0")) { fit.dataset.extra = String(extra); if (fit._fit) fit._fit(); }
+  if (typing) { // keep the line being typed on screen
+    const ta = $("askText"), pb = $("pageBox");
+    const slot = ta.closest(".cl-qblock"); // the bottom of the box, with Submit
+    if (slot && ta.offsetParent) { const r = slot.getBoundingClientRect(), p = pb.getBoundingClientRect(); if (r.bottom > p.bottom) pb.scrollTop += r.bottom - p.bottom + 12; }
+  }
+}
+window.addEventListener("resize", () => growQ());
 // closed question blocks show the student's own answers, read only; blocks never opened stay hidden
 function fillQBlocks(pg) {
   const bi = blockAskInfo();
@@ -443,6 +471,7 @@ function applyCover() {
   $("showBox").hidden = !sh;
   $("askBox").hidden = !askUp || !!sh; // answers on display take the middle; the question comes back after
   placeAsk();
+  growQ();
   $("askBack").hidden = !(a && askMin && !frozen);
   updateStage();
   if (sh) {
@@ -530,6 +559,7 @@ function saveAsk() {
   link.send({ t: "askAnswer", qid: askId, text: $("askText").value });
 }
 $("askText").oninput = () => {
+  growQ(true);
   askDirty = true;
   clearTimeout(askSaveTimer);
   askSaveTimer = setTimeout(() => { if (askDirty) saveAsk(); }, 2000); // saves as they type

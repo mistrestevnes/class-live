@@ -430,11 +430,15 @@ function fitCanvasBox(fit, parent) {
     const w = parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const h = parent.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const s = Math.max(0.1, Math.min(w / CANVAS_W, h / CANVAS_H));
+    const extra = +fit.dataset.extra || 0; // a question box that grew past the bottom makes the page taller
     fit.style.width = Math.floor(CANVAS_W * s) + "px";
-    fit.style.height = Math.floor(CANVAS_H * s) + "px";
+    fit.style.height = Math.floor((CANVAS_H + extra) * s) + "px";
+    const cv = fit.querySelector(".cl-canvas");
+    if (cv) cv.style.height = extra ? (CANVAS_H + extra) + "px" : "";
     fit.style.setProperty("--s", String(s));
     fit.style.setProperty("--is", String(1 / s));
   };
+  fit._fit = go;
   ro = new ResizeObserver(go);
   ro.observe(parent);
   go();
