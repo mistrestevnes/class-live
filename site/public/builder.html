@@ -40,7 +40,7 @@
 
   /* the page being built: everything sized in canvas units, so lines and handles use --is (1 / scale) to stay the same size on screen */
   .t-fit { overflow: visible; box-shadow: 0 3px 16px rgba(0, 0, 0, .35); }
-  .t-canvas { outline: 1px solid rgba(0, 0, 0, .25); }
+  .t-canvas { outline: 1px solid rgba(0, 0, 0, .25); overflow: visible !important; }
   .t-cb { overflow: visible; cursor: pointer; }
   .t-cb:not(.sel) { touch-action: none; }
   .t-cb:not(.sel) > .t-body > * { pointer-events: none; }
