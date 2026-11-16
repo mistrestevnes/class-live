@@ -389,6 +389,16 @@ function fillQBlocks(pg) {
     if (bi && bi.a.blockId === id && bi.reachable && page === bi.idx) continue; // running: placeAsk fills it
     const rounds = (state.blockAns || {})[id];
     const b = (pg.blocks || []).find((x) => x.id === id);
+    if (PREVIEW && b && (!rounds || !rounds.length)) {
+      // builder preview: show the question the way it will look once opened
+      const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
+      slot.hidden = false;
+      slot.replaceChildren(el("section", { class: "aero-panel cl-cover-box cl-inline cl-closedq" },
+        el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · students see it once you open it" }), el("span", { class: "cl-ask-time", text: (b.min || 3) + " min" })),
+        el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
+        mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o))))) : el("div", { class: "cl-myans" }, "Students write their answer here.")));
+      continue;
+    }
     if (!rounds || !rounds.length || !b) { slot.hidden = true; slot.replaceChildren(); continue; }
     slot.hidden = false;
     slot.replaceChildren(el("section", { class: "aero-panel cl-cover-box cl-inline cl-closedq" },
