@@ -302,14 +302,24 @@ function deleteState(id) {
   if (pg.states.length < 2) return;
   const i = pg.states.findIndex((x) => x.id === id);
   pg.states.splice(i, 1);
-  const first = pg.states[0].id;
+  const near = pg.states[Math.max(0, i - 1)].id;
+  // elements only in this state go with it; shared ones stay in their other states
+  pg.blocks = pg.blocks.filter((b) => !(Array.isArray(b.states) && b.states.length === 1 && b.states[0] === id));
   for (const b of pg.blocks) {
-    if (Array.isArray(b.states) && b.states.includes(id)) { b.states = b.states.filter((x) => x !== id); if (!b.states.length) b.states = [first]; }
+    if (Array.isArray(b.states) && b.states.includes(id)) b.states = b.states.filter((x) => x !== id);
     if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => x !== id); if (!b.lock.length) delete b.lock; }
     if (b.simStates) { delete b.simStates[id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
   }
-  if (edState === id) edState = first;
+  if (edSel && !pg.blocks.includes(edSel)) edSel = null;
+  if (edState === id) edState = near;
   changed(); renderAll();
+}
+async function confirmDeleteState(id) {
+  const pg = ed.pages[edPage], sts = pageStates(pg), i = sts.findIndex((x) => x.id === id);
+  if (sts.length < 2 || i < 0) return;
+  const only = pg.blocks.filter((b) => Array.isArray(b.states) && b.states.length === 1 && b.states[0] === id).length;
+  const nm = sts[i].name || "State " + (i + 1);
+  if (await askYesNo("Delete \"" + nm + "\" (State " + (i + 1) + ")? " + (only ? only + (only === 1 ? " element appears" : " elements appear") + " only in this state and will be deleted too. " : "") + "Elements shared with other states stay in them. This can't be undone.", "Delete")) deleteState(id);
 }
 function renderStates() {
   const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
@@ -319,6 +329,7 @@ function renderStates() {
     el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
     ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
     el("button", { text: "+ State", title: "Add another state to this page", onclick: addState }),
+    ...(sts.length > 1 ? [el("button", { text: "Delete this state", title: "Delete the state you're editing", onclick: () => confirmDeleteState(cur) })] : []),
     ...(sts.length > 1 ? [el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { $("winPages").classList.remove("min"); } })] : []));
   const list = $("bStateList");
   if (sts.length < 2) { list.replaceChildren(); return; }
@@ -326,7 +337,7 @@ function renderStates() {
     ...sts.map((x, i) => el("div", { class: "b-staterow" },
       el("input", { type: "text", value: x.name || "", placeholder: "State " + (i + 1), "aria-label": "Name of state " + (i + 1),
         oninput: (e) => { x.name = e.target.value; changed(); const chips = $("bStates").querySelectorAll("button[aria-pressed]"); if (chips[i]) chips[i].textContent = x.name || "State " + (i + 1); } }),
-      el("button", { class: "t-small", text: "✕", "aria-label": "Delete this state", disabled: sts.length < 2, onclick: async () => { if (await askYesNo("Delete the state \"" + (x.name || "State " + (i + 1)) + "\"? Things that only showed in it move to the first state.", "Delete")) deleteState(x.id); } }))));
+      el("button", { class: "t-small", text: "✕", "aria-label": "Delete this state", disabled: sts.length < 2, onclick: () => confirmDeleteState(x.id) }))));
 }
 // "Shows in" / "Locked in": one checkbox per state
 function stateChecks(label, list, onSet, atLeastOne) {
