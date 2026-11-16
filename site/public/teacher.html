@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=25">
-<link rel="stylesheet" href="teacher.css?v=8">
+<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="teacher.css?v=9">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -402,7 +402,7 @@ async function showHome() {
     el("span", { class: "t-ltitle", text: l.title }),
     el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
     el("span", { class: "aero-muted", text: l.pages + (l.pages === 1 ? " page" : " pages") + (l.items ? " · " + l.items + (l.items === 1 ? " plan item" : " plan items") : "") }),
-    el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
+    el("button", { class: "t-small", text: "Edit", onclick: () => (location.href = "/builder?id=" + l.id) }),
     el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
     el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; openForBlock = null; location.hash = "#/edit/" + l.id; } }),
@@ -457,7 +457,7 @@ $("newLesson").onclick = async () => {
   const id = randomId(10);
   const lesson = { title: "New lesson", level: "", pages: [newPage()], plan: [] };
   await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(lesson) });
-  location.hash = "#/edit/" + id;
+  location.href = "/builder?id=" + id;
 };
 
 async function copyLesson(id) {
@@ -739,6 +739,7 @@ $("edModePreview").onclick = () => { edPreview = true; renderEditor(); };
 $("pgAdd").onclick = () => { ed.pages.splice(edPage + 1, 0, newPage()); edPage++; changed(); renderEditor(); };
 $("pgDup").onclick = () => {
   const copy = JSON.parse(JSON.stringify(ed.pages[edPage])); copy.id = randomId(8);
+  for (const b of copy.blocks || []) if (b.type === "question") b.id = randomId(6);
   ed.pages.splice(edPage + 1, 0, copy); edPage++; changed(); renderEditor();
 };
 $("pgDel").onclick = () => {
@@ -781,175 +782,17 @@ function renderEditor() {
     ed.plan = ed.plan.filter((x) => x !== item); edItem = null; changed(); renderEditor(); }));
   if (edPreview) return renderPreview(body);
 
-  // the page drawn the way students see it, edited in place; a palette (or the selected block's settings) on the right
-  const blocks = page.blocks || (page.blocks = []);
-  if (edSel && !blocks.includes(edSel)) edSel = null;
-  const pageEl = el("div", { class: "cl-page t-editpage" });
-  blocks.forEach((b, i) => pageEl.append(editBlock(page, b, i)));
-  if (!blocks.length) pageEl.append(el("p", { class: "t-hint t-empty", text: "This page is empty. Drag something here from the right, or click it to add it at the bottom." }));
+  // pages are built on their own page, with a big canvas
   const usedBy = ed.plan.filter((x) => x.pageId === page.id);
-  const canvas = el("div", { class: "aero-panel t-canvas", onclick: (e) => { if (e.target === canvas || e.target === pageEl) { edSel = null; renderSide(); markSel(); } } },
-    el("label", { class: "t-row t-pagename" }, el("span", { text: "Page name (only you see this)" }),
-      el("input", { type: "text", value: page.name || "", placeholder: pageLabel({ blocks }, edPage),
-        oninput: (e) => { page.name = e.target.value; changed(); refreshPageLabels(); } })),
-    pageEl,
-    el("div", { class: "t-usedby" },
+  body.replaceChildren(el("div", { class: "aero-panel t-block" },
+    el("h3", { text: "Page " + (edPage + 1) + ": " + pageLabel(page, edPage) }),
+    el("p", { text: "Pages are built on their own page, with a much larger canvas." }),
+    el("div", { class: "t-row" },
+      el("button", { class: "aero-btn-primary", text: "Build this page", onclick: async () => { if (edSaveTimer) saveNow(); await saveChain; location.href = "/builder?id=" + ed.id + "&page=" + (edPage + 1); } }),
+      el("button", { class: "t-small", text: "+ Add a question after this page", onclick: () => questionForPage(page) })),
+    usedBy.length ? el("div", { class: "t-usedby", style: "margin-top:12px" },
       el("span", { text: "Plan items that go to this page: " }),
-      ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item", onclick: () => { edItem = x.id; renderEditor(); } })),
-      el("button", { class: "t-small", text: "+ Add a question after this page", onclick: () => questionForPage(page) })));
-  edSide = el("aside", { class: "aero-panel t-insp" });
-  body.replaceChildren(el("div", { class: "t-build" }, canvas, edSide));
-  renderSide();
-  requestAnimationFrame(() => body.querySelectorAll("textarea.t-in").forEach(grow));
-}
-
-// ---------- building a page: blocks edited in place, dragged into place
-let edSel = null, edSide = null, edFocus = null;
-const grow = (t) => { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; };
-const newId = () => Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, "x");
-const PALETTE = [["heading", "Heading"], ["text", "Text"], ["image", "Picture"], ["sim", "Sim"], ["video", "Video"], ["poll", "Poll"], ["question", "Question"]];
-function markSel() {
-  for (const w of document.querySelectorAll(".t-editpage > .t-eb")) w.classList.toggle("sel", ed.pages[edPage].blocks[+w.dataset.i] === edSel);
-}
-function selectBlock(b) { if (edSel === b) return; edSel = b; renderSide(); markSel(); }
-// the right-hand column: the palette, or the settings of the selected block
-function renderSide() {
-  if (!edSide) return;
-  const page = ed.pages[edPage], blocks = page.blocks;
-  if (!edSel) {
-    const hasPoll = blocks.some((b) => b.type === "poll");
-    edSide.replaceChildren(
-      el("h3", { text: "Add to the page" }),
-      el("p", { class: "t-hint", text: "Drag onto the page, or click to add at the bottom." }),
-      el("div", { class: "t-palette" }, ...PALETTE.map(([type, label]) => {
-        const off = type === "poll" && hasPoll;
-        return el("button", { class: "t-pal", text: label, disabled: off, title: off ? "One poll per page" : "",
-          onpointerdown: (e) => { if (!off) startDrag(e, { type, label }); } });
-      })));
-    return;
-  }
-  const b = edSel, i = blocks.indexOf(b);
-  const head = el("div", { class: "t-block-head" }, el("h3", { text: BLOCK_NAMES[b.type] || b.type }),
-    el("button", { class: "t-small", text: "Remove", onclick: () => removeBlock(page, b) }),
-    el("button", { class: "t-small aero-btn-primary", text: "Done", onclick: () => { edSel = null; renderSide(); markSel(); } }));
-  const parts = [head];
-  if (b.type === "heading" || b.type === "text") parts.push(el("p", { class: "t-hint", text: "Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
-  else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
-  else if (b.type === "question") {
-    parts.push(
-      el("label", { class: "cl-field" }, el("span", { text: "Kind of answer" }),
-        el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderEditor(); } },
-          el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
-          el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }))),
-      el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
-        el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
-          oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
-      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question on this page in the Control room. It appears in this spot on their page. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
-  } else {
-    const box = blockEditor(page, b, i); // pictures, sims and videos keep their full settings
-    box.firstChild.remove();
-    box.classList.remove("aero-panel");
-    parts.push(...box.childNodes);
-  }
-  edSide.replaceChildren(...parts);
-}
-async function removeBlock(page, b) {
-  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?", "Remove"))) return;
-  page.blocks.splice(page.blocks.indexOf(b), 1);
-  if (edSel === b) edSel = null;
-  changed(); renderEditor();
-}
-// one block on the page being built
-function editBlock(page, b, i) {
-  const wrap = el("div", { class: "t-eb" + (b === edSel ? " sel" : ""), "data-i": i,
-    onclick: () => selectBlock(b) });
-  const grip = el("button", { class: "t-grip", "aria-label": "Drag to move", title: "Drag to move", text: "⋮⋮",
-    onpointerdown: (e) => startDrag(e, { from: i, label: BLOCK_NAMES[b.type] || b.type }) });
-  const trash = el("button", { class: "t-trash", "aria-label": "Remove", title: "Remove", text: "✕", onclick: (e) => { e.stopPropagation(); removeBlock(page, b); } });
-  const area = (cls, key, ph, rows) => el("textarea", { class: "t-in " + cls, rows: rows || 1, value: b[key] || "", placeholder: ph,
-    onfocus: () => selectBlock(b),
-    oninput: (e) => { b[key] = e.target.value; grow(e.target); changed(); refreshPageLabels(); } });
-  const choices = (label) => {
-    const list = el("div", { class: "cl-options t-choices" });
-    const draw = () => list.replaceChildren(...b.options.map((o, j) => el("div", { class: "cl-option t-choice" },
-      el("span", { class: "cl-letter", text: LETTERS[j] }),
-      el("input", { class: "t-in", type: "text", value: o, placeholder: "Choice " + LETTERS[j], onfocus: () => selectBlock(b),
-        oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
-      el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
-        onclick: (e) => { e.stopPropagation(); b.options.splice(j, 1); changed(); draw(); } }))),
-      el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
-        onclick: (e) => { e.stopPropagation(); b.options.push(""); changed(); draw(); list.querySelectorAll("input")[b.options.length - 1].focus(); } }));
-    draw();
-    return list;
-  };
-  let content;
-  if (b.type === "heading") content = area("cl-heading", "text", "Heading");
-  else if (b.type === "text") content = area("t-text", "text", "Type here…", 2);
-  else if (b.type === "poll") { b.options ||= ["", ""]; content = el("div", { class: "cl-poll" }, area("cl-question", "question", "Poll question"), choices()); }
-  else if (b.type === "question") {
-    b.options ||= ["", ""];
-    content = el("div", { class: "cl-qblock-t" },
-      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
-      area("cl-ask-prompt", "prompt", "Type the question", 2),
-      b.kind === "mc" ? choices() : el("div", { class: "t-fakebox", text: "Students write their answer here." }));
-  } else {
-    // pictures, sims and videos: drawn as students see them; click for their settings
-    content = el("div", { class: "t-media" }, ...renderPage({ blocks: [b] }, { preview: true }).childNodes, el("div", { class: "t-cover" }));
-  }
-  wrap.append(grip, trash, content);
-  return wrap;
-}
-// dragging from the palette (a new block) or by a block's grip (moving it); a click on a palette item adds at the bottom
-function startDrag(e, what) {
-  if (e.button > 0) return;
-  e.preventDefault();
-  const page = ed.pages[edPage], blocks = page.blocks;
-  const sx = e.clientX, sy = e.clientY;
-  let ghost = null, line = null, target = -1;
-  const pe = document.querySelector(".t-editpage"), canvas = document.querySelector(".t-canvas");
-  const move = (ev) => {
-    if (!ghost) {
-      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
-      ghost = el("div", { class: "t-ghost", text: what.label });
-      line = el("div", { class: "t-dropline" });
-      document.body.append(ghost);
-      document.body.classList.add("t-dragging");
-    }
-    ghost.style.left = ev.clientX + 14 + "px"; ghost.style.top = ev.clientY + 10 + "px";
-    const cr = canvas.getBoundingClientRect();
-    if (ev.clientX < cr.left || ev.clientX > cr.right || ev.clientY < cr.top - 30 || ev.clientY > cr.bottom + 30) { target = -1; line.remove(); return; }
-    if (ev.clientY < cr.top + 40) canvas.scrollTop -= 12; else if (ev.clientY > cr.bottom - 40) canvas.scrollTop += 12;
-    const els = [...pe.querySelectorAll(":scope > .t-eb")];
-    let idx = els.length;
-    for (let k = 0; k < els.length; k++) { const br = els[k].getBoundingClientRect(); if (ev.clientY < br.top + br.height / 2) { idx = k; break; } }
-    target = idx;
-    if (idx < els.length) pe.insertBefore(line, els[idx]); else pe.append(line);
-  };
-  const end = (ev) => {
-    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", end);
-    document.body.classList.remove("t-dragging");
-    if (ghost) { ghost.remove(); line.remove(); }
-    if (!ghost) { if (what.type) addBlockAt(what.type, blocks.length); return; } // a click
-    if (target < 0 || ev.type === "pointercancel") return;
-    if (what.type) return addBlockAt(what.type, target);
-    let to = target;
-    if (to > what.from) to--;
-    if (to === what.from) return;
-    const [x] = blocks.splice(what.from, 1);
-    blocks.splice(to, 0, x);
-    changed(); renderEditor();
-  };
-  window.addEventListener("pointermove", move); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
-}
-function addBlockAt(type, at) {
-  const blocks = ed.pages[edPage].blocks;
-  if (type === "poll" && blocks.some((b) => b.type === "poll")) return;
-  const b = newBlock(type);
-  blocks.splice(at, 0, b);
-  edSel = b;
-  changed(); renderEditor();
-  const w = document.querySelectorAll(".t-editpage > .t-eb")[at];
-  if (w) { w.scrollIntoView({ block: "nearest" }); const f = w.querySelector("textarea, input"); if (f) f.focus(); }
+      ...usedBy.map((x) => el("button", { class: "t-small", text: x.title || "Untitled item", onclick: () => { edItem = x.id; renderEditor(); } }))) : null));
 }
 
 // ---------- one plan item: what it's called, notes for me, where it sends students, and its questions
@@ -1057,25 +900,6 @@ function namePicker({ page, kind, value, placeholder, label, onSet }) {
   return wrap;
 }
 // What an uploaded sim reports, shown under the sim picker.
-function simInfo(id) {
-  const box = el("div", { class: "t-hint" });
-  if (!id) return box;
-  loadSims().then((list) => {
-    const sim = list.find((x) => x.id === id);
-    if (!sim) return;
-    const line = (title, items) => {
-      if (!items || !items.length) return null;
-      return el("div", {}, el("strong", { text: title }),
-        ...items.map((x) => el("div", { text: "• " + x.name + (x.says ? " — " + x.says : " — no description yet") +
-          (x.found ? "" : " (not found in the sim's code)") })));
-    };
-    box.append(line("Events it reports", sim.events) || el("div", { text: "This sim reports no events." }),
-      line("Commands it accepts", sim.commands));
-    const undescribed = [...(sim.events || []), ...(sim.commands || [])].filter((x) => !x.listed).length;
-    if (undescribed) box.append(el("div", { text: undescribed + " found in the code but not described in the sim's list." }));
-  });
-  return box;
-}
 
 function questionsPanel(page, H = EDH) {
   const qs = page.questions || [];
@@ -1146,135 +970,6 @@ function questionsPanel(page, H = EDH) {
   return panel;
 }
 
-function refreshPageLabels() {
-  const labels = $("edPages").querySelectorAll(".t-label");
-  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = pageLabel(p, i); });
-}
-
-function newBlock(type) {
-  if (type === "poll") return { type, question: "", options: ["", ""] };
-  if (type === "image") return { type, imageId: "", caption: "", size: "medium" };
-  if (type === "sim") return { type, url: "", height: "tall" };
-  if (type === "video") return { type, videoId: "", caption: "" };
-  if (type === "question") return { type, id: newId(), prompt: "", min: 3, kind: "text", options: ["", ""] };
-  return { type, text: "" };
-}
-
-const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Picture", poll: "Poll", sim: "Sim", video: "Video", question: "Question" };
-
-function blockEditor(page, b, i) {
-  const blocks = page.blocks;
-  const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
-  const head = el("div", { class: "t-block-head" },
-    el("h3", { text: BLOCK_NAMES[b.type] || b.type }),
-    el("button", { class: "t-small", text: "▲", "aria-label": "Move up", disabled: i === 0,
-      onclick: () => { [blocks[i - 1], blocks[i]] = [blocks[i], blocks[i - 1]]; changed(); renderEditor(); } }),
-    el("button", { class: "t-small", text: "▼", "aria-label": "Move down", disabled: i === blocks.length - 1,
-      onclick: () => { [blocks[i + 1], blocks[i]] = [blocks[i], blocks[i + 1]]; changed(); renderEditor(); } }),
-    el("button", { class: "t-small", text: "Remove",
-      onclick: () => { if (!confirm("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?")) return; blocks.splice(i, 1); changed(); renderEditor(); } }));
-  const box = el("div", { class: "aero-panel t-block" }, head);
-
-  if (b.type === "heading") {
-    box.append(el("input", { type: "text", value: b.text || "", style: "width:100%", placeholder: "Heading", oninput: set("text") }));
-  } else if (b.type === "text") {
-    box.append(el("textarea", { rows: 6, style: "width:100%", value: b.text || "", placeholder: "Type here…", oninput: set("text") }),
-      el("p", { class: "t-hint", text: "Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
-  } else if (b.type === "poll") {
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Question" }),
-      el("textarea", { rows: 2, value: b.question || "", oninput: set("question") })));
-    const opts = el("div");
-    const drawOpts = () => {
-      opts.replaceChildren(...b.options.map((o, j) => el("div", { class: "t-opt" },
-        el("span", { class: "cl-letter", text: LETTERS[j] }),
-        el("input", { type: "text", value: o, placeholder: "Answer choice", oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
-        el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
-          onclick: () => { b.options.splice(j, 1); changed(); drawOpts(); } }))),
-        el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
-          onclick: () => { b.options.push(""); changed(); drawOpts(); opts.querySelectorAll("input")[b.options.length - 1].focus(); } }));
-    };
-    drawOpts();
-    box.append(opts, el("p", { class: "t-hint", text: "Results stay hidden until you show them. Showing results also closes voting." }));
-  } else if (b.type === "image") {
-    const status = el("span", { class: "aero-muted" });
-    const file = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
-      const f = file.files[0]; if (!f) return;
-      status.textContent = "Uploading…";
-      try { b.imageId = await uploadImage(f); changed(); renderEditor(); }
-      catch (e) { status.textContent = e.message; }
-    } });
-    if (b.imageId) box.append(el("img", { class: "t-thumb", src: "/img/" + b.imageId, alt: "" }));
-    box.append(el("div", { class: "t-row", style: "margin-bottom:10px" },
-      el("button", { class: "t-small", text: b.imageId ? "Replace image" : "Choose image", onclick: () => file.click() }), status, file));
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Caption (optional)" }),
-      el("input", { type: "text", value: b.caption || "", oninput: set("caption") })));
-    box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Size" }),
-      sizeSelect(b, "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"]])));
-  } else if (b.type === "video") {
-    const status = el("span", { class: "aero-muted" });
-    const pick = el("select", { "aria-label": "Uploaded video", onchange: (e) => { b.videoId = e.target.value; changed(); renderEditor(); } }, el("option", { value: "", text: "Loading…" }));
-    loadVideos().then((d) => {
-      pick.replaceChildren(el("option", { value: "", text: d.videos.length ? "Choose an uploaded video" : "No videos uploaded yet" }), ...d.videos.map((x) => el("option", { value: x.id, text: x.name })));
-      pick.value = b.videoId || "";
-    });
-    const up = el("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v", hidden: true, onchange: async () => {
-      const f = up.files[0]; if (!f) return;
-      try { const r = await uploadVideo(f, (p) => { status.textContent = "Uploading " + Math.round(p * 100) + "%"; }); videosCache = null; b.videoId = r.id; changed(); renderEditor(); }
-      catch (e) { status.textContent = e.message; }
-    } });
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Uploaded video" }), pick),
-      el("div", { class: "t-row", style: "margin-bottom:10px" }, el("button", { class: "t-small", text: "Upload a video", onclick: () => up.click() }), status, up),
-      b.videoId ? el("video", { src: "/video/" + b.videoId, controls: true, preload: "metadata", playsinline: true, style: "max-width:360px;max-height:220px;background:#000;border-radius:6px;margin-bottom:10px" }) : null,
-      el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Caption (optional)" }), el("input", { type: "text", value: b.caption || "", oninput: set("caption") })),
-      el("p", { class: "t-hint", text: "A question can start when the video ends: choose \u201cvideoEnded\u201d under \u201cWhen the sim reports an event\u201d." }));
-  } else if (b.type === "sim") {
-    const cur = (b.url || "").match(/^\/sim\/([a-z0-9]+)$/);
-    const status = el("span", { class: "aero-muted" });
-    const pick = el("select", { "aria-label": "Uploaded sim", onchange: (e) => { if (e.target.value) { b.url = "/sim/" + e.target.value; changed(); renderEditor(); } } },
-      el("option", { value: "", text: "Loading…" }));
-    loadSims().then((list) => {
-      pick.replaceChildren(el("option", { value: "", text: list.length ? "Choose an uploaded sim" : "No sims uploaded yet" }),
-        ...list.map((x) => el("option", { value: x.id, text: x.name })));
-      pick.value = cur ? cur[1] : "";
-    });
-    const upNew = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
-      const f = upNew.files[0]; if (!f) return;
-      status.textContent = "Uploading…";
-      try { const r = await uploadSim(f, null); b.url = "/sim/" + r.id; changed(); renderEditor(); }
-      catch (e) { status.textContent = e.message; }
-    } });
-    const upRep = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
-      const f = upRep.files[0]; if (!f || !cur) return;
-      status.textContent = "Replacing…";
-      try { await uploadSim(f, cur[1]); status.textContent = "Replaced. Students get the new version the next time the page loads."; renderEditorSoon(); }
-      catch (e) { status.textContent = e.message; }
-    } });
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Uploaded sim" }), pick),
-      el("div", { class: "t-row", style: "margin-bottom:10px" },
-        el("button", { class: "t-small", text: "Upload a sim file", onclick: () => upNew.click() }),
-        cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
-        status, upNew, upRep));
-    box.append(simInfo(cur && cur[1]));
-    box.append(el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
-      el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: set("url") })));
-    box.append(el("label", { class: "cl-field", style: "margin:0" }, el("span", { text: "Height" }),
-      sizeSelect(b, "height", [["tall", "Fills the screen"], ["medium", "About half the screen"]])));
-    box.append(el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. Uploaded sims freeze when you pause the class." }));
-    box.append(el("div", { class: "t-row", style: "margin-top:8px" },
-      el("button", { class: "t-small aero-btn-primary", text: "+ Add a question after this sim", onclick: () => questionForPage(ed.pages[edPage]) })));
-  }
-  return box;
-}
-
-function renderEditorSoon() { setTimeout(() => { if (!$("editView").hidden) renderEditor(); }, 1500); }
-
-function sizeSelect(b, key, choices) {
-  const s = el("select", { onchange: (e) => { b[key] = e.target.value; changed(); } },
-    ...choices.map(([v, t]) => el("option", { value: v, text: t })));
-  s.value = b[key] || choices[0][0];
-  return s;
-}
-
 // shrink big photos so they upload fast and load quickly on Chromebooks
 async function uploadImage(file) {
   let blob = file;
@@ -1302,7 +997,7 @@ function showLive() {
   renderLive();
 }
 
-$("lvEdit").onclick = () => { if (tstate && tstate.live) { ed = null; location.hash = "#/edit/" + tstate.live.lessonId; } };
+$("lvEdit").onclick = () => { if (tstate && tstate.live && tstate.live.lessonId) location.href = "/builder?id=" + tstate.live.lessonId; };
 $("lvEnd").onclick = endClass;
 $("lvEndLesson").onclick = endLesson;
 $("lvUnlock").onclick = () => {
@@ -1428,7 +1123,7 @@ async function renderStart(force) {
     const row = (l) => el("div", { class: "t-lesson" },
       el("span", { class: "t-ltitle", text: l.title }),
       el("span", { class: "aero-chip", text: LEVELS[l.level] || "No level" }),
-      el("button", { class: "t-small", text: "Edit", onclick: () => (location.hash = "#/edit/" + l.id) }),
+      el("button", { class: "t-small", text: "Edit", onclick: () => (location.href = "/builder?id=" + l.id) }),
       el("button", { class: "aero-btn-primary", text: "Open", title: "Look through the lesson and start it on any page", onclick: () => { openInPreview = true; location.hash = "#/edit/" + l.id; } }));
     box.replaceChildren(...[
       el("h2", { style: "margin-top:0", text: "Start a lesson" }),

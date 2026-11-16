@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en" class="teacher builder">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Live · Page builder</title>
+<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="teacher.css?v=9">
+<link rel="stylesheet" href="aerolab.css?v=6">
+<style>
+  html.builder { --edge: 16px; }
+  html.builder body { overflow: hidden; }
+  .b-top { flex: none; margin: 0 0 8px; gap: 10px; flex-wrap: nowrap; }
+  .b-top .t-title-input { flex: 1; min-width: 120px; }
+  .b-canvas { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 84px var(--padR, 350px) 140px 28px; }
+  .b-sheet { max-width: 1400px; margin: 0 auto; }
+  .b-pagelabel { font-size: 12px; font-weight: 700; color: var(--aero-ink-muted); margin: 0 0 8px 44px; font-family: Helvetica, Arial, sans-serif; }
+  .b-win { position: fixed; z-index: 20; display: flex; flex-direction: column; padding: 0; max-height: calc(100vh - 150px); box-shadow: 0 8px 28px rgba(0, 0, 0, .4); }
+  .b-win-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; cursor: grab; touch-action: none; user-select: none; font-size: 12px; font-weight: 700; font-family: Helvetica, Arial, sans-serif; }
+  .b-win-head .t-title { flex: 1; }
+  .b-win-body { overflow: auto; padding: 4px 12px 12px; }
+  .b-win.min .b-win-body { display: none; }
+  .b-win.min { width: auto !important; }
+  #winPages { left: 36px; top: 96px; width: 230px; }
+  #winTools { right: 36px; top: 96px; width: 290px; }
+  .b-win .t-pages { margin-bottom: 8px; }
+  .b-win .t-pages button { padding: 4px 8px; font-size: 12px; }
+  .b-win .t-pages button .t-num { width: 24px; height: 24px; font-size: 12px; }
+  .b-win .cl-field { display: block; margin-bottom: 10px; }
+  .b-win .cl-field span { font-size: 12px; font-weight: 700; display: block; margin-bottom: 2px; }
+  .b-win h3 { font-size: 13px; }
+  .b-win .t-block-head { margin-bottom: 8px; }
+  #bPreview { position: fixed; inset: 0; z-index: 50; background: #0b1a14; display: flex; flex-direction: column; }
+  #bPreview .aero-bar { margin: 8px 12px; flex: none; gap: 10px; }
+  #bPreviewHold { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  #bPreviewHold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; border-radius: 8px; }
+  .t-media .cl-figure.size-full { flex: 1 1 100%; }
+  .b-msg { margin: 60px auto; max-width: 520px; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header class="aero-bar b-top" id="bTop" hidden>
+  <button id="bBack">◀ Lessons</button>
+  <input type="text" id="bTitle" class="t-title-input" aria-label="Lesson title">
+  <span class="aero-chip" id="saveState">Saved</span>
+  <button id="bPlan" title="Plan items, questions and notes for this lesson">Plan &amp; questions</button>
+  <button class="aero-btn-primary" id="bPreviewBtn">Preview</button>
+</header>
+
+<main class="aero-panel b-canvas" id="bCanvas" hidden>
+  <div class="b-sheet" id="bSheet"></div>
+</main>
+
+<aside class="aero-panel b-win min" id="winPages" hidden>
+  <div class="b-win-head"><span class="t-title" id="winPagesTitle">Pages</span><button class="t-small" id="winPagesMin" aria-label="Open or close the Pages window">▾</button></div>
+  <div class="b-win-body">
+    <ul class="t-pages" id="bPages"></ul>
+    <div class="t-row" style="margin-bottom:10px">
+      <button class="t-small" id="pgAdd">+ Page</button>
+      <button class="t-small" id="pgUp" aria-label="Move page up">▲</button>
+      <button class="t-small" id="pgDown" aria-label="Move page down">▼</button>
+      <button class="t-small" id="pgDup">Copy</button>
+      <button class="t-small" id="pgDel">Delete</button>
+    </div>
+    <label class="cl-field" style="margin:0"><span>Page name (only you see this)</span><input type="text" id="pgName"></label>
+  </div>
+</aside>
+
+<aside class="aero-panel b-win" id="winTools" hidden>
+  <div class="b-win-head"><span class="t-title" id="winToolsTitle">Add to the page</span><button class="t-small" id="winToolsMin" aria-label="Open or close the Tools window">▾</button></div>
+  <div class="b-win-body" id="bTools"></div>
+</aside>
+
+<section class="aero-panel b-msg" id="bMsg" hidden></section>
+
+<div id="bPreview" hidden>
+  <div class="aero-bar">
+    <button class="aero-btn-primary" id="pvBack">◀ Back to building</button>
+    <button id="pvPrev">◀ Page</button>
+    <button id="pvNext">Page ▶</button>
+    <span id="pvLabel" style="font-weight:700"></span>
+    <span class="cl-grow"></span>
+    <span class="t-hint">This is the real student page at Chromebook size. Questions you open during class aren't shown here.</span>
+  </div>
+  <div id="bPreviewHold"></div>
+</div>
+
+<script src="common.js?v=16"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let token = store("cl_token");
+const params = new URLSearchParams(location.search);
+const lessonId = (params.get("id") || "").replace(/[^a-z0-9]/gi, "");
+const toTeacher = (hash) => { location.href = "/teacher" + (hash || ""); };
+const tapi = (path, opts = {}) => api(path, { ...opts, headers: { "x-token": token || "", ...(opts.headers || {}) } }).catch((e) => {
+  if (e.status === 401) { store("cl_token", null); toTeacher(); }
+  throw e;
+});
+
+let ed = null, edPage = 0, edSel = null, edSaveTimer = null;
+const BLOCK_NAMES = { heading: "Heading", text: "Text", image: "Picture", poll: "Poll", sim: "Sim", video: "Video", question: "Question" };
+const PALETTE = [["heading", "Heading"], ["text", "Text"], ["image", "Picture"], ["sim", "Sim"], ["video", "Video"], ["poll", "Poll"], ["question", "Question"]];
+const newId = () => Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, "x");
+const grow = (t) => { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; };
+const mb = (n) => (n / 1e6 >= 10 ? Math.round(n / 1e6) : (n / 1e6).toFixed(1)) + " MB";
+
+function newPage() { return { id: randomId(8), name: "", blocks: [{ type: "heading", text: "" }, { type: "text", text: "" }] }; }
+function newBlock(type) {
+  if (type === "poll") return { type, question: "", options: ["", ""] };
+  if (type === "image") return { type, imageId: "", caption: "", size: "medium" };
+  if (type === "sim") return { type, url: "", height: "tall" };
+  if (type === "video") return { type, videoId: "", caption: "" };
+  if (type === "question") return { type, id: newId(), prompt: "", min: 3, kind: "text", options: ["", ""] };
+  return { type, text: "" };
+}
+function pageLabel(p, i) {
+  if (p.name) return p.name;
+  const h = (p.blocks || []).find((b) => (b.type === "heading" || b.type === "text") && b.text && b.text.trim());
+  if (h) return h.text.trim().split("\n")[0].slice(0, 60);
+  const poll = (p.blocks || []).find((b) => b.type === "poll");
+  if (poll) return "Poll: " + (poll.question || "").slice(0, 50);
+  return "Page " + (i + 1);
+}
+
+// ---------------------------------------------------------------- saving (one save at a time, in order)
+function setSave(text) { $("saveState").textContent = text; $("saveState").classList.toggle("aero-chip-warn", /n't/.test(text)); }
+function changed() { setSave("Saving…"); clearTimeout(edSaveTimer); edSaveTimer = setTimeout(saveNow, 700); }
+let saveChain = Promise.resolve();
+function saveNow() {
+  clearTimeout(edSaveTimer); edSaveTimer = null;
+  if (!ed) return saveChain;
+  const id = ed.id, body = JSON.stringify(ed);
+  saveChain = saveChain.then(async () => {
+    try {
+      await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body });
+      if (!edSaveTimer) setSave("Saved");
+    } catch (e) {
+      setSave("Couldn't save. Retrying…");
+      if (!edSaveTimer) edSaveTimer = setTimeout(saveNow, 3000);
+    }
+  });
+  return saveChain;
+}
+window.addEventListener("beforeunload", (e) => { if (edSaveTimer) { saveNow(); e.preventDefault(); } });
+
+function askYesNo(text, yes) {
+  return new Promise((resolve) => {
+    const done = (v) => { ov.remove(); resolve(v); };
+    const ov = el("div", { class: "cl-cover", role: "dialog", "aria-label": yes },
+      el("section", { class: "aero-panel cl-cover-box t-pick" },
+        el("h2", { text }),
+        el("button", { class: "aero-btn-primary", text: yes, onclick: () => done(true) }),
+        el("button", { text: "Cancel", onclick: () => done(false) })));
+    document.body.append(ov);
+  });
+}
+
+// ---------------------------------------------------------------- floating windows
+function makeWin(win, onToggle) {
+  const head = win.querySelector(".b-win-head");
+  const btn = head.querySelector("button");
+  btn.onclick = () => { win.classList.toggle("min"); onToggle(); };
+  head.onpointerdown = (e) => {
+    if (e.target.closest("button") || e.button > 0) return;
+    const r = win.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    win.style.left = r.left + "px"; win.style.top = r.top + "px"; win.style.right = "auto";
+    head.setPointerCapture(e.pointerId);
+    head.style.cursor = "grabbing";
+    const move = (ev) => {
+      const w = win.offsetWidth;
+      win.style.left = Math.max(20, Math.min(innerWidth - w - 20, ev.clientX - dx)) + "px";
+      win.style.top = Math.max(20, Math.min(innerHeight - 70, ev.clientY - dy)) + "px";
+    };
+    const up = () => { head.style.cursor = ""; head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up); head.removeEventListener("pointercancel", up); };
+    head.addEventListener("pointermove", move); head.addEventListener("pointerup", up); head.addEventListener("pointercancel", up);
+  };
+}
+function fitCanvas() {
+  $("bCanvas").style.setProperty("--padR", $("winTools").classList.contains("min") ? "210px" : "350px");
+}
+makeWin($("winPages"), () => {});
+makeWin($("winTools"), fitCanvas);
+
+// ---------------------------------------------------------------- the pages window
+function renderPages() {
+  $("bPages").replaceChildren(...ed.pages.map((p, i) => el("li", {},
+    el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; edSel = null; renderAll(); } },
+      el("span", { class: "t-num", text: i + 1 }),
+      el("span", { class: "t-label", text: pageLabel(p, i) })))));
+  $("pgUp").disabled = edPage === 0;
+  $("pgDown").disabled = edPage === ed.pages.length - 1;
+  $("winPagesTitle").textContent = "Pages · " + (edPage + 1) + " of " + ed.pages.length;
+  const pn = $("pgName");
+  if (document.activeElement !== pn) pn.value = ed.pages[edPage].name || "";
+  pn.placeholder = pageLabel({ blocks: ed.pages[edPage].blocks }, edPage);
+}
+function refreshPageLabels() {
+  const labels = $("bPages").querySelectorAll(".t-label");
+  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = pageLabel(p, i); });
+}
+$("pgName").oninput = (e) => { ed.pages[edPage].name = e.target.value; changed(); refreshPageLabels(); };
+$("pgAdd").onclick = () => { ed.pages.splice(edPage + 1, 0, newPage()); edPage++; edSel = null; changed(); renderAll(); };
+$("pgDup").onclick = () => {
+  const copy = JSON.parse(JSON.stringify(ed.pages[edPage])); copy.id = randomId(8);
+  for (const b of copy.blocks || []) if (b.type === "question") b.id = newId();
+  ed.pages.splice(edPage + 1, 0, copy); edPage++; edSel = null; changed(); renderAll();
+};
+$("pgDel").onclick = async () => {
+  if (ed.pages.length === 1) { await askYesNo("A lesson needs at least one page.", "OK"); return; }
+  if (!(await askYesNo("Delete page " + (edPage + 1) + "?", "Delete"))) return;
+  ed.pages.splice(edPage, 1); edPage = Math.min(edPage, ed.pages.length - 1); edSel = null; changed(); renderAll();
+};
+$("pgUp").onclick = () => movePage(-1);
+$("pgDown").onclick = () => movePage(1);
+function movePage(d) {
+  const j = edPage + d;
+  if (j < 0 || j >= ed.pages.length) return;
+  [ed.pages[edPage], ed.pages[j]] = [ed.pages[j], ed.pages[edPage]];
+  edPage = j; changed(); renderAll();
+}
+
+// ---------------------------------------------------------------- the page itself, edited in place
+function renderAll() { renderPages(); renderSheet(); renderTools(); history.replaceState(null, "", "?id=" + ed.id + "&page=" + (edPage + 1)); }
+
+function renderSheet() {
+  const page = ed.pages[edPage];
+  const blocks = page.blocks || (page.blocks = []);
+  if (edSel && !blocks.includes(edSel)) edSel = null;
+  const pageEl = el("div", { class: "cl-page t-editpage" });
+  blocks.forEach((b, i) => pageEl.append(editBlock(page, b, i)));
+  if (!blocks.length) pageEl.append(el("p", { class: "t-hint t-empty", text: "This page is empty. Drag something onto it from the window on the right, or click an item there to add it at the bottom." }));
+  $("bSheet").replaceChildren(el("div", { class: "b-pagelabel", text: "Page " + (edPage + 1) + " of " + ed.pages.length }), pageEl);
+  $("bCanvas").onclick = (e) => { if (e.target === $("bCanvas") || e.target === $("bSheet") || e.target === pageEl) { edSel = null; renderTools(); markSel(); } };
+  requestAnimationFrame(() => $("bSheet").querySelectorAll("textarea.t-in").forEach(grow));
+}
+function markSel() {
+  for (const w of document.querySelectorAll(".t-editpage > .t-eb")) w.classList.toggle("sel", ed.pages[edPage].blocks[+w.dataset.i] === edSel);
+}
+function selectBlock(b) { if (edSel === b) return; edSel = b; renderTools(); markSel(); }
+
+function renderTools() {
+  const page = ed.pages[edPage], blocks = page.blocks, tools = $("bTools");
+  if (!edSel) {
+    $("winToolsTitle").textContent = "Add to the page";
+    const hasPoll = blocks.some((b) => b.type === "poll");
+    tools.replaceChildren(
+      el("p", { class: "t-hint", style: "margin:0 0 8px", text: "Drag onto the page, or click to add at the bottom." }),
+      el("div", { class: "t-palette" }, ...PALETTE.map(([type, label]) => {
+        const off = type === "poll" && hasPoll;
+        return el("button", { class: "t-pal", text: label, disabled: off, title: off ? "One poll per page" : "",
+          onpointerdown: (e) => { if (!off) startDrag(e, { type, label }); } });
+      })));
+    return;
+  }
+  const b = edSel;
+  $("winToolsTitle").textContent = BLOCK_NAMES[b.type] || b.type;
+  const head = el("div", { class: "t-block-head" },
+    el("button", { class: "t-small", text: "Remove", onclick: () => removeBlock(page, b) }),
+    el("button", { class: "t-small aero-btn-primary", text: "Done", onclick: () => { edSel = null; renderTools(); markSel(); } }));
+  const parts = [head];
+  const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
+  if (b.type === "heading" || b.type === "text") parts.push(el("p", { class: "t-hint", text: "Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
+  else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
+  else if (b.type === "question") {
+    parts.push(
+      el("label", { class: "cl-field" }, el("span", { text: "Kind of answer" }),
+        el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderSheet(); } },
+          el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
+          el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }))),
+      el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
+        el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
+          oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
+      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question on this page in the Control room. It appears in this spot on their page. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
+  } else if (b.type === "image") {
+    const status = el("span", { class: "aero-muted" });
+    const file = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
+      const f = file.files[0]; if (!f) return;
+      status.textContent = "Uploading…";
+      try { b.imageId = await uploadImage(f); changed(); renderSheet(); renderTools(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    if (b.imageId) parts.push(el("img", { class: "t-thumb", src: "/img/" + b.imageId, alt: "", style: "max-width:100%" }));
+    parts.push(el("div", { class: "t-row", style: "margin-bottom:10px" },
+      el("button", { class: "t-small", text: b.imageId ? "Replace picture" : "Choose picture", onclick: () => file.click() }), status, file),
+      el("label", { class: "cl-field" }, el("span", { text: "Caption (optional)" }), el("input", { type: "text", value: b.caption || "", oninput: (e) => { b.caption = e.target.value; changed(); renderSheet(); } })),
+      el("label", { class: "cl-field" }, el("span", { text: "Size" }),
+        sizeSelect(b, "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"], ["full", "Full screen"]])),
+      el("p", { class: "t-hint", text: "Full screen fills the student's whole page area. The entire picture is shown, with dark bars at the sides if its shape doesn't match the screen. For the full effect, give it a page of its own." }));
+  } else if (b.type === "video") {
+    const status = el("span", { class: "aero-muted" });
+    const pick = el("select", { "aria-label": "Uploaded video", onchange: (e) => { b.videoId = e.target.value; changed(); renderSheet(); renderTools(); } }, el("option", { value: "", text: "Loading…" }));
+    loadVideos().then((d) => {
+      pick.replaceChildren(el("option", { value: "", text: d.videos.length ? "Choose an uploaded video" : "No videos uploaded yet" }), ...d.videos.map((x) => el("option", { value: x.id, text: x.name })));
+      pick.value = b.videoId || "";
+    });
+    const up = el("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v", hidden: true, onchange: async () => {
+      const f = up.files[0]; if (!f) return;
+      try { const r = await uploadVideo(f, (p) => { status.textContent = "Uploading " + Math.round(p * 100) + "%"; }); videosCache = null; b.videoId = r.id; changed(); renderSheet(); renderTools(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    parts.push(el("label", { class: "cl-field" }, el("span", { text: "Uploaded video" }), pick),
+      el("div", { class: "t-row", style: "margin-bottom:10px" }, el("button", { class: "t-small", text: "Upload a video", onclick: () => up.click() }), status, up),
+      el("label", { class: "cl-field" }, el("span", { text: "Caption (optional)" }), el("input", { type: "text", value: b.caption || "", oninput: (e) => { b.caption = e.target.value; changed(); renderSheet(); } })));
+  } else if (b.type === "sim") {
+    const cur = (b.url || "").match(/^\/sim\/([a-z0-9]+)$/);
+    const status = el("span", { class: "aero-muted" });
+    const pick = el("select", { "aria-label": "Uploaded sim", onchange: (e) => { if (e.target.value) { b.url = "/sim/" + e.target.value; changed(); renderSheet(); renderTools(); } } },
+      el("option", { value: "", text: "Loading…" }));
+    loadSims().then((list) => {
+      pick.replaceChildren(el("option", { value: "", text: list.length ? "Choose an uploaded sim" : "No sims uploaded yet" }), ...list.map((x) => el("option", { value: x.id, text: x.name })));
+      pick.value = cur ? cur[1] : "";
+    });
+    const upNew = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
+      const f = upNew.files[0]; if (!f) return;
+      status.textContent = "Uploading…";
+      try { const r = await uploadSim(f, null); b.url = "/sim/" + r.id; changed(); renderSheet(); renderTools(); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    const upRep = el("input", { type: "file", accept: ".html,.htm,text/html", hidden: true, onchange: async () => {
+      const f = upRep.files[0]; if (!f || !cur) return;
+      status.textContent = "Replacing…";
+      try { await uploadSim(f, cur[1]); status.textContent = "Replaced. Students get the new version the next time the page loads."; setTimeout(renderSheet, 1500); }
+      catch (e) { status.textContent = e.message; }
+    } });
+    parts.push(el("label", { class: "cl-field" }, el("span", { text: "Uploaded sim" }), pick),
+      el("div", { class: "t-row", style: "margin-bottom:10px" },
+        el("button", { class: "t-small", text: "Upload a sim file", onclick: () => upNew.click() }),
+        cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
+        status, upNew, upRep),
+      simInfo(cur && cur[1]),
+      el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
+        el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: (e) => { b.url = e.target.value; changed(); } , onchange: () => renderSheet() })),
+      el("label", { class: "cl-field" }, el("span", { text: "Height" }),
+        sizeSelect(b, "height", [["tall", "Fills the screen"], ["medium", "About half the screen"]])),
+      el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. Uploaded sims freeze when you pause the class." }));
+  }
+  tools.replaceChildren(...parts);
+}
+function sizeSelect(b, key, choices) {
+  const s = el("select", { onchange: (e) => { b[key] = e.target.value; changed(); renderSheet(); } }, ...choices.map(([v, t]) => el("option", { value: v, text: t })));
+  s.value = b[key] || choices[0][0];
+  return s;
+}
+function simInfo(id) {
+  const box = el("div", { class: "t-hint", style: "margin-bottom:10px" });
+  if (!id) return box;
+  loadSims().then((list) => {
+    const sim = list.find((x) => x.id === id);
+    if (!sim) return;
+    const line = (title, items) => {
+      if (!items || !items.length) return null;
+      return el("div", {}, el("strong", { text: title }),
+        ...items.map((x) => el("div", { text: "• " + x.name + (x.says ? " — " + x.says : " — no description yet") + (x.found ? "" : " (not found in the sim's code)") })));
+    };
+    box.append(line("Events it reports", sim.events) || el("div", { text: "This sim reports no events." }), line("Commands it accepts", sim.commands));
+  });
+  return box;
+}
+
+async function removeBlock(page, b) {
+  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + "?", "Remove"))) return;
+  page.blocks.splice(page.blocks.indexOf(b), 1);
+  if (edSel === b) edSel = null;
+  changed(); renderAll();
+}
+
+// one block on the page being built
+function editBlock(page, b, i) {
+  const wrap = el("div", { class: "t-eb" + (b === edSel ? " sel" : ""), "data-i": i, onclick: () => selectBlock(b) });
+  const grip = el("button", { class: "t-grip", "aria-label": "Drag to move", title: "Drag to move", text: "⋮⋮",
+    onpointerdown: (e) => startDrag(e, { from: i, label: BLOCK_NAMES[b.type] || b.type }) });
+  const trash = el("button", { class: "t-trash", "aria-label": "Remove", title: "Remove", text: "✕", onclick: (e) => { e.stopPropagation(); removeBlock(page, b); } });
+  const area = (cls, key, ph, rows) => el("textarea", { class: "t-in " + cls, rows: rows || 1, value: b[key] || "", placeholder: ph,
+    onfocus: () => selectBlock(b),
+    oninput: (e) => { b[key] = e.target.value; grow(e.target); changed(); refreshPageLabels(); } });
+  const choices = () => {
+    const list = el("div", { class: "cl-options t-choices" });
+    const draw = () => list.replaceChildren(...b.options.map((o, j) => el("div", { class: "cl-option t-choice" },
+      el("span", { class: "cl-letter", text: LETTERS[j] }),
+      el("input", { class: "t-in", type: "text", value: o, placeholder: "Choice " + LETTERS[j], onfocus: () => selectBlock(b),
+        oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
+      el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
+        onclick: (e) => { e.stopPropagation(); b.options.splice(j, 1); changed(); draw(); } }))),
+      el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
+        onclick: (e) => { e.stopPropagation(); b.options.push(""); changed(); draw(); list.querySelectorAll("input")[b.options.length - 1].focus(); } }));
+    draw();
+    return list;
+  };
+  let content;
+  if (b.type === "heading") content = area("cl-heading", "text", "Heading");
+  else if (b.type === "text") content = area("t-text", "text", "Type here…", 2);
+  else if (b.type === "poll") { b.options ||= ["", ""]; content = el("div", { class: "cl-poll" }, area("cl-question", "question", "Poll question"), choices()); }
+  else if (b.type === "question") {
+    b.options ||= ["", ""];
+    content = el("div", { class: "cl-qblock-t" },
+      el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: "Question · you open it during class" }), el("span", { class: "cl-ask-label", text: (b.min || 3) + " min" })),
+      area("cl-ask-prompt", "prompt", "Type the question", 2),
+      b.kind === "mc" ? choices() : el("div", { class: "t-fakebox", text: "Students write their answer here." }));
+  } else {
+    content = el("div", { class: "t-media" }, ...renderPage({ blocks: [b] }, { preview: true }).childNodes, el("div", { class: "t-cover" }));
+  }
+  wrap.append(grip, trash, content);
+  return wrap;
+}
+
+// dragging from the palette (a new block) or by a block's grip (moving it); a click on a palette item adds at the bottom
+function startDrag(e, what) {
+  if (e.button > 0) return;
+  e.preventDefault();
+  const page = ed.pages[edPage], blocks = page.blocks;
+  const sx = e.clientX, sy = e.clientY;
+  let ghost = null, line = null, target = -1;
+  const pe = document.querySelector(".t-editpage"), canvas = $("bCanvas");
+  const move = (ev) => {
+    if (!ghost) {
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      ghost = el("div", { class: "t-ghost", text: what.label });
+      line = el("div", { class: "t-dropline" });
+      document.body.append(ghost);
+      document.body.classList.add("t-dragging");
+    }
+    ghost.style.left = ev.clientX + 14 + "px"; ghost.style.top = ev.clientY + 10 + "px";
+    const cr = canvas.getBoundingClientRect();
+    if (ev.clientX < cr.left || ev.clientX > cr.right || ev.clientY < cr.top - 30 || ev.clientY > cr.bottom + 30) { target = -1; line.remove(); return; }
+    if (ev.clientY < cr.top + 60) canvas.scrollTop -= 14; else if (ev.clientY > cr.bottom - 60) canvas.scrollTop += 14;
+    const els = [...pe.querySelectorAll(":scope > .t-eb")];
+    let idx = els.length;
+    for (let k = 0; k < els.length; k++) { const br = els[k].getBoundingClientRect(); if (ev.clientY < br.top + br.height / 2) { idx = k; break; } }
+    target = idx;
+    if (idx < els.length) pe.insertBefore(line, els[idx]); else pe.append(line);
+  };
+  const end = (ev) => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", end);
+    document.body.classList.remove("t-dragging");
+    if (ghost) { ghost.remove(); line.remove(); }
+    if (!ghost) { if (what.type) addBlockAt(what.type, blocks.length); return; } // a click
+    if (target < 0 || ev.type === "pointercancel") return;
+    if (what.type) return addBlockAt(what.type, target);
+    let to = target;
+    if (to > what.from) to--;
+    if (to === what.from) return;
+    const [x] = blocks.splice(what.from, 1);
+    blocks.splice(to, 0, x);
+    changed(); renderAll();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
+}
+function addBlockAt(type, at) {
+  const blocks = ed.pages[edPage].blocks;
+  if (type === "poll" && blocks.some((b) => b.type === "poll")) return;
+  const b = newBlock(type);
+  blocks.splice(at, 0, b);
+  edSel = b;
+  changed(); renderAll();
+  const w = document.querySelectorAll(".t-editpage > .t-eb")[at];
+  if (w) { w.scrollIntoView({ block: "nearest" }); const f = w.querySelector("textarea, input"); if (f) f.focus(); }
+}
+
+// ---------------------------------------------------------------- uploads
+async function uploadImage(file) {
+  let blob = file;
+  if (!(file.type === "image/gif" && file.size < 1.5e6)) {
+    const img = await new Promise((res, rej) => {
+      const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That file isn't an image I can read.")); i.src = URL.createObjectURL(file);
+    });
+    const scale = Math.min(1, 1920 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    const g = c.getContext("2d");
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+  }
+  const r = await tapi("/api/images", { method: "POST", headers: { "content-type": blob.type }, body: blob });
+  return r.id;
+}
+let videosCache = null;
+async function loadVideos(force) {
+  if (!videosCache || force) { try { videosCache = await tapi("/api/videos"); } catch { videosCache = { ready: false, videos: [] }; } }
+  return videosCache;
+}
+function uploadVideo(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/api/videos");
+    x.setRequestHeader("x-token", token || "");
+    x.setRequestHeader("content-type", file.type || ({ mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime" }[file.name.split(".").pop().toLowerCase()] || ""));
+    x.setRequestHeader("x-name", encodeURIComponent(file.name));
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {} x.status < 300 ? resolve(j) : reject(new Error(j.error || "Upload failed (" + x.status + ").")); };
+    x.onerror = () => reject(new Error("The upload didn't go through. Check the connection and try again."));
+    x.send(file);
+  });
+}
+let simsCache = null;
+async function loadSims() {
+  if (!simsCache) { try { simsCache = await tapi("/api/sims"); } catch { return []; } }
+  return simsCache;
+}
+async function uploadSim(file, id) {
+  if (file.size > 1_900_000) throw new Error("That file is too large (the limit is about 1.8 MB).");
+  const headers = { "content-type": "text/html" };
+  if (!id) headers["x-name"] = encodeURIComponent(file.name);
+  const r = await tapi(id ? "/api/sims/" + id : "/api/sims", { method: id ? "PUT" : "POST", headers, body: file });
+  simsCache = null;
+  return r;
+}
+
+// ---------------------------------------------------------------- preview: the real student page in a Chromebook-sized frame
+let pvFrame = null, pvOn = false;
+function pvState() {
+  const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg, questions: [] }));
+  return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {},
+    now: Date.now(), paused: false, qpaused: false, ask: null, show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
+}
+function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
+window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady) pvSend(); });
+function pvFit() {
+  if (!pvFrame) return;
+  const h = $("bPreviewHold"), s = Math.min(1, h.clientWidth / 1366, h.clientHeight / 768);
+  pvFrame.style.transform = "scale(" + s + ")";
+  pvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
+}
+function pvRender() {
+  $("pvLabel").textContent = "Page " + (edPage + 1) + " of " + ed.pages.length;
+  $("pvPrev").disabled = edPage === 0;
+  $("pvNext").disabled = edPage >= ed.pages.length - 1;
+  pvSend();
+}
+$("bPreviewBtn").onclick = () => {
+  pvOn = true; $("bPreview").hidden = false;
+  if (!pvFrame) { pvFrame = el("iframe", { src: "/?preview=1", title: "Student screen preview" }); $("bPreviewHold").append(pvFrame); }
+  pvFit(); pvRender();
+};
+$("pvBack").onclick = () => { pvOn = false; $("bPreview").hidden = true; renderAll(); };
+$("pvPrev").onclick = () => { edPage--; pvRender(); };
+$("pvNext").onclick = () => { edPage++; pvRender(); };
+window.addEventListener("resize", pvFit);
+
+// ---------------------------------------------------------------- opening and leaving
+$("bTitle").oninput = () => { ed.title = $("bTitle").value; changed(); };
+const leave = async (hash) => { if (edSaveTimer) saveNow(); await saveChain; toTeacher(hash); };
+$("bBack").onclick = () => leave("#/lessons");
+$("bPlan").onclick = () => leave("#/edit/" + ed.id);
+
+(async function init() {
+  if (!token) return toTeacher();
+  if (!lessonId) return toTeacher("#/lessons");
+  try { ed = await tapi("/api/lessons/" + lessonId); }
+  catch (e) { const m = $("bMsg"); m.hidden = false; m.replaceChildren(el("h2", { text: "Couldn't open that lesson." }), el("p", { text: e.message }), el("button", { text: "◀ Lessons", onclick: () => toTeacher("#/lessons") })); return; }
+  ed.plan ||= [];
+  if (!ed.pages || !ed.pages.length) ed.pages = [newPage()];
+  edPage = Math.max(0, Math.min(ed.pages.length - 1, (parseInt(params.get("page"), 10) || 1) - 1));
+  $("bTitle").value = ed.title || "";
+  for (const id of ["bTop", "bCanvas", "winPages", "winTools"]) $(id).hidden = false;
+  fitCanvas();
+  renderAll();
+})();
+</script>
+</body>
+</html>

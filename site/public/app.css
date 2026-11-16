@@ -225,3 +225,9 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-myans { margin-top: 10px; }
 .cl-myans-text { white-space: pre-wrap; background: #FFFFFF; border: 1px solid var(--aero-line); border-radius: 6px; padding: 8px 12px; font-size: 20px; line-height: 1.45; }
 #askOpts { margin-bottom: 10px; }
+
+/* a picture that fills the student's whole page area; the whole picture is always shown */
+.cl-figure.size-full { height: calc(100vh - 210px); min-height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0b1a14; border-radius: var(--aero-radius-sm); padding: 6px; box-sizing: border-box; }
+.cl-figure.size-full img { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; border: 0; border-radius: 0; }
+.cl-figure.size-full figcaption { color: #FFFFFF; margin: 6px 0 0; }
+.cl-figure.size-full:fullscreen { height: 100vh; }
