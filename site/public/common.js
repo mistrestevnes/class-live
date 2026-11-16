@@ -340,10 +340,12 @@ function blockInner(b, opts = {}) {
   }
   if (b.type === "sim") {
     const ok = /^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "");
-    if (opts.edit && opts.edit.simPreview && ok) return [el("div", { class: "cl-sim aero-stage" }, el("iframe", { src: b.url, title: "Simulation", allow: "autoplay", tabindex: "-1" }))];
+    if (opts.edit && opts.edit.simPreview && ok) { const f = el("iframe", { src: b.url, title: "Simulation", allow: "autoplay", tabindex: "-1" }); f._clBlock = b; return [el("div", { class: "cl-sim aero-stage" }, f)]; }
     if (opts.edit) return ph("Sim", ok ? (opts.edit.simName ? opts.edit.simName(b.url) : b.url) : "Choose a sim in the window on the right");
     if (!ok) return null;
-    return [el("div", { class: "cl-sim aero-stage" }, el("iframe", { src: b.url, title: "Simulation", allow: "fullscreen; autoplay", allowfullscreen: true, loading: "lazy" }))];
+    const f = el("iframe", { src: b.url, title: "Simulation", allow: "fullscreen; autoplay", allowfullscreen: true, loading: "lazy" });
+    f._clBlock = b;
+    return [el("div", { class: "cl-sim aero-stage" }, f)];
   }
   if (b.type === "video") {
     const ok = /^[a-z0-9]{6,24}$/.test(b.videoId || "");
@@ -365,6 +367,27 @@ function stateOfPage(page, wanted) { const st = pageStates(page); return st.some
 function blockShowsIn(b, sid) { return !Array.isArray(b.states) || !b.states.length || b.states.includes(sid); }
 function blockLockedIn(b, sid) { return Array.isArray(b.lock) && b.lock.includes(sid); }
 const stateAttrs = (b) => ({ "data-bs": Array.isArray(b.states) ? b.states.join(",") : "", "data-lk": Array.isArray(b.lock) ? b.lock.join(",") : "" });
+// Tells each sim on the page which state the page is in: {classlive:"state", state:"closeup"} when the sim has
+// a setting for this state (b.simStates[stateId]), otherwise {classlive:"state", n: position from 1}.
+// Sent when the state changes, every time the sim finishes loading, and when the sim asks with {classlive:"getState"}.
+function simStateMsg(page, b, sid) {
+  const word = b && b.simStates && String(b.simStates[sid] || "").trim();
+  if (word) return { classlive: "state", state: word };
+  return { classlive: "state", n: Math.max(1, pageStates(page).findIndex((x) => x.id === sid) + 1) };
+}
+function postSimState(f) { try { f.contentWindow.postMessage(f._clMsg, "*"); f._clSent = JSON.stringify(f._clMsg); } catch {} }
+function syncSimStates(root, page, sid) {
+  for (const f of root.querySelectorAll(".cl-sim iframe")) {
+    if (!f._clBlock) continue;
+    f._clMsg = simStateMsg(page, f._clBlock, sid);
+    if (!f._clHooked) { f._clHooked = true; f.addEventListener("load", () => { f._clLoaded = true; postSimState(f); }); }
+    if (f._clLoaded && f._clSent !== JSON.stringify(f._clMsg)) postSimState(f);
+  }
+}
+window.addEventListener("message", (e) => {
+  if (!e.data || e.data.classlive !== "getState") return;
+  for (const f of document.querySelectorAll(".cl-sim iframe")) if (f.contentWindow === e.source && f._clMsg) postSimState(f);
+});
 // shows the blocks of the chosen state and locks the sims, right in the page (nothing reloads)
 function applyStates(root, sid) {
   for (const n of root.querySelectorAll(".cl-cblock")) {
@@ -439,6 +462,7 @@ function mountPage(container, page, opts = {}, decoratePoll) {
     container._ro = fitCanvasBox(fit, container);
   }
   applyStates(container, stateOfPage(page, opts.stateId));
+  syncSimStates(container, page, stateOfPage(page, opts.stateId));
   const old = container.querySelector(".cl-poll");
   const b = (page.blocks || []).find((x) => x.type === "poll");
   if (old && b) {

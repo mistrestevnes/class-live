@@ -144,7 +144,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=28"></script>
+<script src="common.js?v=29"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -299,6 +299,7 @@ function deleteState(id) {
   for (const b of pg.blocks) {
     if (Array.isArray(b.states) && b.states.includes(id)) { b.states = b.states.filter((x) => x !== id); if (!b.states.length) b.states = [first]; }
     if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => x !== id); if (!b.lock.length) delete b.lock; }
+    if (b.simStates) { delete b.simStates[id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
   }
   if (edState === id) edState = first;
   changed(); renderAll();
@@ -359,6 +360,7 @@ function renderStage() {
   if (stageRO) stageRO.disconnect();
   $("bSheet").replaceChildren(fitBox);
   stageRO = fitCanvasBox(fitBox, $("bCanvas"));
+  syncSimStates(fitBox, page, curSid());
   requestAnimationFrame(() => { fitBox.querySelectorAll("textarea.t-in").forEach(grow); markOverflow(); });
 }
 // text that doesn't fit its box gets a red dashed outline and a warning
@@ -714,6 +716,16 @@ function renderTools() {
         cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
         status, upNew, upRep),
       simInfo(cur && cur[1]),
+      el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim in each page state" }),
+        ...pageStates(page).map((x, i) => el("label", { class: "b-staterow" },
+          el("span", { style: "display:inline;margin:0;min-width:70px", text: x.name || "State " + (i + 1) }),
+          el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", placeholder: "n = " + (i + 1), autocapitalize: "off", spellcheck: false,
+            oninput: (e) => {
+              const v = e.target.value.trim();
+              if (v) (b.simStates ||= {})[x.id] = v; else if (b.simStates) { delete b.simStates[x.id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
+              changed(); if (fitBox) syncSimStates(fitBox, page, curSid());
+            } }))),
+        el("p", { class: "t-hint", text: "Type a state name the sim understands (for example closeup). Left blank, the sim is told the state's number." })),
       el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
         el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: (e) => { b.url = e.target.value; changed(); }, onchange: () => renderStage() })),
       el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. The sim gets a window the size of its box, so a bigger box shows more of it. Uploaded sims freeze when you pause the class." }));
