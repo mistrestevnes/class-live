@@ -246,7 +246,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=30"></script>
+<script src="common.js?v=31"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1372,27 +1372,32 @@ function qBlockControls(page) {
   // students see one question at a time: the running one, otherwise the latest opened
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
   const a = live && live.ask;
-  let shownId = a && a.pageId === page.id && qs.some((q) => q.id === a.blockId) ? a.blockId : null;
+  const stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
+  let shownId = a && a.pageId === page.id && qs.some((q) => q.id === a.blockId) ? a.blockId : stg;
   if (!shownId) for (const q of qs) if (bqOf(q.id).length) shownId = q.id;
-  const key = JSON.stringify([page.id, curSid, qs.map((q) => [q.id, q.prompt, q.min, q.kind, q.options]), qs.map((q) => bqOf(q.id)), a && a.id, !!a, shownId]);
+  const key = JSON.stringify([page.id, curSid, qs.map((q) => [q.id, q.prompt, q.min, q.kind, q.options]), qs.map((q) => bqOf(q.id)), a && a.id, !!a, shownId, stg]);
   if (strip._key === key) return;
   strip._key = key;
   strip.replaceChildren(el("h3", { text: "Questions on this page · students see one at a time" }), ...qs.map((b) => {
     const ids = bqOf(b.id);
     const running = !!(a && a.blockId === b.id);
+    const staged = !running && stg === b.id;
     const hiddenNow = ids.length > 0 && b.id !== shownId;
     const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const see = () => { setTab("resp"); openSaved(ids[ids.length - 1]); };
-    const status = running ? (ids.length > 1 ? "Open now · answering again" : "Open now")
+    const status = staged ? "Showing to students · waiting for you to start the timer"
+      : running ? (ids.length > 1 ? "Open now · answering again" : "Open now")
       : hiddenNow ? "Hidden from students (a later question was opened)"
       : ids.length ? "Closed · students see their answers" + (ids.length > 1 ? " · asked " + ids.length + " times" : "")
       : "Not shown to students yet";
     return el("div", { class: "t-qrow" + (running ? " run" : "") },
       el("div", { class: "t-qtext" }, el("strong", { text: nOf(b) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
-        el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") })),
+        el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") + (b.auto ? " · appears by itself" : "") })),
+      staged ? el("button", { class: "aero-btn-primary", text: "Start timer", disabled: !!a, title: a ? "Another question is still closing" : "", onclick: open }) : null,
+      staged ? el("button", { text: "Hide", title: "Take it off students' screens without asking it", onclick: () => link.send({ t: "unstage" }) }) : null,
       running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
-      !running && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,
+      !running && !staged && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,
         title: a ? "Another question is open" : "", onclick: open }) : null,
       !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null,
       !running && ids.length ? el("button", { class: "aero-btn-primary", text: "Reopen for a redo", disabled: !!a, title: a ? "Another question is open" : "", onclick: open }) : null);

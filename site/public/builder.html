@@ -144,7 +144,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=30"></script>
+<script src="common.js?v=31"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -683,6 +683,10 @@ function renderTools() {
       el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
         el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
           oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
+      el("div", { class: "cl-field b-checks" }, el("span", { text: "When it appears" }),
+        el("label", {}, el("input", { type: "checkbox", checked: !!b.auto, onchange: (e) => { if (e.target.checked) b.auto = true; else delete b.auto; changed(); if (pvOn) pvRender(); } }),
+          el("span", { style: "display:inline;margin:0", text: "By itself when this page or state opens" })),
+        el("p", { class: "t-hint", text: "Students see it right away but can't answer until you press Start timer in the Control room." })),
       el("p", { class: "t-hint", text: "Students don't see this question until you press Open question on this page in the Control room. It appears in this box on their page, so make the box big enough to write in. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
   } else if (b.type === "image") {
     const status = el("span", { class: "aero-muted" });
@@ -840,10 +844,12 @@ function pvSetQ(i) {
   pvEnds = q ? Date.now() + (Number(q.min) || 3) * 60000 : 0;
   pvRender();
 }
+// before you open a question in the preview, one set to appear by itself shows read only, as students see it
+function pvStaged() { if (pvQ >= 0) return null; const q = pvQuestions().find((x) => x.auto); return q ? { blockId: q.id, pageId: ed.pages[edPage].id } : null; }
 function pvState() {
   const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg, questions: [] }));
   return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {}, stateOf: { [ed.pages[edPage].id]: curSid() },
-    now: Date.now(), paused: false, qpaused: false, ask: pvAsk(), show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
+    now: Date.now(), paused: false, qpaused: false, ask: pvAsk(), show: null, staged: pvStaged(), signedIn: true, me: "preview", spMine: {}, myQs: [] };
 }
 function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady) pvSend(); });

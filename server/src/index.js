@@ -47,6 +47,8 @@ async function serveVideo(request, env, rawId) {
 
 const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this long after each check
 const MAX_IMAGE_BYTES = 1_800_000;
+// does a block show in this page state? (no list: every state)
+const showsIn = (b, sid) => !Array.isArray(b.states) || !b.states.length || !sid || b.states.includes(sid);
 const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
 const ASK_GRACE = 6000; // students' answers are still saved for 5 s after time runs out
 const MAX_VIDEO_BYTES = 90_000_000; // one uploaded video (the site passes requests up to 100 MB)
@@ -698,6 +700,7 @@ export class Classroom extends DurableObject {
         const from = Math.max(0, Math.min(Math.floor(Number(msg.from)) || 0, lesson.pages.length - 1)); // the page this lesson starts on
         this.live = this.newLive(pd, lesson, from, keep);
         this.liveLesson = lesson;
+        this.autoStage(lesson.pages[from], this.stateNow(lesson.pages[from])); // the first page's question set to appear by itself
         if (!keep) { this.sq = []; this.act = {}; }
         this.sev = {};
         await this.ctx.storage.put("live", this.live);
@@ -733,13 +736,25 @@ export class Classroom extends DurableObject {
         const ids = pg && Array.isArray(pg.states) ? pg.states.map((x) => x && x.id) : [];
         if (!pg || !ids.includes(msg.to)) return;
         this.live.states = { ...(this.live.states || {}), [pg.id]: msg.to };
+        const st = this.live.staged;
+        if (st && st.pageId === pg.id) { const qb = (pg.blocks || []).find((b) => b.id === st.blockId); if (!qb || !showsIn(qb, msg.to)) this.live.staged = null; }
+        this.autoStage(pg, msg.to);
+        await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
+        break;
+      }
+      case "unstage": {
+        if (!this.live || !this.live.staged) return;
+        this.live.staged = null;
         await this.ctx.storage.put("live", this.live);
         break;
       }
       case "unlock": {
         if (!this.live) return;
         const n = Math.max(this.live.from || 0, Math.min(Number(msg.to) || 0, this.pages().length - 1));
+        const before = this.live.unlocked;
         this.live.unlocked = n;
+        if (n > before) { const pg = this.pages()[n]; this.autoStage(pg, this.stateNow(pg)); await this.setAlarms(); }
         await this.ctx.storage.put("live", this.live);
         break;
       }
@@ -758,7 +773,7 @@ export class Classroom extends DurableObject {
         this.live.item = it.id;
         const idx = it.pageId ? this.pages().findIndex((p) => p.id === it.pageId) : -1;
         if (idx >= 0) {
-          this.live.unlocked = Math.max(this.live.unlocked, idx);
+          if (idx > this.live.unlocked) { this.live.unlocked = idx; this.autoStage(this.pages()[idx], this.stateNow(this.pages()[idx])); await this.setAlarms(); }
           this.live.goto = { page: idx, n: ((this.live.goto && this.live.goto.n) || 0) + 1 };
           this.live.screenPage = idx;
         }
@@ -808,6 +823,7 @@ export class Classroom extends DurableObject {
           parts[0].options = Array.isArray(msg.options) ? msg.options.map((o) => String(o || "").trim().slice(0, 300)).filter(Boolean).slice(0, 8) : [];
           if (parts[0].options.length < 2) parts[0].options = [];
         }
+        this.live.staged = null; // a question shown and waiting for its timer has now started (or another took its place)
         if (msg.preparedId) (this.live.sent ||= {})[String(msg.preparedId).replace(/[^a-z0-9]/gi, "").slice(0, 20)] = Date.now(); // for the "asked" mark
         this.live.askSet = { setId: rid(6), parts, i: 0, allowSim: !!msg.allowSim };
         await this.startPart(0);
@@ -940,6 +956,26 @@ export class Classroom extends DurableObject {
     }
     if (msg.t.startsWith("ask")) await this.setAlarms(); // the running question's time may have changed
     this.broadcast();
+  }
+
+  // the page's current state id ("" when it has none)
+  stateNow(pg) {
+    const ids = Array.isArray(pg && pg.states) ? pg.states.map((x) => x && x.id) : [];
+    const want = (this.live.states || {})[pg && pg.id];
+    return ids.includes(want) ? want : ids[0] || "";
+  }
+  // Questions set to appear by themselves: when their page is unlocked or their state starts, the first one not yet
+  // asked shows on students' screens, read only, and waits for the teacher to start its timer. A running question ends.
+  autoStage(pg, sid) {
+    if (!pg || !this.live) return false;
+    const bq = this.live.bq || {};
+    const q = (pg.blocks || []).find((b) => b && b.type === "question" && b.auto && b.id && showsIn(b, sid) && !(bq[b.id] || []).length
+      && !(this.live.ask && this.live.ask.blockId === b.id));
+    if (!q) return false;
+    this.live.staged = { blockId: q.id, pageId: pg.id };
+    const a = this.live.ask;
+    if (a) { if (a.paused) { a.paused = false; a.pausedAt = 0; } a.endsAt = Math.min(a.endsAt, Date.now()); this.live.askSet && (this.live.askSet.parts.length = this.live.askSet.i + 1); }
+    return true;
   }
 
   async startPart(i) {
@@ -1564,7 +1600,14 @@ export class Classroom extends DurableObject {
     if (a && !a.paused && Date.now() >= a.endsAt + ASK_GRACE - 1000) {
       const set = this.live.askSet;
       if (set && set.i + 1 < set.parts.length) await this.startPart(set.i + 1);
-      else { this.live.ask = null; this.live.askSet = null; await this.ctx.storage.put("live", this.live); }
+      else {
+        this.live.ask = null; this.live.askSet = null;
+        // a question that appeared by itself: the next one set to appear by itself in the same page state comes up
+        const pg = a.blockId && this.pages().find((p) => p.id === a.pageId);
+        const qb = pg && (pg.blocks || []).find((b) => b.id === a.blockId);
+        if (qb && qb.auto && !this.live.staged) this.autoStage(pg, this.stateNow(pg));
+        await this.ctx.storage.put("live", this.live);
+      }
     }
     if (this.live && this.live.autoEndAt && Date.now() >= this.live.autoEndAt - 1000) {
       await this.teacherMessage({ t: "end" });
@@ -1786,6 +1829,7 @@ export class Classroom extends DurableObject {
       closed,
       goto: this.live.goto || null,
       stateOf: this.live.states || {},
+      staged: this.live.staged || null,
     };
   }
 
