@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 <link rel="stylesheet" href="teacher.css?v=14">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -68,7 +68,18 @@
   .t-swatches input[type=color] { width: 40px; height: 32px; padding: 0; border: 1px solid var(--aero-btn-border); background: none; }
   .t-sizerow { display: flex; align-items: center; gap: 6px; }
   .t-sizerow input { width: 70px; }
-  #pvQ button { padding: 2px 10px; }
+  #pvQ button, #pvS button { padding: 2px 10px; }
+  #pvS button[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
+  .b-states { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .b-states button { padding: 3px 10px; font-size: 12px; min-height: 0; }
+  .b-states button[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
+  .t-cb.t-off > .t-body { opacity: .28; }
+  .t-lockbadge { position: absolute; right: 0; top: 0; z-index: 5; padding: calc(4px * var(--is, 1.6)) calc(10px * var(--is, 1.6)); font: 700 calc(14px * var(--is, 1.6)) Helvetica, Arial, sans-serif; color: #FFFFFF; background: #8A5A00; pointer-events: none; }
+  .b-statelist { margin: 0 0 10px; }
+  .b-staterow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .b-staterow input[type=text] { flex: 1; min-width: 0; }
+  .b-checks label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+  .b-checks input { width: 18px; height: 18px; }
   #pvQ button[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
   #bTools .t-small[aria-pressed="true"] { background: var(--aero-emerald, #1f6b4f); color: #fff; }
   .t-cb-question .cl-inline { width: auto; max-height: none; margin: 0; height: 100%; box-sizing: border-box; padding: 20px 26px; border: 2px solid var(--aero-emerald); background: var(--aero-well); box-shadow: none; font-size: 30px; display: flex; flex-direction: column; overflow: auto; }
@@ -83,6 +94,7 @@
   <button id="bBack">◀ Lessons</button>
   <input type="text" id="bTitle" class="t-title-input" aria-label="Lesson title">
   <span class="aero-chip" id="saveState">Saved</span>
+  <span id="bStates" class="b-states"></span>
   <button id="bPlan" title="Plan items, questions and notes for this lesson">Plan &amp; questions</button>
   <button class="aero-btn-primary" id="bPreviewBtn">Preview</button>
 </header>
@@ -102,7 +114,8 @@
       <button class="t-small" id="pgDup">Copy</button>
       <button class="t-small" id="pgDel">Delete</button>
     </div>
-    <label class="cl-field" style="margin:0"><span>Page name (only you see this)</span><input type="text" id="pgName"></label>
+    <label class="cl-field"><span>Page name (only you see this)</span><input type="text" id="pgName"></label>
+    <div class="b-statelist" id="bStateList"></div>
   </div>
 </aside>
 
@@ -119,6 +132,7 @@
     <button id="pvPrev">◀ Page</button>
     <button id="pvNext">Page ▶</button>
     <span id="pvLabel" style="font-weight:700"></span>
+    <span id="pvS" class="t-row" style="gap:6px"></span>
     <span id="pvQ" class="t-row" style="gap:6px"></span>
     <span class="cl-grow"></span>
     <span class="t-hint">The real student page at Chromebook size. Pick a question to see it as students do once you open it.</span>
@@ -126,7 +140,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=23"></script>
+<script src="common.js?v=24"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -262,6 +276,56 @@ function movePage(d) {
   edPage = j; changed(); renderAll();
 }
 
+// ---------------------------------------------------------------- page states
+let edState = "";
+const curSid = () => stateOfPage(ed.pages[edPage], edState);
+function setState(id) { edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
+function addState() {
+  const pg = ed.pages[edPage];
+  if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
+  const st = { id: newId(), name: "State " + (pg.states.length + 1) };
+  pg.states.push(st); edState = st.id; changed(); renderAll();
+}
+function deleteState(id) {
+  const pg = ed.pages[edPage];
+  if (pg.states.length < 2) return;
+  const i = pg.states.findIndex((x) => x.id === id);
+  pg.states.splice(i, 1);
+  const first = pg.states[0].id;
+  for (const b of pg.blocks) {
+    if (Array.isArray(b.states) && b.states.includes(id)) { b.states = b.states.filter((x) => x !== id); if (!b.states.length) b.states = [first]; }
+    if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => x !== id); if (!b.lock.length) delete b.lock; }
+  }
+  if (edState === id) edState = first;
+  changed(); renderAll();
+}
+function renderStates() {
+  const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
+  $("bStates").replaceChildren(
+    el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
+    ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
+    el("button", { text: "+ State", title: "Add another state to this page", onclick: addState }),
+    sts.length > 1 ? el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { $("winPages").classList.remove("min"); } }) : null);
+  const list = $("bStateList");
+  if (sts.length < 2) { list.replaceChildren(); return; }
+  list.replaceChildren(el("h3", { text: "States of this page" }),
+    ...sts.map((x, i) => el("div", { class: "b-staterow" },
+      el("input", { type: "text", value: x.name || "", placeholder: "State " + (i + 1), "aria-label": "Name of state " + (i + 1),
+        oninput: (e) => { x.name = e.target.value; changed(); const chips = $("bStates").querySelectorAll("button[aria-pressed]"); if (chips[i]) chips[i].textContent = x.name || "State " + (i + 1); } }),
+      el("button", { class: "t-small", text: "✕", "aria-label": "Delete this state", disabled: sts.length < 2, onclick: async () => { if (await askYesNo("Delete the state \"" + (x.name || "State " + (i + 1)) + "\"? Things that only showed in it move to the first state.", "Delete")) deleteState(x.id); } }))));
+}
+// "Shows in" / "Locked in": one checkbox per state
+function stateChecks(label, list, onSet, atLeastOne) {
+  const sts = pageStates(ed.pages[edPage]);
+  const on = (id) => list.includes(id);
+  return el("div", { class: "cl-field b-checks" }, el("span", { text: label }),
+    ...sts.map((x, i) => el("label", {}, el("input", { type: "checkbox", checked: on(x.id), onchange: (e) => {
+      let next = sts.map((y) => y.id).filter((id) => (id === x.id ? e.target.checked : on(id)));
+      if (atLeastOne && !next.length) { e.target.checked = true; return; }
+      onSet(next); changed(); renderStage(); renderTools();
+    } }), el("span", { style: "display:inline;margin:0", text: x.name || "State " + (i + 1) }))));
+}
+
 // ---------------------------------------------------------------- the page: a 16:9 canvas with blocks you drag, resize and type into
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const MIN_W = 90, MIN_H = 60;
@@ -275,7 +339,7 @@ const videoName = (id) => { const x = videosCache && (videosCache.videos || []).
 const EDIT = { simName, videoName };
 const hex7 = (c) => { c = safeColor(c) || "#000000"; return c.length === 4 ? "#" + c.slice(1).replace(/./g, "$&$&") : c; };
 
-function renderAll() { renderPages(); renderStage(); renderTools(); history.replaceState(null, "", "?id=" + ed.id + "&page=" + (edPage + 1)); }
+function renderAll() { renderPages(); renderStates(); renderStage(); renderTools(); history.replaceState(null, "", "?id=" + ed.id + "&page=" + (edPage + 1)); }
 
 function renderStage() {
   const page = ed.pages[edPage];
@@ -303,8 +367,10 @@ function markOverflow() {
 // ---- one block on the page
 function editBlock(page, b, i) {
   const sel = b === edSel;
-  const wrap = el("div", { class: "cl-cblock t-cb t-cb-" + b.type + (sel ? " sel" : ""), "data-i": i, style: blockBox(b) });
+  const sid = curSid();
+  const wrap = el("div", { class: "cl-cblock t-cb t-cb-" + b.type + (sel ? " sel" : "") + (blockShowsIn(b, sid) ? "" : " t-off"), "data-i": i, style: blockBox(b) });
   wrap.append(el("div", { class: "t-body" }, ...blockBody(b, sel)));
+  if (blockLockedIn(b, sid)) wrap.append(el("div", { class: "t-lockbadge", text: "Locked in this state" }));
   if (sel) {
     wrap.append(el("div", { class: "t-bar" },
       el("button", { class: "t-mv", text: "⋮⋮ Move", "aria-label": "Drag to move" }),
@@ -534,6 +600,11 @@ function renderTools() {
   const parts = [el("div", { class: "t-block-head" },
     el("button", { class: "t-small", text: "Remove", onclick: () => removeBlock(page, b) }),
     el("button", { class: "t-small aero-btn-primary", text: "Done", onclick: () => { edSel = null; renderStage(); renderTools(); } }))];
+  if (pageStates(page).length > 1) {
+    const all = pageStates(page).map((x) => x.id);
+    parts.push(stateChecks("Shows in", Array.isArray(b.states) && b.states.length ? b.states : all, (next) => { if (next.length === all.length) delete b.states; else b.states = next; }, true));
+    if (b.type === "sim") parts.push(stateChecks("Locked in (students can see it but not use it)", Array.isArray(b.lock) ? b.lock : [], (next) => { if (next.length) b.lock = next; else delete b.lock; }, false));
+  }
   const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
   if (b.type === "heading" || b.type === "text") {
     const size = Math.max(MIN_FONT, b.size || (b.type === "heading" ? HEAD_SIZE : TEXT_SIZE));
@@ -712,7 +783,8 @@ async function uploadSim(file, id) {
 
 // ---------------------------------------------------------------- preview: the real student page in a Chromebook-sized frame
 let pvFrame = null, pvOn = false, pvQ = -1, pvEnds = 0, pvSeq = 0;
-function pvQuestions() { return (ed.pages[edPage].blocks || []).filter((x) => x.type === "question"); }
+function pvQuestions() { return (ed.pages[edPage].blocks || []).filter((x) => x.type === "question" && blockShowsIn(x, curSid())); }
+const pvNum = (q) => ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(q) + 1;
 function pvAsk() {
   const q = pvQuestions()[pvQ];
   if (!q) return null;
@@ -726,7 +798,7 @@ function pvSetQ(i) {
 }
 function pvState() {
   const pages = ed.pages.slice(0, edPage + 1).map((pg) => ({ ...pg, questions: [] }));
-  return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {},
+  return { live: true, sessionId: "pv" + edPage, title: ed.title, unlocked: edPage, total: ed.pages.length, pages, myVotes: {}, closed: {}, stateOf: { [ed.pages[edPage].id]: curSid() },
     now: Date.now(), paused: false, qpaused: false, ask: pvAsk(), show: null, signedIn: true, me: "preview", spMine: {}, myQs: [] };
 }
 function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
@@ -743,8 +815,13 @@ function pvRender() {
   $("pvQ").replaceChildren(...(qs.length ? [
     el("span", { text: "Students see:", style: "font-weight:700" }),
     el("button", { "aria-pressed": String(pvQ === -1), text: "No question yet", onclick: () => pvSetQ(-1) }),
-    ...qs.map((q, i) => el("button", { "aria-pressed": String(pvQ === i), text: "Question " + (i + 1), title: (q.prompt || "").slice(0, 80), onclick: () => pvSetQ(i) })),
+    ...qs.map((q, i) => el("button", { "aria-pressed": String(pvQ === i), text: "Question " + pvNum(q), title: (q.prompt || "").slice(0, 80), onclick: () => pvSetQ(i) })),
     el("button", { text: "Next question ▶", disabled: pvQ >= qs.length - 1, onclick: () => pvSetQ(pvQ + 1) })] : []));
+  const sts = pageStates(ed.pages[edPage]), cur = curSid();
+  $("pvS").replaceChildren(...(sts.length > 1 ? [
+    el("span", { text: "State:", style: "font-weight:700" }),
+    ...sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => { edState = x.id; pvQ = -1; pvSeq++; pvRender(); } })),
+    el("button", { text: "Next state ▶", disabled: sts.findIndex((x) => x.id === cur) >= sts.length - 1, onclick: () => { edState = sts[sts.findIndex((x) => x.id === cur) + 1].id; pvQ = -1; pvSeq++; pvRender(); } })] : []));
   $("pvLabel").textContent = "Page " + (edPage + 1) + " of " + ed.pages.length;
   $("pvPrev").disabled = edPage === 0;
   $("pvNext").disabled = edPage >= ed.pages.length - 1;

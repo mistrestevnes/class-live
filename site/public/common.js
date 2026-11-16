@@ -357,15 +357,33 @@ function blockInner(b, opts = {}) {
   if (b.type === "question") return opts.edit ? [questionCard(b, opts.qn)] : null;
   return null;
 }
+// ---- page states: a page can have several, the teacher moves the class from one to the next.
+// page.states = [{id, name}] (none: one state). A block's states (list of ids) says where it shows (none: all of them);
+// a sim's lock (list of ids) says where it is locked.
+function pageStates(page) { return Array.isArray(page.states) && page.states.length ? page.states : [{ id: "s1", name: "State 1" }]; }
+function stateOfPage(page, wanted) { const st = pageStates(page); return st.some((x) => x.id === wanted) ? wanted : st[0].id; }
+function blockShowsIn(b, sid) { return !Array.isArray(b.states) || !b.states.length || b.states.includes(sid); }
+function blockLockedIn(b, sid) { return Array.isArray(b.lock) && b.lock.includes(sid); }
+const stateAttrs = (b) => ({ "data-bs": Array.isArray(b.states) ? b.states.join(",") : "", "data-lk": Array.isArray(b.lock) ? b.lock.join(",") : "" });
+// shows the blocks of the chosen state and locks the sims, right in the page (nothing reloads)
+function applyStates(root, sid) {
+  for (const n of root.querySelectorAll(".cl-cblock")) {
+    const bs = n.dataset.bs, lk = n.dataset.lk;
+    n.classList.toggle("cl-nostate", !!bs && !bs.split(",").includes(sid));
+    const locked = !!lk && lk.split(",").includes(sid);
+    n.classList.toggle("cl-locked", locked);
+    if (locked) n.setAttribute("inert", ""); else n.removeAttribute("inert");
+  }
+}
 const BLOCK_CLASS = { heading: "cl-ctext", text: "cl-ctext", image: "cl-cimg", sim: "cl-csim", video: "cl-cvid", poll: "cl-cpoll", question: "cl-cq" };
 
 function renderBlock(b, opts = {}) {
   const box = blockBox(b);
   // a question block stays hidden until the teacher opens it; the question then appears right in this box
-  if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock", "data-id": b.id || "", hidden: true, style: box });
+  if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock", "data-id": b.id || "", ...stateAttrs(b), hidden: true, style: box });
   const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
-  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" : ""), style: box }, inner);
+  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" : ""), ...stateAttrs(b), style: box }, inner);
 }
 
 // opts: { myChoice, closed, onVote(choice), results: {counts,total}, preview }
@@ -420,6 +438,7 @@ function mountPage(container, page, opts = {}, decoratePoll) {
     if (container._ro) container._ro.disconnect();
     container._ro = fitCanvasBox(fit, container);
   }
+  applyStates(container, stateOfPage(page, opts.stateId));
   const old = container.querySelector(".cl-poll");
   const b = (page.blocks || []).find((x) => x.type === "poll");
   if (old && b) {

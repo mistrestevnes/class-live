@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -111,7 +111,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=23"></script>
+<script src="common.js?v=24"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -267,6 +267,7 @@ function render() {
   const opts = {
     myChoice: mine,
     closed,
+    stateId: (state.stateOf || {})[pg.id],
     onVote: (choice) => {
       state.myVotes[pg.id] = choice; // show the choice right away
       render();
@@ -284,7 +285,7 @@ function render() {
   // fullscreen: the page's sim, or else its first image
   const fsTarget = box.querySelector(".cl-sim") || box.querySelector(".cl-figure");
   const fsGo = fsTarget && (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen);
-  $("fs").hidden = !fsGo;
+  $("fs").hidden = !fsGo || !!(fsTarget && fsTarget.closest(".cl-locked")); // no fullscreen button while the sim is locked
   $("fs").onclick = () => { try { fsGo.call(fsTarget); } catch {} };
 
   $("pageNum").textContent = "Page " + (page + 1);

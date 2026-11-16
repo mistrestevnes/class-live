@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 <link rel="stylesheet" href="teacher.css?v=14">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -231,6 +231,7 @@
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <div class="aero-bar" id="lvPollBar" hidden></div>
+      <div class="aero-bar" id="lvStateBar" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
@@ -245,7 +246,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=23"></script>
+<script src="common.js?v=24"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1080,7 +1081,20 @@ function renderLive() {
       el("button", { class: "t-small", text: "Clear votes", disabled: !tally.total,
         onclick: () => { if (confirm("Clear the votes on this page so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id }); } }));
   }
-  mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null });
+  // page states: move the class from one state of this page to the next
+  const sts = pageStates(page), curSid = stateOfPage(page, (live.states || {})[page.id]), curIx = sts.findIndex((x) => x.id === curSid);
+  const sbar = $("lvStateBar");
+  sbar.hidden = sts.length < 2 || lvSelected > live.unlocked;
+  if (!sbar.hidden) {
+    const goState = (id) => link.send({ t: "state", pageId: page.id, to: id });
+    sbar.replaceChildren(
+      el("span", { class: "aero-muted", text: "Page state:" }),
+      ...sts.map((x, i) => el("button", { class: "t-small" + (i === curIx ? " aero-btn-primary" : ""), text: (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", onclick: () => goState(x.id) })),
+      el("span", { class: "cl-grow" }),
+      el("button", { text: "◀ Previous state", disabled: curIx <= 0, onclick: () => goState(sts[curIx - 1].id) }),
+      el("button", { class: "aero-btn-primary", text: "Next state ▶", disabled: curIx >= sts.length - 1, onclick: () => goState(sts[curIx + 1].id) }));
+  }
+  mountPage($("lvPage"), page, { preview: true, results: poll && revealed ? tally : null, stateId: curSid });
   renderSimProg(page);
   qBlockControls(page);
 
@@ -1347,7 +1361,11 @@ function qBlockControls(page) {
   const live = tstate && tstate.live;
   let strip = $("lvQctl");
   if (!strip) { strip = el("div", { id: "lvQctl", class: "aero-panel t-qstrip" }); $("lvPage").after(strip); }
-  const qs = (page.blocks || []).filter((x) => x.type === "question");
+  // questions follow states: only the ones that show in this page's current state (or are already running)
+  const curSid = stateOfPage(page, live && live.states && live.states[page.id]);
+  const allQs = (page.blocks || []).filter((x) => x.type === "question");
+  const nOf = (q) => allQs.indexOf(q) + 1;
+  const qs = allQs.filter((x) => blockShowsIn(x, curSid) || (live && live.ask && live.ask.blockId === x.id));
   if (!qs.length) { strip._key = ""; strip.replaceChildren(); strip.hidden = true; return; }
   strip.hidden = false;
   // students see one question at a time: the running one, otherwise the latest opened
@@ -1355,10 +1373,10 @@ function qBlockControls(page) {
   const a = live && live.ask;
   let shownId = a && a.pageId === page.id && qs.some((q) => q.id === a.blockId) ? a.blockId : null;
   if (!shownId) for (const q of qs) if (bqOf(q.id).length) shownId = q.id;
-  const key = JSON.stringify([page.id, qs.map((q) => [q.id, q.prompt, q.min, q.kind, q.options]), qs.map((q) => bqOf(q.id)), a && a.id, !!a, shownId]);
+  const key = JSON.stringify([page.id, curSid, qs.map((q) => [q.id, q.prompt, q.min, q.kind, q.options]), qs.map((q) => bqOf(q.id)), a && a.id, !!a, shownId]);
   if (strip._key === key) return;
   strip._key = key;
-  strip.replaceChildren(el("h3", { text: "Questions on this page · students see one at a time" }), ...qs.map((b, n) => {
+  strip.replaceChildren(el("h3", { text: "Questions on this page · students see one at a time" }), ...qs.map((b) => {
     const ids = bqOf(b.id);
     const running = !!(a && a.blockId === b.id);
     const hiddenNow = ids.length > 0 && b.id !== shownId;
@@ -1370,7 +1388,7 @@ function qBlockControls(page) {
       : ids.length ? "Closed · students see their answers" + (ids.length > 1 ? " · asked " + ids.length + " times" : "")
       : "Not shown to students yet";
     return el("div", { class: "t-qrow" + (running ? " run" : "") },
-      el("div", { class: "t-qtext" }, el("strong", { text: (n + 1) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
+      el("div", { class: "t-qtext" }, el("strong", { text: nOf(b) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
         el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") })),
       running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
       !running && !ids.length ? el("button", { class: "aero-btn-primary", text: "Open question", disabled: !(b.prompt || "").trim() || !!a,

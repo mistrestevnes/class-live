@@ -726,6 +726,16 @@ export class Classroom extends DurableObject {
         await this.setAlarms();
         break;
       }
+      // the teacher moves a page to another of its states (text appears or goes, a sim locks or unlocks)
+      case "state": {
+        if (!this.live) return;
+        const pg = this.pages().find((p) => p.id === msg.pageId);
+        const ids = pg && Array.isArray(pg.states) ? pg.states.map((x) => x && x.id) : [];
+        if (!pg || !ids.includes(msg.to)) return;
+        this.live.states = { ...(this.live.states || {}), [pg.id]: msg.to };
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
       case "unlock": {
         if (!this.live) return;
         const n = Math.max(this.live.from || 0, Math.min(Number(msg.to) || 0, this.pages().length - 1));
@@ -1240,7 +1250,7 @@ export class Classroom extends DurableObject {
       for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
       results = { counts, total: Object.keys(v).length };
     }
-    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results };
+    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results, stateId: (this.live.states || {})[pg && pg.id] || "" };
   }
 
   async studentMessage(sid, msg, stu) {
@@ -1766,6 +1776,7 @@ export class Classroom extends DurableObject {
       myVotes,
       closed,
       goto: this.live.goto || null,
+      stateOf: this.live.states || {},
     };
   }
 
