@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=42">
+<link rel="stylesheet" href="app.css?v=44">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -79,6 +79,7 @@
   .t-rich b { font-weight: 700; } .t-rich i { font-style: italic; font-weight: inherit; } .t-rich b i { font-weight: 700; }
   .t-rich.t-empty::before { content: attr(data-ph); opacity: .45; pointer-events: none; }
   .t-poll, .t-qedit { font-size: 26px; }
+  html.teacher .t-qedit .t-in.cl-ask-prompt, html.teacher .t-qedit .cl-ask-prompt, html.teacher .t-qedit .cl-option { font-size: var(--qfs, 22px); }
   .t-cb.over > .t-body { outline: calc(3px * var(--is, 1.6)) dashed #C0392B; outline-offset: calc(-3px * var(--is, 1.6)); }
   .t-cb.over::after { content: "Text is cut off. Make the box bigger or the text smaller."; position: absolute; left: 0; top: 100%; margin-top: calc(6px * var(--is, 1.6)); z-index: 6; font: 700 calc(13px * var(--is, 1.6)) Helvetica, Arial, sans-serif; color: #FFFFFF; background: #C0392B; padding: calc(3px * var(--is, 1.6)) calc(8px * var(--is, 1.6)); border-radius: calc(4px * var(--is, 1.6)); white-space: nowrap; }
   .t-bar { position: absolute; left: 0; bottom: 100%; margin-bottom: calc(6px * var(--is, 1.6)); display: flex; gap: calc(6px * var(--is, 1.6)); z-index: 6; }
@@ -172,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=37"></script>
+<script src="common.js?v=38"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -334,7 +335,7 @@ function addState() {
   const pg = ed.pages[edPage];
   if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
   const from = curSid();
-  const st = { id: newId(), name: "State " + (pg.states.length + 1) };
+  const st = { id: newId(), name: "" };
   // the new state starts with copies of the elements of the state you were on, so changing one does not change the other
   const old = pg.states.map((x) => x.id);
   const copies = [];
@@ -349,7 +350,11 @@ function addState() {
     copies.push(c);
   }
   pg.blocks.push(...copies);
-  pg.states.push(st); edState = st.id; changed(); renderAll();
+  // the new state goes right after the one you were on; the ones after it move up one
+  pg.states.splice(Math.max(0, pg.states.findIndex((x) => x.id === from)) + 1, 0, st);
+  // states that still have their automatic name are renumbered to their new place; names you typed stay
+  pg.states.forEach((x, i) => { if (!x.name || /^State \d+$/.test(x.name)) x.name = "State " + (i + 1); });
+  edState = st.id; changed(); renderAll();
 }
 function deleteState(id) {
   const pg = ed.pages[edPage];

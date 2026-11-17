@@ -324,7 +324,7 @@ function textStyle(b) {
 }
 
 // question text formatting: size (px on the 1366-wide canvas), bold, italic
-const QSIZE = 27;
+const QSIZE = 22;
 function qFormat(b) { return { size: Math.max(MIN_FONT, Number(b && b.qsize) || QSIZE), bold: !!(b && b.qbold), italic: !!(b && b.qital) }; }
 function applyQFormat(box, b) {
   const f = qFormat(b);

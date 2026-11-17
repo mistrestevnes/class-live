@@ -277,8 +277,8 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 
 /* question text formatting chosen in the builder (size, bold, italic) */
 .cl-inline .cl-ask-prompt, .cl-inline .cl-option { font-size: var(--qfs, inherit); }
-.cl-canvas .cl-qblock .cl-inline .cl-ask-prompt { font-size: var(--qfs, 27px); }
-.cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 26px); }
+.cl-canvas .cl-qblock .cl-inline .cl-ask-prompt { font-size: var(--qfs, 22px); }
+.cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 22px); }
 .cl-inline.qb .cl-ask-prompt, .cl-inline.qb .cl-option { font-weight: 700; }
 .cl-inline.qi .cl-ask-prompt, .cl-inline.qi .cl-option { font-style: italic; }
 .cl-canvas .cl-qblock > .cl-inline textarea { flex: 1 1 auto; min-height: 77px; height: auto; resize: none; font-size: 26px; }
@@ -338,3 +338,6 @@ body.cl-paged #nav button, body.cl-paged #fs, body.cl-paged .cl-qbtn { min-heigh
 body.cl-paged #fs { position: fixed; left: 24px; bottom: 14px; z-index: 60; }
 body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); z-index: 60; }
 .cl-canvas .cl-qlow .cl-qcard { padding-bottom: 60px !important; }
+
+/* question text is the same size everywhere it shows: the size set in the builder, 22 when none is set */
+.cl-canvas .cl-qcard .cl-ask-prompt, .cl-canvas .cl-qcard .cl-option, .cl-canvas .cl-qblock .cl-inline .cl-ask-prompt, .cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 22px); }
