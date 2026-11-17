@@ -1552,7 +1552,7 @@ function sideQuestions(page) {
   const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
   const qs = allQs.filter((x) => blockShowsIn(x, curSid) || (a && a.blockId === x.id && a.pageId === page.id));
-  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
+  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, !!(a && a.paused), stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
   if (box._key === key) return;
   box._key = key;
   const askBox = $("lvAsk");
@@ -1565,8 +1565,8 @@ function sideQuestions(page) {
     const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
     if (a && a.blockId === b.id && a.pageId === page.id) {
       // open: the bar turns green, and the running controls sit beneath it
-      return el("div", { class: "t-qprev-btns t-qrun", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
-        el("button", { class: "t-greenbtn", text: "Question open" + many, disabled: true }), askBox);
+      return el("div", { class: "t-qprev-btns t-qrun", "data-bid": b.id, "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300) },
+        el("button", { class: "t-greenbtn", text: (a.paused ? "Question paused" : "Question open") + many, disabled: true, style: a.paused ? "background:#B7791F;border-color:#8A5A12" : "" }), askBox);
     }
     return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
       stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
@@ -1622,7 +1622,15 @@ function lvFitView() {
     const pr = ps.length ? ps[ps.length - 1].getBoundingClientRect() : null;
     const ta = slot && slot.querySelector("textarea, .cl-ask-opts, .cl-opts");
     const ar = ta ? ta.getBoundingClientRect() : pr;
-    if (!pr || !pr.width) { g.style.visibility = "hidden"; continue; }
+    if (!pr || !pr.width) {
+      // the student page hides the question while it is paused: the running controls stay at the question's own place so Resume is always reachable
+      if (!g.classList.contains("t-qrun")) { g.style.visibility = "hidden"; continue; }
+      g.style.visibility = ""; g.style.position = "absolute"; g.style.margin = "0";
+      g.style.left = (h.offsetLeft + (Number(g.dataset.bx) || 0) * s) + "px";
+      g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + 60) * s) + "px";
+      g.style.width = Math.max(150, (Number(g.dataset.bw) || 300) * s) + "px";
+      continue;
+    }
     g.style.visibility = "";
     g.style.position = "absolute"; g.style.margin = "0";
     g.style.left = (h.offsetLeft + ar.left * s) + "px";
