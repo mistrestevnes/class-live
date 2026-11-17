@@ -432,7 +432,8 @@ function blockInner(b, opts = {}) {
 // page.states = [{id, name}] (none: one state). A block's states (list of ids) says where it shows (none: all of them);
 // a sim's lock (list of ids) says where it is locked.
 function pageStates(page) { return Array.isArray(page.states) && page.states.length ? page.states : [{ id: "s1", name: "State 1" }]; }
-function stateOfPage(page, wanted) { const st = pageStates(page); return st.some((x) => x.id === wanted) ? wanted : st[0].id; }
+// a state the teacher greyed out (off) is never shown to students: they get the first state that is on
+function stateOfPage(page, wanted) { const all = pageStates(page), on = all.filter((x) => !x.off), st = on.length ? on : all; return st.some((x) => x.id === wanted) ? wanted : st[0].id; }
 function blockShowsIn(b, sid) { return !Array.isArray(b.states) || !b.states.length || b.states.includes(sid); }
 function blockLockedIn(b, sid) { return Array.isArray(b.lock) && b.lock.includes(sid); }
 const stateAttrs = (b) => ({ "data-bs": Array.isArray(b.states) ? b.states.join(",") : "", "data-lk": Array.isArray(b.lock) ? b.lock.join(",") : "" });

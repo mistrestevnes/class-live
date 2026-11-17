@@ -30,6 +30,7 @@
       <section class="aero-panel cl-message" id="waiting" hidden>
         <h1>Waiting for your teacher</h1>
         <p class="aero-muted">Keep this page open. It will change on its own when class starts.</p>
+        <button id="waitOut">Sign out</button>
         <div class="cl-trivia" id="trivia" hidden>
           <div class="cl-trivia-label">While you wait</div>
           <div id="trQ"></div>
@@ -895,6 +896,11 @@ setInterval(actCheck, 3000);
 
 // ---------- sign in: the student's code alone
 function signOut() { store("cl_stoken", null); location.reload(); }
+$("waitOut").onclick = async () => {
+  $("waitOut").disabled = true;
+  try { await api("/api/slogout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: stoken }) }); } catch {}
+  signOut();
+};
 $("login").onsubmit = async (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=34">
+<link rel="stylesheet" href="teacher.css?v=36">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1806,15 +1806,18 @@ function navGo(i, sid, isState) {
   const live = tstate && tstate.live, lesson = tstate && tstate.lesson;
   if (!live || !lesson) return;
   lvSelected = i;
+  const stObj = pageStates(lesson.pages[i]).find((x) => x.id === sid);
+  if (isState && stObj && stObj.off) return;
   if (isState && i <= live.unlocked && !live.ask) link.send({ t: "state", pageId: lesson.pages[i].id, to: sid });
   renderLive();
 }
 function renderNav(lesson, live) {
   const box = $("lvNav");
-  const key = JSON.stringify([live.lessonId, live.sessionId, lesson.pages.map((p) => [p.id, pageStates(p).map((x) => [x.id, x.name])])]);
+  const key = JSON.stringify([live.lessonId, live.sessionId, lesson.pages.map((p) => [p.id, pageStates(p).map((x) => [x.id, x.name, !!x.off])])]);
   if (key !== navKey) {
     navKey = key;
-    const mk = (pg, i, label, sid, isState) => {
+    const mk = (pg, i, label, st, isState) => {
+      const sid = st.id;
       const th = el("div", { class: "t-spage-p", inert: "" });
       const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
         el("span", { class: "t-spage-l", text: label }), th,
@@ -1822,11 +1825,40 @@ function renderNav(lesson, live) {
         ...(!isState && pageStates(pg).length > 1 ? [] : (pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
           .map((b) => el("span", { class: "t-nvq" }, formatText(b.prompt)))));
       requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
-      return btn;
+      if (!isState) return btn;
+      // states: drag to reorder within the page; the trash can greys a state out (students never see it), click again to bring it back
+      const wrap = el("div", { class: "t-nvwrap" + (st.off ? " off" : ""), draggable: "true", "data-page": i, "data-state": sid },
+        btn,
+        el("button", { class: "t-nvtrash", title: st.off ? "Show this state to students again" : "Grey out: students never see this state",
+          "aria-label": st.off ? "Bring back " + label : "Grey out " + label, "aria-pressed": st.off ? "true" : "false",
+          onclick: (e) => { e.stopPropagation(); toggleStateOff(pg.id, sid); } },
+          el("span", { "aria-hidden": "true", text: "🗑" })));
+      wrap.addEventListener("dragstart", (e) => {
+        if (tstate && tstate.live && tstate.live.ask) { e.preventDefault(); return; }
+        navDrag = { page: i, sid }; wrap.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", sid); } catch {}
+      });
+      wrap.addEventListener("dragend", () => { navDrag = null; wrap.classList.remove("dragging"); for (const w of box.querySelectorAll(".drop-before, .drop-after")) w.classList.remove("drop-before", "drop-after"); });
+      wrap.addEventListener("dragover", (e) => {
+        if (!navDrag || navDrag.page !== i || navDrag.sid === sid) return;
+        e.preventDefault();
+        const r = wrap.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+        wrap.classList.toggle("drop-after", after); wrap.classList.toggle("drop-before", !after);
+      });
+      wrap.addEventListener("dragleave", () => wrap.classList.remove("drop-before", "drop-after"));
+      wrap.addEventListener("drop", (e) => {
+        if (!navDrag || navDrag.page !== i || navDrag.sid === sid) return;
+        e.preventDefault();
+        const after = wrap.classList.contains("drop-after");
+        wrap.classList.remove("drop-before", "drop-after");
+        moveState(pg.id, navDrag.sid, sid, after);
+      });
+      return wrap;
     };
     box.replaceChildren(...lesson.pages.flatMap((pg, i) => {
-      const sts = pageStates(pg), out = [mk(pg, i, "Page " + (i + 1) + (pg.name ? " · " + pg.name : ""), sts[0].id, false)];
-      if (sts.length > 1) sts.forEach((st, k) => out.push(mk(pg, i, st.name || "State " + (k + 1), st.id, true)));
+      const sts = pageStates(pg), first = sts.find((x) => !x.off) || sts[0];
+      const out = [mk(pg, i, "Page " + (i + 1) + (pg.name ? " · " + pg.name : ""), first, false)];
+      if (sts.length > 1) sts.forEach((st, k) => out.push(mk(pg, i, st.name || "State " + (k + 1), st, true)));
       return out;
     }));
   }
@@ -1834,11 +1866,47 @@ function renderNav(lesson, live) {
   const curSid = stateOfPage(selPg, (live.states || {})[selPg.id]);
   for (const b of box.querySelectorAll(".t-nvbtn")) {
     const i = +b.dataset.page, isState = b.classList.contains("t-nvstate");
+    const off = isState && b.parentElement.classList.contains("off");
     b.classList.toggle("cur", i === sel && (isState ? b.dataset.state === curSid : pageStates(lesson.pages[i]).length < 2));
     b.classList.toggle("locked", i > live.unlocked);
-    b.disabled = isState && (!!live.ask || i > live.unlocked);
-    b.title = isState && live.ask ? "Close the question first" : "";
+    b.disabled = isState && (off || !!live.ask || i > live.unlocked);
+    b.title = off ? "Greyed out: students never see this state" : isState && live.ask ? "Close the question first" : "";
   }
+  for (const w of box.querySelectorAll(".t-nvwrap")) w.draggable = !live.ask;
+}
+let navDrag = null;
+// change the page's states in the saved lesson (so the editor and future classes get it too)
+async function editStates(pageId, change) {
+  const id = tstate && tstate.live && tstate.live.lessonId;
+  if (!id) return;
+  try {
+    const l = await tapi("/api/lessons/" + id);
+    const pg = (l.pages || []).find((p) => p.id === pageId);
+    if (!pg || !Array.isArray(pg.states) || pg.states.length < 2) return;
+    if (change(pg) === false) return;
+    await tapi("/api/lessons/" + id, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(l) });
+  } catch (e) { alert("That change wasn't saved: " + e.message); }
+}
+function toggleStateOff(pageId, sid) {
+  editStates(pageId, (pg) => {
+    const st = pg.states.find((x) => x.id === sid);
+    if (!st) return false;
+    if (!st.off && pg.states.filter((x) => !x.off).length < 2) { alert("At least one state has to stay on."); return false; }
+    if (st.off) delete st.off; else st.off = true;
+  });
+}
+function moveState(pageId, fromSid, toSid, after) {
+  if (tstate && tstate.live && tstate.live.ask) return;
+  editStates(pageId, (pg) => {
+    const i = pg.states.findIndex((x) => x.id === fromSid);
+    if (i < 0) return false;
+    const [st] = pg.states.splice(i, 1);
+    let j = pg.states.findIndex((x) => x.id === toSid);
+    if (j < 0) return false;
+    pg.states.splice(after ? j + 1 : j, 0, st);
+    // states that still have their automatic name are renumbered to their new place; names you typed stay
+    pg.states.forEach((x, k) => { if (!x.name || /^State \d+$/.test(x.name)) x.name = "State " + (k + 1); });
+  });
 }
 
 // "time is up" on the Class tab, until dismissed
@@ -1912,6 +1980,7 @@ function otherRounds(q) {
     return { round: x.round, id: x.id, n: all.length, answers: x.id === q.id ? null : (roundCache[x.id] || {}).answers || {} };
   });
 }
+const ansOrder = {}; // question id -> student code -> place in the list
 function renderAnswers() {
   const box = $("lvAnswers");
   const live = tstate && tstate.live;
@@ -1943,6 +2012,9 @@ function renderAnswers() {
   box._key = key;
   const btn = (text, onclick, cls) => el("button", { text, onclick, class: cls || "" });
   const top = box.scrollTop;
+  const scrollers = []; for (let n = box.parentElement; n; n = n.parentElement) if (n.scrollTop) scrollers.push([n, n.scrollTop]);
+  const textTops = {}; for (const t of box.querySelectorAll(".t-ans-body[data-code]")) textTops[t.dataset.code] = t.scrollTop;
+  box.style.minHeight = box.offsetHeight + "px"; // no shrinking while rebuilding, so the scroll position holds
   const partTxt = (q.parts > 1 ? " · part " + q.part + " of " + q.parts : "") + (rounds.length ? " · " + roundLabel(q.round, rounds.length).toLowerCase() : "");
   // students who answered in another round show up too
   if (rounds.length) for (const r of rounds) if (r.answers) for (const [c, v] of Object.entries(r.answers)) if ((v.text || "").trim() && !withText.some(([x]) => x === c)) withText.push([c, { text: "" }]);
@@ -1962,7 +2034,10 @@ function renderAnswers() {
       !isLive ? btn("Delete", () => { if (confirm("Delete this question and all its answers? This can't be undone.")) { link.send({ t: "qDelete", qid: q.id }); viewQ = null; } }) : null),
     el("ul", { class: "t-answers", style: "max-height:none" }, ...withText
       .map(([code, v]) => ({ code, name: named ? shortName(names[code]) || code : code, text: v.text, done: !!v.done, fb: v.fb }))
+      // boxes never move: the ones already there stay put, and a student who starts writing is added at the bottom
       .sort((x, y) => x.name.localeCompare(y.name) || 0)
+      .map((x, _, all) => { const o = (ansOrder[q.id] = ansOrder[q.id] || {}); if (!(x.code in o)) o[x.code] = Object.keys(o).length; return x; })
+      .sort((x, y) => ansOrder[q.id][x.code] - ansOrder[q.id][y.code])
       .map((x) => {
         const on = shown.includes(x.code);
         const k = q.id + "." + x.code;
@@ -1983,16 +2058,19 @@ function renderAnswers() {
             el("span", { class: "t-who-name" }, named ? x.name : "", x.done ? el("span", { class: "t-done", text: (named ? " · " : "") + "✓ Submitted" }) : (isLive || (live && q.sp && q.sessionId === live.sessionId) ? el("span", { class: "t-writing", text: (named ? " · " : "") + "still writing" }) : null)),
             ...(rounds.length ? [el("div", { class: "t-roundrow" }, ...rounds.map((r) => el("div", { class: "t-round" + (r.answers ? "" : " cur") },
               el("div", { class: "t-round-label", text: roundLabel(r.round, r.n) }),
-              el("div", { text: (r.answers ? ((r.answers[x.code] || {}).text || "") : x.text) || "—" }))))] : [x.text])),
+              el("div", { text: (r.answers ? ((r.answers[x.code] || {}).text || "") : x.text) || "—" }))))] : [el("div", { class: "t-ans-body", "data-code": x.code, text: x.text })])),
           live ? el("button", { class: on ? "aero-btn-primary" : "", text: on ? "On the TV" : "Show on TV", "aria-pressed": on ? "true" : "false",
             onclick: () => link.send({ t: "show", qid: q.id, code: x.code, on: !on }) }) : null,
-          x.done ? el("div", { class: "t-fb", style: "flex-basis:100%" },
+          el("div", { class: "t-fb" + (x.done ? "" : " t-fb-wait"), style: "flex-basis:100%" },
             x.fb && x.fb.text ? el("div", { class: "t-fbsent", text: "You: " + x.fb.text }) : null,
             el("button", { class: thumbOn ? "aero-btn-primary" : "", "aria-pressed": String(thumbOn), "aria-label": "Thumbs up", text: "👍", onclick: () => sendFb(!thumbOn) }),
             ta,
-            el("button", { text: x.fb && x.fb.text ? "Change feedback" : "Send feedback", onclick: () => sendFb() })) : null);
+            el("button", { text: x.fb && x.fb.text ? "Change feedback" : "Send feedback", onclick: () => sendFb() })));
       })));
   box.scrollTop = top;
+  for (const t of box.querySelectorAll(".t-ans-body[data-code]")) if (textTops[t.dataset.code]) t.scrollTop = textTops[t.dataset.code];
+  for (const [n, y] of scrollers) n.scrollTop = y;
+  box.style.minHeight = "";
 }
 
 // the Questions list: every question asked, newest first; click to see its answers again

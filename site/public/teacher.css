@@ -535,3 +535,15 @@ html.teacher #liveView .t-viewwrap { overflow: visible; }
 html.teacher #liveView .t-qrun #lvAsk { max-height: none !important; overflow: visible !important; }
 html.teacher #liveView .t-qbar .t-qprev-btns { z-index: 5; gap: 6px; }
 html.teacher #liveView .t-qrun #lvAsk { box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+/* responses: every box the same height; a long answer scrolls inside its box; feedback row space kept until submitted */
+html.teacher .t-answers .t-ans-body { height: 5.6em; overflow-y: auto; line-height: 1.4; }
+html.teacher .t-answers .t-fb-wait { visibility: hidden; }
+/* navigation: states can be dragged within their page; the trash can greys one out */
+html.teacher #liveView .t-nvwrap { position: relative; margin-left: 28px; cursor: grab; }
+html.teacher #liveView .t-nvwrap > .t-nvstate { margin-left: 0; width: 100%; }
+html.teacher #liveView .t-nvwrap.dragging { opacity: .4; }
+html.teacher #liveView .t-nvwrap.drop-before { box-shadow: 0 -4px 0 0 #2E7D32; }
+html.teacher #liveView .t-nvwrap.drop-after { box-shadow: 0 4px 0 0 #2E7D32; }
+html.teacher #liveView .t-nvwrap.off > .t-nvstate { opacity: .35; filter: grayscale(1); }
+html.teacher #liveView .t-nvtrash { position: absolute; right: 10px; bottom: 10px; min-width: 0; min-height: 0; width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 2; }
+html.teacher #liveView .t-nvwrap.off .t-nvtrash { background: #2E7D32; color: #fff; border-color: #1B5E20; }

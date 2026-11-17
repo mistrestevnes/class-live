@@ -319,6 +319,12 @@ export class Classroom extends DurableObject {
 
       // student sign-in
       if (p === "/api/slogin" && m === "POST") return this.studentLogin(await request.json());
+      if (p === "/api/slogout" && m === "POST") { // a student signs out: their sign-in stops working
+        const b = await request.json().catch(() => ({}));
+        const t = String((b && b.token) || "");
+        if (t && this.stokens[t]) { delete this.stokens[t]; await this.ctx.storage.put("stokens", this.stokens); }
+        return json({ ok: true });
+      }
 
       // the sky lesson: which page everyone is on
       if (p === "/api/sky" && m === "GET") return json({ n: this.sky });
@@ -757,7 +763,7 @@ export class Classroom extends DurableObject {
       case "state": {
         if (!this.live) return;
         const pg = this.pages().find((p) => p.id === msg.pageId);
-        const ids = pg && Array.isArray(pg.states) ? pg.states.map((x) => x && x.id) : [];
+        const ids = pg && Array.isArray(pg.states) ? pg.states.filter((x) => x && !x.off).map((x) => x.id) : [];
         if (!pg || !ids.includes(msg.to)) return;
         this.live.states = { ...(this.live.states || {}), [pg.id]: msg.to };
         const st = this.live.staged;
@@ -984,7 +990,9 @@ export class Classroom extends DurableObject {
 
   // the page's current state id ("" when it has none)
   stateNow(pg) {
-    const ids = Array.isArray(pg && pg.states) ? pg.states.map((x) => x && x.id) : [];
+    // greyed-out states (off) are skipped
+    const all = Array.isArray(pg && pg.states) ? pg.states.filter(Boolean) : [], on = all.filter((x) => !x.off);
+    const ids = (on.length ? on : all).map((x) => x.id);
     const want = (this.live.states || {})[pg && pg.id];
     return ids.includes(want) ? want : ids[0] || "";
   }
