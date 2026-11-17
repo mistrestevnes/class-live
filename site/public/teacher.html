@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=36">
+<link rel="stylesheet" href="teacher.css?v=37">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1827,31 +1827,17 @@ function renderNav(lesson, live) {
       requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
       if (!isState) return btn;
       // states: drag to reorder within the page; the trash can greys a state out (students never see it), click again to bring it back
-      const wrap = el("div", { class: "t-nvwrap" + (st.off ? " off" : ""), draggable: "true", "data-page": i, "data-state": sid },
+      const wrap = el("div", { class: "t-nvwrap" + (st.off ? " off" : ""), "data-page": i, "data-state": sid },
         btn,
         el("button", { class: "t-nvtrash", title: st.off ? "Show this state to students again" : "Grey out: students never see this state",
           "aria-label": st.off ? "Bring back " + label : "Grey out " + label, "aria-pressed": st.off ? "true" : "false",
           onclick: (e) => { e.stopPropagation(); toggleStateOff(pg.id, sid); } },
           el("span", { "aria-hidden": "true", text: "🗑" })));
-      wrap.addEventListener("dragstart", (e) => {
-        if (tstate && tstate.live && tstate.live.ask) { e.preventDefault(); return; }
-        navDrag = { page: i, sid }; wrap.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
-        try { e.dataTransfer.setData("text/plain", sid); } catch {}
-      });
-      wrap.addEventListener("dragend", () => { navDrag = null; wrap.classList.remove("dragging"); for (const w of box.querySelectorAll(".drop-before, .drop-after")) w.classList.remove("drop-before", "drop-after"); });
-      wrap.addEventListener("dragover", (e) => {
-        if (!navDrag || navDrag.page !== i || navDrag.sid === sid) return;
-        e.preventDefault();
-        const r = wrap.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
-        wrap.classList.toggle("drop-after", after); wrap.classList.toggle("drop-before", !after);
-      });
-      wrap.addEventListener("dragleave", () => wrap.classList.remove("drop-before", "drop-after"));
-      wrap.addEventListener("drop", (e) => {
-        if (!navDrag || navDrag.page !== i || navDrag.sid === sid) return;
-        e.preventDefault();
-        const after = wrap.classList.contains("drop-after");
-        wrap.classList.remove("drop-before", "drop-after");
-        moveState(pg.id, navDrag.sid, sid, after);
+      // drag with the mouse (works in every browser, unlike built-in drag and drop on buttons)
+      wrap.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || e.target.closest(".t-nvtrash")) return;
+        if (tstate && tstate.live && tstate.live.ask) return;
+        navDrag = { page: i, sid, wrap, x: e.clientX, y: e.clientY, on: false, id: e.pointerId };
       });
       return wrap;
     };
@@ -1869,12 +1855,48 @@ function renderNav(lesson, live) {
     const off = isState && b.parentElement.classList.contains("off");
     b.classList.toggle("cur", i === sel && (isState ? b.dataset.state === curSid : pageStates(lesson.pages[i]).length < 2));
     b.classList.toggle("locked", i > live.unlocked);
-    b.disabled = isState && (off || !!live.ask || i > live.unlocked);
+    b.setAttribute("aria-disabled", String(isState && (off || !!live.ask || i > live.unlocked)));
     b.title = off ? "Greyed out: students never see this state" : isState && live.ask ? "Close the question first" : "";
   }
-  for (const w of box.querySelectorAll(".t-nvwrap")) w.draggable = !live.ask;
 }
 let navDrag = null;
+function navDropTarget(d, y) {
+  for (const w of $("lvNav").querySelectorAll('.t-nvwrap[data-page="' + d.page + '"]')) {
+    if (w === d.wrap) continue;
+    const r = w.getBoundingClientRect();
+    if (y >= r.top && y <= r.bottom) return { w, after: y > r.top + r.height / 2 };
+  }
+  return null;
+}
+document.addEventListener("pointermove", (e) => {
+  const d = navDrag;
+  if (!d || e.pointerId !== d.id) return;
+  if (!d.on) {
+    if (Math.abs(e.clientY - d.y) + Math.abs(e.clientX - d.x) < 8) return;
+    d.on = true; d.wrap.classList.add("dragging"); document.body.classList.add("t-navdragging");
+  }
+  e.preventDefault();
+  for (const w of $("lvNav").querySelectorAll(".drop-before, .drop-after")) w.classList.remove("drop-before", "drop-after");
+  const t = navDropTarget(d, e.clientY);
+  if (t) t.w.classList.add(t.after ? "drop-after" : "drop-before");
+  // scroll the list when dragging near its top or bottom edge
+  const pane = $("lvNav").closest(".t-navpane") || $("lvNav");
+  const r = pane.getBoundingClientRect();
+  if (e.clientY < r.top + 40) pane.scrollTop -= 12; else if (e.clientY > r.bottom - 40) pane.scrollTop += 12;
+});
+document.addEventListener("pointerup", (e) => {
+  const d = navDrag;
+  if (!d || e.pointerId !== d.id) return;
+  navDrag = null;
+  if (!d.on) return;
+  d.wrap.classList.remove("dragging"); document.body.classList.remove("t-navdragging");
+  for (const w of $("lvNav").querySelectorAll(".drop-before, .drop-after")) w.classList.remove("drop-before", "drop-after");
+  // the click that ends a drag doesn't also switch states
+  const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+  window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 50);
+  const t = navDropTarget(d, e.clientY);
+  if (t) moveState(tstate.lesson.pages[d.page].id, d.sid, t.w.dataset.state, t.after);
+});
 // change the page's states in the saved lesson (so the editor and future classes get it too)
 async function editStates(pageId, change) {
   const id = tstate && tstate.live && tstate.live.lessonId;

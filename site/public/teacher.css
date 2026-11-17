@@ -547,3 +547,7 @@ html.teacher #liveView .t-nvwrap.drop-after { box-shadow: 0 4px 0 0 #2E7D32; }
 html.teacher #liveView .t-nvwrap.off > .t-nvstate { opacity: .35; filter: grayscale(1); }
 html.teacher #liveView .t-nvtrash { position: absolute; right: 10px; bottom: 10px; min-width: 0; min-height: 0; width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 2; }
 html.teacher #liveView .t-nvwrap.off .t-nvtrash { background: #2E7D32; color: #fff; border-color: #1B5E20; }
+html.teacher #liveView .t-nvbtn[aria-disabled="true"] { cursor: default; }
+html.teacher #liveView .t-nvwrap.off > .t-nvstate[aria-disabled="true"] { cursor: grab; }
+body.t-navdragging, body.t-navdragging * { cursor: grabbing !important; user-select: none !important; }
+html.teacher #liveView .t-nvwrap { user-select: none; -webkit-user-select: none; }
