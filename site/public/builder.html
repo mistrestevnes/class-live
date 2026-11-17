@@ -342,6 +342,11 @@ function addState(copy) {
   for (const b of pg.blocks) {
     if (!Array.isArray(b.states) || !b.states.length) b.states = old.slice(); // it was in every state; keep it only in those
     if (!copy || !b.states.includes(from)) continue;
+    if (b.type === "sim") { // the same sim carries on: shown on the new page too, so it keeps running and keeps its state
+      b.states.push(st.id);
+      if (Array.isArray(b.lock) && b.lock.includes(from)) b.lock.push(st.id);
+      continue;
+    }
     const c = JSON.parse(JSON.stringify(b));
     c.states = [st.id];
     if (Array.isArray(b.lock) && b.lock.includes(from)) c.lock = [st.id]; else delete c.lock;
@@ -944,8 +949,13 @@ function renderTools() {
         cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
         status, upNew, upRep),
       simInfo(cur && cur[1]),
+      pageStates(page).length > 1 ? stateChecks("Shows on these pages (the same sim, so it keeps running from page to page)", Array.isArray(b.states) && b.states.length ? b.states : pageStates(page).map((x) => x.id), (next) => {
+        b.states = next;
+        if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => next.includes(x)); if (!b.lock.length) delete b.lock; }
+        if (!next.includes(curSid())) edSel = null;
+      }, true) : null,
       el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim on each page" }),
-        ...pageStates(page).map((x, i) => el("label", { class: "b-staterow" },
+        ...pageStates(page).filter((x) => !Array.isArray(b.states) || !b.states.length || b.states.includes(x.id)).map((x) => [x, pageStates(page).indexOf(x)]).map(([x, i]) => el("label", { class: "b-staterow" },
           el("span", { style: "display:inline;margin:0;min-width:70px", text: pgName(x, i) }),
           el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: "nothing", autocapitalize: "off", spellcheck: false,
             oninput: (e) => {
@@ -1144,7 +1154,7 @@ function splitShared(pg) {
   const out = [];
   for (const b of pg.blocks || []) {
     const ins = Array.isArray(b.states) && b.states.length ? b.states.filter((x) => sts.includes(x)) : sts.slice();
-    if (ins.length < 2) { out.push(b); continue; }
+    if (ins.length < 2 || b.type === "sim") { out.push(b); continue; } // a sim stays one sim on all its pages
     did = true;
     const lock = Array.isArray(b.lock) ? b.lock.slice() : [], words = b.simStates ? { ...b.simStates } : null;
     ins.forEach((sid, k) => {
@@ -1159,6 +1169,26 @@ function splitShared(pg) {
   pg.blocks = out;
   return did;
 }
+// copies of one sim at the same place and size on several pages become one sim shown on all of them (so it keeps running)
+function mergeSims(pg) {
+  const sts = pageStates(pg).map((x) => x.id);
+  if (sts.length < 2) return false;
+  const keep = [], seen = new Map();
+  let did = false;
+  for (const b of pg.blocks || []) {
+    if (b.type !== "sim" || !b.url) { keep.push(b); continue; }
+    const k = [b.url, Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)].join("|");
+    const ins = Array.isArray(b.states) && b.states.length ? b.states : sts.slice();
+    const first = seen.get(k);
+    if (!first) { b.states = ins.slice(); seen.set(k, b); keep.push(b); continue; }
+    did = true;
+    for (const id of ins) if (!first.states.includes(id)) first.states.push(id);
+    if (Array.isArray(b.lock)) first.lock = [...new Set([...(first.lock || []), ...b.lock])];
+    if (b.simStates) first.simStates = { ...(first.simStates || {}), ...b.simStates };
+  }
+  if (did) { for (const b of seen.values()) b.states.sort((a, c) => sts.indexOf(a) - sts.indexOf(c)); pg.blocks = keep; }
+  return did;
+}
 (async function init() {
   if (!token) return toTeacher();
   if (!lessonId) return toTeacher("#/lessons");
@@ -1170,6 +1200,7 @@ function splitShared(pg) {
   if (ed.pages.some((pg) => pg.layout !== "canvas")) { ed.pages.forEach(canvasify); changed(); }
   // an element shared by several states (made before + State copied them) becomes one copy per state, so changing one doesn't change the others
   if (ed.pages.some(splitShared)) changed();
+  if (ed.pages.map(mergeSims).some(Boolean)) changed();
   edPage = Math.max(0, Math.min(ed.pages.length - 1, (parseInt(params.get("page"), 10) || 1) - 1));
   $("bTitle").value = ed.title || "";
   for (const id of ["bTop", "bCanvas", "winPages", "winTools"]) $(id).hidden = false;
