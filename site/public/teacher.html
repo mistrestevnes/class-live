@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=26">
+<link rel="stylesheet" href="teacher.css?v=28">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -198,16 +198,12 @@
       <div class="t-timeup" id="lvTimeUp" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
-      <div class="t-viewwrap" id="lvViewWrap"><div class="aero-panel t-sview" id="lvView" hidden></div></div>
-      <div class="t-qbar" id="lvQBar"></div>
+      <div class="t-viewwrap" id="lvViewWrap"><div class="t-topbar" id="lvTopBar"></div><div class="aero-panel t-sview" id="lvView" hidden></div><div class="t-qbar" id="lvQBar"></div></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
-      <ul class="t-pages t-pstrip" id="lvPages"></ul>
       <div class="aero-panel t-ctl" id="lvCtl" hidden>
-        <span class="t-ctl-group" id="lvStateBar"></span>
         <span class="t-ctl-group" id="lvPollBar"></span>
         <span class="t-ctl-group" id="lvCtlMain"></span>
         <span class="t-ctl-note aero-muted" id="lvUnlockNote"></span>
-        <span class="t-ctl-group t-ctl-nav" id="lvNavBar"></span>
       </div>
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
@@ -225,6 +221,7 @@
       </div>
       <!-- not shown for now: the list of every question asked, the plan and my notes -->
       <div id="lvStash" hidden>
+        <ul id="lvPages"></ul><span id="lvStateBar"></span><span id="lvNavBar"></span>
         <ul class="t-qs" id="lvQs"></ul>
         <div id="lvPlanBox"><ul class="t-pages t-plan" id="lvPlan"></ul>
           <button id="lvItAdd"></button><button id="lvItIntro"></button><button id="lvItExit"></button></div>
@@ -996,7 +993,7 @@ function showLive() {
   renderLive();
 }
 
-for (const id of ["lvRelock", "lvUnlock", "lvAskBtn", "lvPause"]) { const b = $(id); b.className = id === "lvUnlock" ? "t-unlock" : ""; $("lvCtlMain").append(b); }
+for (const id of ["lvRelock", "lvUnlock", "lvAskBtn", "lvPause"]) { const b = $(id); b.className = id === "lvUnlock" ? "t-unlock" : ""; (id === "lvAskBtn" || id === "lvPause" ? $("lvTopBar") : $("lvCtlMain")).append(b); }
 $("lvEdit").onclick = () => { if (tstate && tstate.live && tstate.live.lessonId) location.href = "/builder?id=" + tstate.live.lessonId; };
 $("lvEnd").onclick = endClass;
 $("lvEndLesson").onclick = endLesson;
@@ -1569,10 +1566,11 @@ function sideQuestions(page) {
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const busy = !!a, why = a ? "Another question is open" : "";
     const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
-    return el("div", { class: "t-qprev-btns" },
+    return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
       stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
       stg === b.id ? el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }) : null);
   }));
+  lvFitView();
 }
 // the real student page, fed what a student on this page sees right now (nothing is sent from it)
 let lvFrame = null, lvFrameReady = false;
@@ -1600,15 +1598,28 @@ function lvSendView() {
     new ResizeObserver(lvFitView).observe($("lvViewWrap"));
   }
   lvFitView();
-  if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin);
+  if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) { lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin); setTimeout(lvFitView, 150); }
 }
 function lvFitView() {
   if (!lvFrame) return;
   // the preview is exactly the shape of the student page: 1366 x 599
-  const h = $("lvView"), w = $("lvViewWrap"), s = Math.max(0.05, Math.min(w.clientWidth / 1366, w.clientHeight / 599));
+  const h = $("lvView"), w = $("lvViewWrap"), tb = $("lvTopBar"), qb = $("lvQBar");
+  const qh = qb.offsetHeight ? qb.offsetHeight + 6 : 0;
+  const s = Math.max(0.05, Math.min(w.clientWidth / 1366, (w.clientHeight - tb.offsetHeight - 6 - qh) / 599));
   h.style.width = Math.floor(1366 * s) + "px"; h.style.height = Math.floor(599 * s) + "px";
+  tb.style.width = Math.floor(1366 * s) + "px";
+  qb.style.width = Math.floor(1366 * s) + "px";
   lvFrame.style.transform = "scale(" + s + ")";
   lvFrame.style.left = "0px"; lvFrame.style.top = "0px";
+  // each red button sits directly under its question card
+  let doc = null; try { doc = lvFrame.contentDocument; } catch {}
+  for (const g of qb.querySelectorAll(".t-qprev-btns")) {
+    let x = +g.dataset.bx || 0, bw = +g.dataset.bw || 300;
+    const card = doc && doc.querySelector('[data-id="' + g.dataset.bid + '"] .cl-qcard, [data-id="' + g.dataset.bid + '"]');
+    if (card) { const r = card.getBoundingClientRect(); if (r.width) { x = r.left; bw = r.width; } }
+    g.style.marginLeft = Math.max(0, x * s) + "px";
+    g.style.width = Math.max(150, bw * s) + "px";
+  }
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
 
@@ -1792,7 +1803,10 @@ function renderNav(lesson, live) {
     const mk = (pg, i, label, sid, isState) => {
       const th = el("div", { class: "t-spage-p", inert: "" });
       const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
-        el("span", { class: "t-spage-l", text: label }), th);
+        el("span", { class: "t-spage-l", text: label }), th,
+        // the questions of this state, in small type (the first state is shown under its own state preview)
+        ...(!isState && pageStates(pg).length > 1 ? [] : (pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
+          .map((b) => el("span", { class: "t-nvq" }, formatText(b.prompt)))));
       requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
       return btn;
     };
