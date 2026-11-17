@@ -530,3 +530,6 @@ html.teacher #liveView .t-qbar .t-qprev-btns { z-index: 5; }
 html.teacher #liveView .t-greenbtn { background: #2E7D32; color: #fff; border-color: #1B5E20; font-size: 20px; font-weight: 700; min-height: 44px; opacity: 1; }
 html.teacher #liveView .t-qprev-btns { flex-direction: column; align-items: stretch; }
 html.teacher #liveView .t-qrun #lvAsk { margin: 0; }
+html.teacher #liveView .t-qbar { margin-top: 6px; }
+html.teacher #liveView .t-viewwrap { overflow: visible; }
+html.teacher #liveView .t-qrun #lvAsk { max-height: none !important; overflow: visible !important; }
