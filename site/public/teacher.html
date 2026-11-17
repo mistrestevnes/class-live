@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=28">
+<link rel="stylesheet" href="teacher.css?v=29">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1604,7 +1604,7 @@ function lvFitView() {
   if (!lvFrame) return;
   // the preview is exactly the shape of the student page: 1366 x 599
   const h = $("lvView"), w = $("lvViewWrap"), tb = $("lvTopBar"), qb = $("lvQBar");
-  const qh = qb.offsetHeight ? qb.offsetHeight + 6 : 0;
+  const qh = 0;
   const s = Math.max(0.05, Math.min(w.clientWidth / 1366, (w.clientHeight - tb.offsetHeight - 6 - qh) / 599));
   h.style.width = Math.floor(1366 * s) + "px"; h.style.height = Math.floor(599 * s) + "px";
   tb.style.width = Math.floor(1366 * s) + "px";
@@ -1617,7 +1617,9 @@ function lvFitView() {
     let x = +g.dataset.bx || 0, bw = +g.dataset.bw || 300;
     const card = doc && doc.querySelector('[data-id="' + g.dataset.bid + '"] .cl-qcard, [data-id="' + g.dataset.bid + '"]');
     if (card) { const r = card.getBoundingClientRect(); if (r.width) { x = r.left; bw = r.width; } }
-    g.style.marginLeft = Math.max(0, x * s) + "px";
+    let y = 0; if (card) { const r = card.getBoundingClientRect(); y = r.bottom; }
+    g.style.position = "absolute"; g.style.left = Math.max(0, x * s) + "px"; g.style.margin = "0";
+    g.style.top = (h.offsetTop + Math.min(598 * s, y * s + 4)) + "px";
     g.style.width = Math.max(150, bw * s) + "px";
   }
 }
