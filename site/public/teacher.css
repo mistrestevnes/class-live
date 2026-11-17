@@ -533,3 +533,5 @@ html.teacher #liveView .t-qrun #lvAsk { margin: 0; }
 html.teacher #liveView .t-qbar { margin-top: 6px; }
 html.teacher #liveView .t-viewwrap { overflow: visible; }
 html.teacher #liveView .t-qrun #lvAsk { max-height: none !important; overflow: visible !important; }
+html.teacher #liveView .t-qbar .t-qprev-btns { z-index: 5; gap: 6px; }
+html.teacher #liveView .t-qrun #lvAsk { box-shadow: 0 4px 14px rgba(0,0,0,.35); }

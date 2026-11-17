@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=33">
+<link rel="stylesheet" href="teacher.css?v=34">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1611,7 +1611,7 @@ function lvFitView() {
   if (!lvFrame) return;
   // the preview is exactly the shape of the student page: 1366 x 599
   const h = $("lvView"), w = $("lvViewWrap"), tb = $("lvTopBar"), qb = $("lvQBar");
-  const qh = qb.offsetHeight ? qb.offsetHeight + 6 : 0;
+  const qh = 0;
   const s = Math.max(0.05, Math.min(w.clientWidth / 1366, (w.clientHeight - tb.offsetHeight - 6 - qh) / 599));
   h.style.width = Math.floor(1366 * s) + "px"; h.style.height = Math.floor(599 * s) + "px";
   tb.style.width = Math.floor(1366 * s) + "px";
@@ -1620,15 +1620,19 @@ function lvFitView() {
   lvFrame.style.left = "0px"; lvFrame.style.top = "0px";
   // each red button sits directly under its question card
   let doc = null; try { doc = lvFrame.contentDocument; } catch {}
+  // the status bar (and, when open, the running controls) sit over the answer area, right under the question text
   for (const g of qb.querySelectorAll(".t-qprev-btns")) {
-    let x = +g.dataset.bx || 0, bw = +g.dataset.bw || 300;
-    const card = doc && doc.querySelector('[data-id="' + g.dataset.bid + '"] .cl-qcard, [data-id="' + g.dataset.bid + '"]');
-    if (card) { const r = card.getBoundingClientRect(); if (r.width) { x = r.left; bw = r.width; } }
-    const gw = g.classList.contains("t-qrun") ? Math.max(380, bw * s) : Math.max(150, bw * s);
-    g.style.visibility = card ? "" : "hidden";
-    g.style.position = "relative"; g.style.margin = "0";
-    g.style.marginLeft = Math.max(0, Math.min(w.clientWidth - gw, (x + bw) * s - gw)) + "px";
-    g.style.width = gw + "px";
+    const slot = doc && doc.querySelector('[data-id="' + g.dataset.bid + '"]');
+    const ps = slot ? slot.querySelectorAll(".cl-ask-prompt") : [];
+    const pr = ps.length ? ps[ps.length - 1].getBoundingClientRect() : null;
+    const ta = slot && slot.querySelector("textarea, .cl-ask-opts, .cl-opts");
+    const ar = ta ? ta.getBoundingClientRect() : pr;
+    if (!pr || !pr.width) { g.style.visibility = "hidden"; continue; }
+    g.style.visibility = "";
+    g.style.position = "absolute"; g.style.margin = "0";
+    g.style.left = (h.offsetLeft + ar.left * s) + "px";
+    g.style.top = (h.offsetTop + pr.bottom * s + 6) + "px";
+    g.style.width = Math.max(150, ar.width * s) + "px";
   }
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
