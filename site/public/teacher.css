@@ -369,7 +369,7 @@ html.teacher #liveView .t-ctl .t-stbtn[aria-pressed="true"] { background: var(--
 html.teacher #liveView .t-ctl button { font-size: 20px !important; min-height: 46px !important; padding: 4px 16px !important; }
 html.teacher #liveView .t-ctl { gap: 8px 24px; padding: 8px 12px; }
 html.teacher #liveView #lvQctl, html.teacher #liveView #lvSimProg { flex: none; max-height: 96px; overflow-y: auto; }
-.t-sthumb, .t-sthumb-p { width: 170px; }
+.t-sthumb, .t-sthumb-p { width: 204px; }
 
 /* Start a class: colored block buttons, the lessons under them, a lesson's pages under it */
 html.teacher .t-start-h { font-size: 30px; margin: 0 0 14px; }
@@ -403,10 +403,10 @@ html.teacher #lvPage .t-spage { min-height: 0 !important; padding: 0 !important;
 
 .t-spages.t-spages-stack { display: flex; flex-direction: column; gap: 12px; }
 .t-spage-row { display: flex; gap: 18px; align-items: flex-start; }
-.t-spage-row .t-spage { flex: none; width: 260px; }
+.t-spage-row .t-spage { flex: none; width: 312px; }
 .t-spage-info { flex: 1; min-width: 0; font-size: 16px; line-height: 1.4; padding-top: 18px; }
 .t-spage-info strong { font-weight: 700; }
 html.teacher #liveView #lvPage { overflow-y: auto; }
 
-.t-sstate-row { margin-left: 20px; }
-.t-sstate-row .t-spage { width: 240px; }
+.t-sstate-row { margin-left: 50px; }
+.t-sstate-row .t-spage { width: 312px; }
