@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=38">
-<link rel="stylesheet" href="teacher.css?v=18">
+<link rel="stylesheet" href="teacher.css?v=19">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -385,6 +385,7 @@ function ensureLink() {
 function onTState(s) {
   if (!s || !("presence" in s)) return;
   tstate = s;
+  if (pendingState && s.live && s.live.lessonId === pendingState.lessonId) { link.send({ t: "state", pageId: pendingState.pageId, to: pendingState.to }); pendingState = null; }
   tstateAt = Date.now();
   refreshViewQ();
   checkTimeUps();
@@ -1172,6 +1173,8 @@ async function renderStart(force) {
     return;
   }
   // no class: push a block, pick one of the lessons listed under it, then start on page 1 or click a page to start there
+  if (V2 && startPick.preview && startPick.full) { renderPreview(box); return; }
+  box.classList.remove("t-pvmode");
   const ordered = periods.slice().sort((a, b) => (parseInt(a.name, 10) || 99) - (parseInt(b.name, 10) || 99) || a.name.localeCompare(b.name));
   if (startPick.block && !periods.some((p) => p.id === startPick.block)) startPick.block = null;
   const key = JSON.stringify(["out", startPick.block, startPick.lesson, !!startPick.full, ordered.map((p) => p.id + p.name), lessons.map((l) => [l.id, l.title, l.level])]);
@@ -1195,6 +1198,7 @@ async function renderStart(force) {
     row.append(
       el("div", { class: "t-row", style: "margin:10px 0" },
         el("button", { class: "aero-btn-primary t-sgo", text: "Start " + (blk ? blk.name : "class") + " with this lesson", onclick: () => startWith(l.id, 0) }),
+        V2 ? el("button", { class: "t-sgo", text: "Preview", title: "Step through the lesson as students will see it", onclick: () => { startPick.preview = { i: 0 }; box._startKey = null; renderStart(); } }) : null,
         el("span", { class: "t-hint", text: "Each page\u2019s states are listed under it" })),
       grid);
     (full.pages || []).forEach((pg, i) => {
@@ -1226,7 +1230,68 @@ async function renderStart(force) {
     blk || !ordered.length ? el("button", { class: "t-small", style: "margin-top:16px", text: "Start " + (blk ? blk.name : "class") + " without a lesson",
       title: "Students wait on the waiting screen until you start a lesson", onclick: () => link.send({ t: "classStart", periodId: startPick.block || null }) }) : null].filter(Boolean));
 }
-const startPick = { block: null, lesson: null, full: null, pages: new Set() };
+const startPick = { block: null, lesson: null, full: null, pages: new Set(), preview: null };
+// second version of the Control room (/teacher2): a lesson can be previewed before class
+const V2 = /^\/teacher2/.test(location.pathname) || new URLSearchParams(location.search).has("v2");
+let pvwFrame = null, pvwReady = false, pendingState = null;
+function previewSteps(lesson) {
+  const out = [];
+  (lesson.pages || []).forEach((pg, i) => pageStates(pg).forEach((st, k, all) => out.push({ i, pg, st, k, n: all.length })));
+  return out;
+}
+function previewStateFor(lesson, step) {
+  const pages = lesson.pages.slice(0, step.i + 1).map((pg) => ({ ...pg, questions: [] }));
+  const q = (step.pg.blocks || []).find((b) => b.type === "question" && blockShowsIn(b, step.st.id));
+  return { live: true, sessionId: "pvw" + lesson.id + ":" + step.i + ":" + step.st.id, title: lesson.title, unlocked: step.i, from: 0, total: lesson.pages.length, pages,
+    myVotes: {}, closed: {}, goto: null, stateOf: { [step.pg.id]: step.st.id }, staged: q ? { blockId: q.id, pageId: step.pg.id } : null, now: Date.now(),
+    paused: false, qpaused: false, ask: null, show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
+}
+function renderPreview(box) {
+  const lesson = startPick.full, steps = previewSteps(lesson);
+  const idx = Math.max(0, Math.min(startPick.preview.i, steps.length - 1)), step = steps[idx];
+  const blk = (renderStart.data.periods || []).find((p) => p.id === startPick.block);
+  const key = JSON.stringify(["pvw", lesson.id, idx, startPick.block]);
+  if (box._startKey === key) return;
+  box._startKey = key;
+  box.classList.add("t-pvmode");
+  const go = (d) => { startPick.preview.i = idx + d; renderStart(); };
+  const where = "Page " + (step.i + 1) + " of " + lesson.pages.length + (step.n > 1 ? " · " + (step.st.name || "State " + (step.k + 1)) : "");
+  if (!pvwFrame) {
+    pvwFrame = el("iframe", { src: "/?preview=1", title: "What students will see" });
+    new ResizeObserver(fitPreview).observe(box);
+  }
+  const hold = el("div", { class: "t-pvw-hold" }, pvwFrame);
+  box.replaceChildren(
+    el("div", { class: "t-pvw-top" },
+      el("button", { text: "✕ Close preview", onclick: () => { startPick.preview = null; box._startKey = null; renderStart(); } }),
+      el("span", { class: "t-pvw-title", text: lesson.title || "Untitled lesson" }),
+      el("span", { class: "t-pvw-where", text: where })),
+    hold,
+    el("div", { class: "t-pvw-bar" },
+      el("button", { text: "◀ Back", disabled: idx <= 0, onclick: () => go(-1) }),
+      el("button", { class: "aero-btn-primary", text: "Next ▶", disabled: idx >= steps.length - 1, onclick: () => go(1) }),
+      el("span", { class: "t-pvw-gap" }),
+      el("button", { class: "t-pvw-start t-sblock t-sb" + (blk ? parseInt(blk.name, 10) || 0 : 0), text: "Start " + (blk ? blk.name : "class") + " here", title: "Start the class on this page" + (step.n > 1 ? " and state" : ""),
+        onclick: () => { pendingState = step.k ? { lessonId: lesson.id, pageId: step.pg.id, to: step.st.id } : null; startPick.preview = null;
+          link.send({ t: "start", lessonId: lesson.id, periodId: startPick.block || null, from: step.i }); } })));
+  fitPreview();
+  sendPreview();
+}
+function sendPreview() {
+  const steps = startPick.full && startPick.preview ? previewSteps(startPick.full) : null;
+  if (!steps || !pvwReady || !pvwFrame || !pvwFrame.contentWindow) return;
+  const step = steps[Math.max(0, Math.min(startPick.preview.i, steps.length - 1))];
+  pvwFrame.contentWindow.postMessage({ clPreview: previewStateFor(startPick.full, step) }, location.origin);
+}
+function fitPreview() {
+  const h = pvwFrame && pvwFrame.parentNode;
+  if (!h || !h.clientWidth) return;
+  const sc = Math.min(h.clientWidth / 1366, h.clientHeight / 768);
+  pvwFrame.style.transform = "scale(" + sc + ")";
+  pvwFrame.style.left = Math.max(0, (h.clientWidth - 1366 * sc) / 2) + "px";
+  pvwFrame.style.top = Math.max(0, (h.clientHeight - 768 * sc) / 2) + "px";
+}
+window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && pvwFrame && e.source === pvwFrame.contentWindow) { pvwReady = true; sendPreview(); } });
 // what's on a page: its states, questions, sims, poll, videos and pictures
 function pageSummary(pg) {
   const bl = pg.blocks || [], sts = pageStates(pg);

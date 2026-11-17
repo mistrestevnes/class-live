@@ -410,3 +410,14 @@ html.teacher #liveView #lvPage { overflow-y: auto; }
 
 .t-sstate-row { margin-left: 50px; }
 .t-sstate-row .t-spage { width: 312px; }
+
+/* /teacher2: previewing a lesson before class */
+html.teacher #liveView #lvPage.t-pvmode { display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding: 10px 14px; }
+.t-pvw-top { display: flex; align-items: center; gap: 18px; flex: none; }
+.t-pvw-title { font-size: 20px; font-weight: 700; }
+.t-pvw-where { font-size: 20px; font-weight: 700; margin-left: auto; }
+.t-pvw-hold { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; background: #0B1A14; border-radius: 8px; }
+.t-pvw-hold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; }
+.t-pvw-bar { display: flex; align-items: center; justify-content: center; gap: 14px; flex: none; }
+.t-pvw-gap { width: 40px; }
+html.teacher #lvPage .t-pvw-bar button, html.teacher #lvPage .t-pvw-top button { font-size: 20px !important; min-height: 50px !important; padding: 6px 22px !important; }
