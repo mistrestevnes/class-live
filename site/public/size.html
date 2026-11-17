@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Window size</title>
+<link rel="stylesheet" href="aerolab.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; align-items: center; justify-content: center; background: #12281F; font-family: Helvetica, Arial, sans-serif; }
+  .box { padding: 28px 40px; border-radius: 14px; background: #F4F1EA; color: #12281F; text-align: center; }
+  .big { font-size: 72px; font-weight: 700; margin: 0; }
+  .lab { font-size: 22px; margin: 0 0 6px; }
+  .small { font-size: 22px; margin: 18px 0 0; line-height: 1.5; }
+</style></head>
+<body>
+<div class="box aero-panel">
+  <p class="lab">Page area (what Class Live gets)</p>
+  <p class="big" id="win"></p>
+  <p class="small" id="more"></p>
+</div>
+<script>
+function show() {
+  document.getElementById("win").textContent = innerWidth + " × " + innerHeight;
+  document.getElementById("more").innerHTML = "Screen: " + screen.width + " × " + screen.height +
+    "<br>Usable screen (without the shelf): " + screen.availWidth + " × " + screen.availHeight +
+    "<br>Pixel ratio: " + (window.devicePixelRatio || 1);
+}
+addEventListener("resize", show); show();
+</script>
+</body></html>
