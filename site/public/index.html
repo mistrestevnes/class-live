@@ -444,7 +444,16 @@ function fillQBlocks(pg) {
   if (!shownId && !PREVIEW) for (const q of qids) if (((state.blockAns || {})[q] || []).length) shownId = q;
   for (const slot of $("pageBox").querySelectorAll(".cl-qblock")) {
     const id = slot.dataset.id;
-    if (runId === id) { slot._sk = null; continue; } // running: placeAsk fills it
+    if (runId === id) { slot._sk = null; slot.style.opacity = ""; continue; } // running: placeAsk fills it
+    if (PREVIEW && Array.isArray(state.fade) && state.fade.includes(id)) {
+      // the teacher's preview: a question not opened yet, shown faded where students will see it
+      const b = (pg.blocks || []).find((x) => x.id === id);
+      const key = "f" + JSON.stringify([b.prompt, b.kind, b.options, b.qsize, b.qbold, b.qital]);
+      if (slot._sk !== key || !slot.firstChild) { slot._sk = key; slot.replaceChildren(questionCard(b)); }
+      slot.hidden = false; slot.style.opacity = ".45";
+      continue;
+    }
+    slot.style.opacity = "";
     if (stagedId === id) {
       const b = (pg.blocks || []).find((x) => x.id === id);
       const key = JSON.stringify([b.prompt, b.kind, b.options, b.qsize, b.qbold, b.qital]);

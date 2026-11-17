@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=46">
-<link rel="stylesheet" href="teacher.css?v=22">
+<link rel="stylesheet" href="teacher.css?v=23">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -199,6 +199,8 @@
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
       <div class="aero-panel t-sview" id="lvView" hidden></div>
+      <div class="t-qbar" id="lvQBar"></div>
+      <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <ul class="t-pages t-pstrip" id="lvPages"></ul>
       <div class="aero-panel t-ctl" id="lvCtl" hidden>
         <span class="t-ctl-group" id="lvStateBar"></span>
@@ -210,8 +212,6 @@
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
     <aside class="t-rside" id="lvRSide" hidden>
-      <div class="aero-panel t-ask" id="lvAsk" hidden></div>
-      <div class="t-qprevs" id="lvQPrev"></div>
       <div class="t-resp" id="lvRespTab">
         <div class="aero-panel t-ask" id="lvAnswers"></div>
         <div class="aero-panel t-sq" id="lvSq" hidden></div>
@@ -237,7 +237,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=41"></script>
+<script src="common.js?v=42"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1010,7 +1010,7 @@ function renderLive() {
   const { live, lesson, presence, tallies } = tstate;
   const inLesson = !!(live && lesson && lesson.pages.length);
   $("lvPlanBox").hidden = !inLesson;
-  $("lvRSide").hidden = !live; // the right sidebar: the running question, Responses, Plan, My notes
+  $("lvRSide").hidden = !live; // the right sidebar: student responses only
   $("lvClassTab").classList.toggle("idle", !live);
   document.body.classList.toggle("t-inlesson", inLesson); // the Control room fills the whole page during a lesson
   const started = live ? "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
@@ -1545,29 +1545,26 @@ function qBlockControls(page) {
   }));
 }
 
-// the questions of this page state that are not running: a faded preview of each, with a red button below it
+// under the preview: a red button for each question of this page state that is not running (the question itself shows, faded, in the preview)
 function sideQuestions(page) {
-  const live = tstate && tstate.live, box = $("lvQPrev");
+  const live = tstate && tstate.live, box = $("lvQBar");
   const curSid = stateOfPage(page, live && live.states && live.states[page.id]);
   const allQs = (page.blocks || []).filter((x) => x.type === "question");
   const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
   const qs = allQs.filter((x) => blockShowsIn(x, curSid) && !(a && a.blockId === x.id));
-  const key = JSON.stringify([page.id, curSid, !!a, stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, b.qsize, b.qbold, b.qital, bqOf(b.id).length])]);
+  const key = JSON.stringify([page.id, curSid, !!a, stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
   if (box._key === key) return;
   box._key = key;
   box.replaceChildren(...qs.map((b) => {
-    const n = allQs.indexOf(b) + 1, ids = bqOf(b.id);
+    const n = allQs.indexOf(b) + 1, ids = bqOf(b.id), many = qs.length > 1 ? " " + n : "";
     const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const busy = !!a, why = a ? "Another question is open" : "";
     const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
-    const card = questionCard(b, n);
-    card.setAttribute("inert", "");
-    return el("div", { class: "t-qprev" },
-      el("div", { class: "t-qfade" }, card),
-      stg === b.id ? el("div", { class: "t-qprev-btns" }, red("Start timer", busy), el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }))
-        : el("div", { class: "t-qprev-btns" }, red(ids.length ? "Reopen question" : "Open question", busy || !(b.prompt || "").trim())));
+    return el("div", { class: "t-qprev-btns" },
+      stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
+      stg === b.id ? el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }) : null);
   }));
 }
 // the real student page, fed what a student on this page sees right now (nothing is sent from it)
@@ -1582,7 +1579,11 @@ function lvViewState() {
     myVotes: {}, closed, goto: null, stateOf: L.states || {}, staged: L.staged || null, now: Date.now(), paused: !!L.paused, qpaused: qp,
     ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "",
       ...(a.blockId ? { blockId: a.blockId, pageId: a.pageId, options: a.options || [], round: a.round || 1 } : {}), mine: "", done: false, prev: [] } : null,
-    show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
+    show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [],
+    fade: (() => { // questions of this page state that have not been opened yet: shown faded in the preview
+      const pg = lesson.pages[n], sid = stateOfPage(pg, (L.states || {})[pg.id]), bq = L.bq || {};
+      return (pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && !(a && a.blockId === b.id) && !(L.staged && L.staged.blockId === b.id) && !(bq[b.id] || []).length).map((b) => b.id);
+    })() };
 }
 function lvSendView() {
   const hold = $("lvView");

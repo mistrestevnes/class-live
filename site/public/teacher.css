@@ -482,3 +482,15 @@ html.teacher #liveView .t-qprev-btns button:not(.t-redbtn) { font-size: 16px; mi
 /* Back and Next: bottom right of the main window */
 html.teacher #liveView .t-ctl-nav { flex-basis: 100%; justify-content: flex-end; }
 html.teacher #liveView .t-ctl-nav[hidden] { display: none !important; }
+
+/* under the preview: the red button, and the running question's controls in one compact panel */
+html.teacher #liveView .t-qbar { flex: none; display: grid; gap: 6px; }
+html.teacher #liveView .t-qbar:empty { display: none; }
+html.teacher #liveView .t-qbar .t-qprev-btns { display: flex; gap: 8px; }
+html.teacher #liveView .t-liveleft #lvAsk { flex: none; padding: 6px 10px; max-height: 40%; overflow: auto; }
+html.teacher #liveView .t-liveleft #lvAsk[hidden] { display: none; }
+html.teacher #liveView .t-liveleft #lvAsk .t-ask-prompt { display: none; }
+html.teacher #liveView .t-liveleft #lvAsk .t-row { flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+html.teacher #liveView .t-liveleft #lvAsk h3 { font-size: 16px; }
+html.teacher #liveView .t-liveleft #lvAsk .t-ask-time { font-size: 24px; }
+html.teacher #liveView .t-liveleft #lvAsk button { font-size: 16px; min-height: 34px; }
