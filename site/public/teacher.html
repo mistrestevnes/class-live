@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=46">
-<link rel="stylesheet" href="teacher.css?v=23">
+<link rel="stylesheet" href="teacher.css?v=25">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -184,14 +184,14 @@
 <!-- teaching live -->
 <section id="liveView" class="t-wrap" hidden>
   <header class="cl-top aero-header">
+    <button class="t-small" id="lvEdit">Edit lesson</button>
+    <button class="t-small" id="lvEndLesson">End lesson</button>
+    <button class="t-small" id="lvEnd">End class</button>
     <h1 class="cl-title" id="lvTitle"></h1>
     <span class="t-livestate" id="lvLive"></span>
     <span class="cl-grow"></span>
     <span class="aero-chip" id="lvStudents"></span>
     <span class="aero-chip cl-status" id="lvStatus"></span>
-    <button class="t-small" id="lvEdit">Edit lesson</button>
-    <button class="t-small" id="lvEndLesson">End lesson</button>
-    <button class="t-small" id="lvEnd">End class</button>
   </header>
   <div class="t-cols t-livecols" id="lvClassTab">
     <div class="t-body t-liveleft" id="lvLeft">
@@ -212,7 +212,12 @@
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
     <aside class="t-rside" id="lvRSide" hidden>
-      <div class="t-resp" id="lvRespTab">
+      <div class="t-tabs" id="lvTabs" role="tablist">
+        <button role="tab" id="tabNav" aria-selected="true">Navigation</button>
+        <button role="tab" id="tabResp" aria-selected="false">Responses <span class="t-badge" id="respBadge" hidden></span></button>
+      </div>
+      <div class="aero-panel t-navpane" id="lvNav"></div>
+      <div class="t-resp" id="lvRespTab" hidden>
         <div class="aero-panel t-ask" id="lvAnswers"></div>
         <div class="aero-panel t-sq" id="lvSq" hidden></div>
         <div class="aero-panel t-sq" id="lvAct" hidden></div>
@@ -220,7 +225,6 @@
       </div>
       <!-- not shown for now: the list of every question asked, the plan and my notes -->
       <div id="lvStash" hidden>
-        <span class="t-badge" id="respBadge" hidden></span>
         <ul class="t-qs" id="lvQs"></ul>
         <div id="lvPlanBox"><ul class="t-pages t-plan" id="lvPlan"></ul>
           <button id="lvItAdd"></button><button id="lvItIntro"></button><button id="lvItExit"></button></div>
@@ -1093,6 +1097,9 @@ function renderLive() {
   $("lvPage").hidden = true; $("lvView").hidden = false; $("lvCtl").hidden = false;
   lvSendView();
   renderSimProg(page);
+  renderNav(lesson, live);
+  if (live.ask && live.ask.id !== lvLastAsk) setTab("resp"); // a question just opened: show its responses
+  lvLastAsk = live.ask ? live.ask.id : null;
   sideQuestions(page);
 
   const next = live.unlocked + 1;
@@ -1745,11 +1752,64 @@ function renderAsk() {
 }
 
 // ---------- tabs: Class (running the class), Responses, My notes
-let lvTab = "resp";
-function setTab() { $("lvFoot").hidden = true; $("lvAnswers")._key = null; renderAsk(); } // the Responses are always showing on the right
-// the badge in the stash is not shown; "Questions from students" shows when there are some
+let lvTab = "nav";
+function setTab(t) {
+  lvTab = t === "resp" ? "resp" : "nav";
+  $("lvFoot").hidden = true;
+  $("lvNav").hidden = lvTab !== "nav";
+  $("lvRespTab").hidden = lvTab !== "resp";
+  $("tabNav").setAttribute("aria-selected", String(lvTab === "nav"));
+  $("tabResp").setAttribute("aria-selected", String(lvTab === "resp"));
+  if (lvTab === "resp") { $("lvAnswers")._key = null; renderAsk(); }
+}
+$("tabNav").onclick = () => setTab("nav");
+$("tabResp").onclick = () => setTab("resp");
+// the Responses tab shows how many students' questions still need a reply
+let badgeN = 0;
 function renderBadge() {
+  const n = ((tstate && tstate.live && tstate.sq) || []).filter((x) => !x.reply).length;
+  const b = $("respBadge");
+  b.hidden = !n; b.textContent = n;
+  if (n > badgeN) { b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
+  badgeN = n;
   $("lvRespEmpty").hidden = !$("lvSq").hidden || !$("lvAct").hidden;
+}
+// Navigation: a preview of every page, and of each state under it (indented); the current state has a red outline
+let navKey = "", lvLastAsk = null;
+function navGo(i, sid, isState) {
+  const live = tstate && tstate.live, lesson = tstate && tstate.lesson;
+  if (!live || !lesson) return;
+  lvSelected = i;
+  if (isState && i <= live.unlocked && !live.ask) link.send({ t: "state", pageId: lesson.pages[i].id, to: sid });
+  renderLive();
+}
+function renderNav(lesson, live) {
+  const box = $("lvNav");
+  const key = JSON.stringify([live.lessonId, live.sessionId, lesson.pages.map((p) => [p.id, pageStates(p).map((x) => [x.id, x.name])])]);
+  if (key !== navKey) {
+    navKey = key;
+    const mk = (pg, i, label, sid, isState) => {
+      const th = el("div", { class: "t-spage-p", inert: "" });
+      const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
+        el("span", { class: "t-spage-l", text: label }), th);
+      requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
+      return btn;
+    };
+    box.replaceChildren(...lesson.pages.flatMap((pg, i) => {
+      const sts = pageStates(pg), out = [mk(pg, i, "Page " + (i + 1) + (pg.name ? " · " + pg.name : ""), sts[0].id, false)];
+      if (sts.length > 1) sts.forEach((st, k) => out.push(mk(pg, i, st.name || "State " + (k + 1), st.id, true)));
+      return out;
+    }));
+  }
+  const sel = Math.min(lvSelected, lesson.pages.length - 1), selPg = lesson.pages[sel];
+  const curSid = stateOfPage(selPg, (live.states || {})[selPg.id]);
+  for (const b of box.querySelectorAll(".t-nvbtn")) {
+    const i = +b.dataset.page, isState = b.classList.contains("t-nvstate");
+    b.classList.toggle("cur", i === sel && (isState ? b.dataset.state === curSid : pageStates(lesson.pages[i]).length < 2));
+    b.classList.toggle("locked", i > live.unlocked);
+    b.disabled = isState && (!!live.ask || i > live.unlocked);
+    b.title = isState && live.ask ? "Close the question first" : "";
+  }
 }
 
 // "time is up" on the Class tab, until dismissed

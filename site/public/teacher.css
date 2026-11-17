@@ -494,3 +494,19 @@ html.teacher #liveView .t-liveleft #lvAsk .t-row { flex-wrap: wrap; gap: 6px; ma
 html.teacher #liveView .t-liveleft #lvAsk h3 { font-size: 16px; }
 html.teacher #liveView .t-liveleft #lvAsk .t-ask-time { font-size: 24px; }
 html.teacher #liveView .t-liveleft #lvAsk button { font-size: 16px; min-height: 34px; }
+
+/* sidebar tabs and the Navigation previews */
+html.teacher #liveView .t-rside > .t-tabs { flex: none; }
+html.teacher #liveView .t-rside > .t-tabs button { font-size: 16px; min-height: 34px; padding: 2px 14px; }
+html.teacher #liveView .t-navpane { flex: 1 1 0; min-height: 0; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; border-radius: 0 10px 10px 10px; }
+html.teacher #liveView .t-navpane[hidden] { display: none; }
+html.teacher #liveView .t-rside > .t-resp { border-radius: 0 10px 10px 10px; }
+html.teacher #liveView .t-nvbtn { display: block; flex: none; width: 100%; background: none; border: 0; padding: 0; min-height: 0; text-align: left; cursor: pointer; color: inherit; box-shadow: none; text-shadow: none; }
+html.teacher #liveView .t-nvbtn:hover:not(:disabled) { background: none; color: inherit; }
+html.teacher #liveView .t-nvstate { margin-left: 28px; width: calc(100% - 28px); }
+html.teacher #liveView .t-nvbtn .t-spage-l { font-size: 15px; margin-bottom: 3px; }
+html.teacher #liveView .t-nvbtn.locked .t-spage-l::after { content: " 🔒"; }
+html.teacher #liveView .t-nvbtn:disabled { opacity: .5; cursor: default; }
+html.teacher #liveView .t-nvbtn.cur .t-spage-p { outline: 5px solid #C62828; }
+html.teacher #liveView .t-nvbtn.cur .t-spage-l { color: #C62828; }
+html.teacher #liveView .t-rside > .t-tabs button[aria-selected="true"] { background: var(--aero-surface, #F3EFE6) !important; color: #12291F !important; }
