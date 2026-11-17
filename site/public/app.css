@@ -261,7 +261,7 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-canvas .cl-ask-prompt { font-size: 27px; }
 .cl-canvas .cl-ask-time { font-size: 2.56rem; }
 .cl-canvas #askText { font-size: 26px; }
-.cl-canvas .cl-ask-foot button { min-height: 65px; padding: 9px 34px; font-size: 26px; }
+.cl-canvas .cl-ask-foot button { min-height: 40px; padding: 4px 22px; font-size: 20px; }
 .cl-canvas .cl-ask-foot .aero-muted, .cl-canvas #askNote { font-size: 26px; }
 .cl-canvas .cl-myans-text { font-size: 26px; }
 .cl-canvas .cl-qcard { height: 100%; box-sizing: border-box; overflow: hidden; font-size: 26px; }
