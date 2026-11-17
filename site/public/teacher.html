@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=29">
+<link rel="stylesheet" href="teacher.css?v=30">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1556,16 +1556,23 @@ function sideQuestions(page) {
   const allQs = (page.blocks || []).filter((x) => x.type === "question");
   const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
-  const qs = allQs.filter((x) => blockShowsIn(x, curSid) && !(a && a.blockId === x.id));
-  const key = JSON.stringify([page.id, curSid, !!a, stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
+  const qs = allQs.filter((x) => blockShowsIn(x, curSid) || (a && a.blockId === x.id && a.pageId === page.id));
+  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
   if (box._key === key) return;
   box._key = key;
+  const askBox = $("lvAsk");
+  if (!(a && a.pageId === page.id)) $("lvCtl").before(askBox); // not running here: the panel goes back to its own place
   box.replaceChildren(...qs.map((b) => {
     const n = allQs.indexOf(b) + 1, ids = bqOf(b.id), many = qs.length > 1 ? " " + n : "";
     const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const busy = !!a, why = a ? "Another question is open" : "";
     const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
+    if (a && a.blockId === b.id && a.pageId === page.id) {
+      // open: the bar turns green, and the running controls sit beneath it
+      return el("div", { class: "t-qprev-btns t-qrun", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
+        el("button", { class: "t-greenbtn", text: "Question open" + many, disabled: true }), askBox);
+    }
     return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
       stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
       stg === b.id ? el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }) : null);
@@ -1598,7 +1605,7 @@ function lvSendView() {
     new ResizeObserver(lvFitView).observe($("lvViewWrap"));
   }
   lvFitView();
-  if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) { lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin); setTimeout(lvFitView, 150); }
+  if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) { lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin); setTimeout(lvFitView, 150); setTimeout(lvFitView, 700); }
 }
 function lvFitView() {
   if (!lvFrame) return;
@@ -1618,9 +1625,12 @@ function lvFitView() {
     const card = doc && doc.querySelector('[data-id="' + g.dataset.bid + '"] .cl-qcard, [data-id="' + g.dataset.bid + '"]');
     if (card) { const r = card.getBoundingClientRect(); if (r.width) { x = r.left; bw = r.width; } }
     let y = 0; if (card) { const r = card.getBoundingClientRect(); y = r.bottom; }
-    g.style.position = "absolute"; g.style.left = Math.max(0, x * s) + "px"; g.style.margin = "0";
+    const gw = g.classList.contains("t-qrun") ? Math.max(380, bw * s) : Math.max(150, bw * s);
+    g.style.visibility = card ? "" : "hidden";
+    g.style.position = "absolute"; g.style.margin = "0";
+    g.style.left = Math.max(0, Math.min(w.clientWidth - gw, (x + bw) * s - gw)) + "px";
     g.style.top = (h.offsetTop + Math.min(598 * s, y * s + 4)) + "px";
-    g.style.width = Math.max(150, bw * s) + "px";
+    g.style.width = gw + "px";
   }
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
