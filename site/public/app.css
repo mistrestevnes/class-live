@@ -341,3 +341,6 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 
 /* question text is the same size everywhere it shows: the size set in the builder, 22 when none is set */
 .cl-canvas .cl-qcard .cl-ask-prompt, .cl-canvas .cl-qcard .cl-option, .cl-canvas .cl-qblock .cl-inline .cl-ask-prompt, .cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 22px); }
+
+/* a thumbnail runs the sim in a window the size of its box on the page, then the whole thumbnail is scaled down (so the sim looks like the page, only smaller) */
+.t-spage-p .cl-csim .cl-sim, .b-thumb .cl-csim .cl-sim { width: 100% !important; height: 100% !important; transform: none !important; }
