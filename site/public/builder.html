@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=40">
+<link rel="stylesheet" href="app.css?v=41">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -70,9 +70,11 @@
   .t-ph { padding: 8px 14px; opacity: .45; }
   .t-rich.t-in { font-weight: inherit !important; }
   .t-float { position: absolute; z-index: 5; pointer-events: none; border: 3px dashed rgba(180, 35, 24, .8); border-radius: 10px; background: rgba(255, 255, 255, .55); color: #B42318;
-    display: flex; align-items: center; justify-content: center; font: 700 26px Helvetica, Arial, sans-serif; box-sizing: border-box; }
+    display: flex; align-items: center; justify-content: center; font: 700 20px Helvetica, Arial, sans-serif; box-sizing: border-box; }
   .t-float-time { left: 50%; top: 9px; width: 190px; height: 66px; transform: translateX(-50%); }
-  .t-float-nav { right: 28px; bottom: 28px; width: 445px; height: 66px; }
+  .t-float-nav { right: 28px; bottom: 16px; width: 210px; height: 42px; }
+  .t-float-ask { left: 50%; bottom: 16px; width: 180px; height: 42px; transform: translateX(-50%); }
+  .t-float-fs { left: 28px; bottom: 16px; width: 150px; height: 42px; }
   .t-rich { white-space: pre-wrap; outline: 0; cursor: text; min-height: 1.4em; }
   .t-rich b { font-weight: 700; } .t-rich i { font-style: italic; font-weight: inherit; } .t-rich b i { font-weight: 700; }
   .t-rich.t-empty::before { content: attr(data-ph); opacity: .45; pointer-events: none; }
@@ -436,7 +438,11 @@ function renderStage() {
   page.blocks.forEach((b, i) => { if (blockShowsIn(b, curSid())) cv.append(editBlock(page, b, i)); }); // only this state's elements
   cv.append(el("div", { class: "t-guides" }));
   // the template: where the timer and the floating buttons sit over the page on a Chromebook
-  cv.append(el("div", { class: "t-float t-float-time", text: "Timer" }), el("div", { class: "t-float t-float-nav", text: "Ask a question · Back · Next" }));
+  const q = page.blocks.find((x) => x.type === "question" && blockShowsIn(x, curSid()));
+  cv.append(el("div", { class: "t-float t-float-time", text: "Timer" }),
+    el("div", { class: "t-float t-float-fs", text: "Fullscreen" }),
+    el("div", { class: "t-float t-float-ask", text: "Ask a question" }),
+    el("div", { class: "t-float t-float-nav", text: "Back · Next", style: q ? "right:auto;left:" + Math.round(Math.min(CANVAS_W - 220, Math.max(10, q.x + q.w / 2 - 105))) + "px" : "" }));
   fitBox = el("div", { class: "cl-canvas-fit t-fit" }, cv);
   if (stageRO) stageRO.disconnect();
   $("bSheet").replaceChildren(fitBox);

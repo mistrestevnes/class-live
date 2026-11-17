@@ -322,13 +322,19 @@ body.cl-paged .cl-top .cl-title, body.cl-paged #pageNum { display: none !importa
 body.cl-paged .cl-toptimer { background: #0B1A14; padding: 2px 18px; border-radius: 10px; }
 body.cl-paged #status { font-size: 14px; padding: 2px 10px; background: rgba(11, 26, 20, .85); color: #FFFFFF; }
 body.cl-paged .cl-main { padding: 0; }
-body.cl-paged #nav { position: fixed; right: 24px; bottom: 24px; z-index: 60; margin: 0; padding: 6px; gap: 8px; width: auto; justify-content: flex-end; }
+
 body.cl-paged #nav #navNote { display: none; }
-body.cl-paged #nav button { min-height: 44px; padding: 4px 16px; font-size: 18px; }
-body.cl-paged .cl-qbtn { bottom: 92px; }
+
+
 .cl-canvas-fit.cl-stretch { border-radius: 0; aspect-ratio: auto; }
 body.cl-paged { padding-bottom: 0 !important; }
 body.cl-paged #status { font-size: 0; width: 14px; height: 14px; padding: 0; border-radius: 50%; overflow: hidden; }
 body.cl-paged #status::before { margin: 0; }
 .cl-canvas .cl-qlow .cl-qcard { padding-bottom: 100px !important; }
-body.cl-paged #nav .cl-qbtn { position: static; min-height: 44px; padding: 4px 16px; font-size: 18px; }
+
+/* floating buttons: one row along the bottom, all the same height */
+body.cl-paged #nav { position: fixed; right: 24px; bottom: 14px; z-index: 60; margin: 0; padding: 0; gap: 8px; width: auto; height: 36px; align-items: center; background: none; border: 0; box-shadow: none; }
+body.cl-paged #nav button, body.cl-paged #fs, body.cl-paged .cl-qbtn { min-height: 0; height: 36px; padding: 0 12px; font-size: 18px; line-height: 1; box-sizing: border-box; }
+body.cl-paged #fs { position: fixed; left: 24px; bottom: 14px; z-index: 60; }
+body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); z-index: 60; }
+.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 70px !important; }

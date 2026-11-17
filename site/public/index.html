@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=40">
+<link rel="stylesheet" href="app.css?v=41">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -286,6 +286,7 @@ function render() {
   fillQBlocks(pg);
   placeAsk();
   growQ();
+  requestAnimationFrame(placeNav);
 
   // fullscreen: the page's sim, or else its first image
   const fsTarget = box.querySelector(".cl-sim") || box.querySelector(".cl-figure");
@@ -392,7 +393,18 @@ function placeAsk() {
 }
 // A question box grows downward as the student writes, so the whole answer is always in view (never a scrollbar
 // inside the box). It starts at the size the teacher drew; if it runs past the bottom of the page, the page scrolls.
-$("nav").prepend($("qBtn")); // Ask a question floats in the same row as Back and Next
+// the floating buttons: Fullscreen bottom left, Ask a question bottom center, Back and Next centered under the question (else bottom right)
+document.body.append($("qBtn"), $("fs"));
+function placeNav() {
+  const nav = $("nav");
+  if (!document.body.classList.contains("cl-paged") || nav.hidden) return;
+  const q = [...$("pageBox").querySelectorAll(".cl-qblock")].find((n) => !n.hidden && !n.classList.contains("cl-nostate") && n.offsetParent);
+  if (!q) { nav.style.left = ""; nav.style.right = "24px"; return; }
+  const r = q.getBoundingClientRect(), w = nav.offsetWidth;
+  nav.style.right = "auto";
+  nav.style.left = Math.round(Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))) + "px";
+}
+addEventListener("resize", placeNav);
 function growQ(typing) {
   const fit = $("pageBox").querySelector(".cl-canvas-fit"), cv = fit && fit.querySelector(".cl-canvas");
   if (!cv) return;
