@@ -400,3 +400,10 @@ html.teacher #lvPage .t-slesson-btn { font-size: 18px !important; min-height: 0 
 html.teacher #lvPage .t-slesson-btn .aero-chip { font-size: 13px; }
 html.teacher #lvPage .t-sgo { font-size: 20px !important; min-height: 50px !important; padding: 6px 22px !important; }
 html.teacher #lvPage .t-spage { min-height: 0 !important; padding: 0 !important; }
+
+.t-spages.t-spages-stack { display: flex; flex-direction: column; gap: 12px; }
+.t-spage-row { display: flex; gap: 18px; align-items: flex-start; }
+.t-spage-row .t-spage { flex: none; width: 260px; }
+.t-spage-info { flex: 1; min-width: 0; font-size: 16px; line-height: 1.4; padding-top: 18px; }
+.t-spage-info strong { font-weight: 700; }
+html.teacher #liveView #lvPage { overflow-y: auto; }
