@@ -4,8 +4,8 @@
 // Tries a live WebSocket first. If the school network blocks it, switches to
 // checking the server every couple of seconds with ordinary requests.
 class Link {
-  constructor({ wsUrl, poll, post, onMessage, onMode, pollMs = 2000 }) {
-    Object.assign(this, { wsUrl, poll, post, onMessage, onMode, pollMs });
+  constructor({ wsUrl, poll, post, onMessage, onMode, pollMs = 2000, refreshMs = 0 }) {
+    Object.assign(this, { wsUrl, poll, post, onMessage, onMode, pollMs, refreshMs });
     this.ws = null;
     this.mode = "connecting";
     this.wsFails = 0;
@@ -15,6 +15,44 @@ class Link {
 
   start() {
     this.tryWs();
+    // a live connection can go quiet without closing (wifi blip, Chromebook asleep): it then gets no updates
+    // until the page is refreshed. Check it all the time and reconnect when it stops answering.
+    this.heard = Date.now(); this.graceUntil = 0; this.seq = 0;
+    setInterval(() => this.watch(), 2000);
+    const wake = () => { this.graceUntil = Date.now() + 6000; this.ping(); this.refresh(); };
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) wake(); });
+    window.addEventListener("online", wake);
+    window.addEventListener("focus", wake);
+    if (this.refreshMs) setInterval(() => { if (!document.hidden) this.refresh(); }, this.refreshMs);
+  }
+
+  ping() {
+    const ws = this.ws;
+    if (ws && ws.readyState === 1) try { ws.send("ping"); } catch {}
+  }
+
+  watch() {
+    const ws = this.ws;
+    if (!ws || document.hidden || Date.now() < this.graceUntil) return;
+    if (Date.now() - this.heard > 12000) {
+      // nothing back for 12 seconds, not even an answer to a ping: drop it and connect again
+      ws.onclose = ws.onmessage = null; clearInterval(ws._ping);
+      try { ws.close(); } catch {}
+      this.ws = null;
+      this.wsFails = 0;
+      this.setMode("connecting");
+      this.tryWs();
+    }
+  }
+
+  // safety net while live: ask for the whole state now and then; used only if no update arrived meanwhile
+  async refresh() {
+    if (!this.ws || this.polling) return;
+    const before = this.seq;
+    try {
+      const data = await this.poll();
+      if (this.seq === before && this.ws) this.onMessage(data);
+    } catch {}
   }
 
   setMode(m) {
@@ -43,14 +81,17 @@ class Link {
       clearTimeout(timer);
       this.ws = ws;
       this.wsFails = 0;
+      this.heard = Date.now();
       this.stopPolling();
       this.setMode("live");
       ws._ping = setInterval(() => {
         try { ws.send("ping"); } catch {}
-      }, 25000);
+      }, 4000);
     };
     ws.onmessage = (e) => {
+      if (this.ws === ws) this.heard = Date.now();
       if (e.data === "pong") return;
+      this.seq = (this.seq || 0) + 1;
       try { this.onMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
     };
     ws.onclose = () => {

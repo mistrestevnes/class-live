@@ -114,7 +114,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=39"></script>
+<script src="common.js?v=43"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -135,6 +135,7 @@ const link = new Link({
   poll: () => api("/api/s?sid=" + sid + "&page=" + page + tok()),
   post: (msg) => api("/api/s", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid, stoken, msg: { ...msg, page } }) }),
   pollMs: 3000,
+  refreshMs: 15000,
   onMessage: (m) => { if (m.t === "state") apply(m.state); else if (m.t !== "tstate" && "live" in m) apply(m); },
   onMode: showMode,
 });
