@@ -510,3 +510,8 @@ html.teacher #liveView .t-nvbtn:disabled { opacity: .5; cursor: default; }
 html.teacher #liveView .t-nvbtn.cur .t-spage-p { outline: 5px solid #C62828; }
 html.teacher #liveView .t-nvbtn.cur .t-spage-l { color: #C62828; }
 html.teacher #liveView .t-rside > .t-tabs button[aria-selected="true"] { background: var(--aero-surface, #F3EFE6) !important; color: #12291F !important; }
+
+/* the preview has the shape of the student page (1366 x 599); the space around it is just background */
+html.teacher #liveView .t-viewwrap { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+html.teacher #liveView .t-viewwrap:not(:has(#lvView:not([hidden]))) { display: none; }
+html.teacher #liveView .t-liveleft .t-viewwrap .t-sview { flex: none; width: 100%; aspect-ratio: 1366 / 599; min-height: 0; }

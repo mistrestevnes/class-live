@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=25">
+<link rel="stylesheet" href="teacher.css?v=26">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -198,7 +198,7 @@
       <div class="t-timeup" id="lvTimeUp" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
-      <div class="aero-panel t-sview" id="lvView" hidden></div>
+      <div class="t-viewwrap" id="lvViewWrap"><div class="aero-panel t-sview" id="lvView" hidden></div></div>
       <div class="t-qbar" id="lvQBar"></div>
       <div class="aero-panel t-ask" id="lvAsk" hidden></div>
       <ul class="t-pages t-pstrip" id="lvPages"></ul>
@@ -1597,17 +1597,18 @@ function lvSendView() {
   if (!lvFrame) {
     lvFrame = el("iframe", { src: "/?preview=1", title: "What students see" });
     hold.append(lvFrame);
-    new ResizeObserver(lvFitView).observe(hold);
+    new ResizeObserver(lvFitView).observe($("lvViewWrap"));
   }
   lvFitView();
   if (lvFrameReady && lvFrame.contentWindow && tstate && tstate.live && tstate.lesson) lvFrame.contentWindow.postMessage({ clPreview: lvViewState() }, location.origin);
 }
 function lvFitView() {
   if (!lvFrame) return;
-  const h = $("lvView"), s = Math.min(h.clientWidth / 1366, h.clientHeight / 599);
+  // the preview is exactly the shape of the student page: 1366 x 599
+  const h = $("lvView"), w = $("lvViewWrap"), s = Math.max(0.05, Math.min(w.clientWidth / 1366, w.clientHeight / 599));
+  h.style.width = Math.floor(1366 * s) + "px"; h.style.height = Math.floor(599 * s) + "px";
   lvFrame.style.transform = "scale(" + s + ")";
-  lvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
-  lvFrame.style.top = Math.max(0, (h.clientHeight - 599 * s) / 2) + "px";
+  lvFrame.style.left = "0px"; lvFrame.style.top = "0px";
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
 
