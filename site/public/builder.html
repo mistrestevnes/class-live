@@ -998,19 +998,24 @@ function simShowsField(b) {
   const showDeclared = () => { const d = declaredStates.get(b.url) || []; if (d.length) input.placeholder = "From the sim: " + d.join(", "); };
   const fill = () => {
     const list = simList(b);
-    row.replaceChildren(...(list.length ? [el("span", { style: "font-weight:700", text: "Sim shows:" })] : []), ...list.map((x) => el("button", {
-      class: "t-small", "aria-pressed": String(simOverride.has(b) && JSON.stringify(simOverride.get(b)) === JSON.stringify(x.msg)), text: x.label,
+    // clicking one saves it for the page you're editing (click it again to clear: the sim is then told nothing on this page)
+    const sid = curSid(), cur = String((b.simStates && b.simStates[sid]) || "").trim();
+    row.replaceChildren(...(list.length ? [el("span", { style: "font-weight:700", text: "On this page the sim shows:" })] : []), ...list.map((x) => el("button", {
+      class: "t-small", "aria-pressed": String(cur === x.label), text: x.label,
       onclick: () => {
-        const f = fitBox && [...fitBox.querySelectorAll(".cl-sim iframe")].find((i) => i._clBlock === b);
-        if (!f) return;
-        simOverride.set(b, x.msg); f._clMsg = x.msg; postSimState(f); fill();
+        if (cur === x.label) { if (b.simStates) { delete b.simStates[sid]; if (!Object.keys(b.simStates).length) delete b.simStates; } }
+        else (b.simStates ||= {})[sid] = x.label;
+        simOverride.delete(b);
+        changed();
+        if (fitBox) syncSimStates(fitBox, ed.pages[edPage], sid);
+        renderTools();
       } })));
   };
   fill(); showDeclared();
   loadDeclared(b.url, () => { showDeclared(); fill(); renderTools(); });
   return el("div", { class: "cl-field" }, el("span", { text: "Sim states" }),
     input,
-    el("p", { class: "t-hint", text: "Sims that list their states fill this in by themselves. Otherwise list them, separated by commas, or give a number. Click one below to show it in the sim right now (editor only)." }),
+    el("p", { class: "t-hint", text: "Sims that list their states fill this in by themselves. Otherwise list them, separated by commas, or give a number. Click one below to choose what the sim shows on this page (click it again to clear)." }),
     row);
 }
 function simInfo(id) {
