@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=45">
-<link rel="stylesheet" href="teacher.css?v=19">
+<link rel="stylesheet" href="teacher.css?v=20">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -229,10 +229,14 @@
     <div class="t-body">
       <div class="t-timeup" id="lvTimeUp" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
-      <div class="aero-panel t-ask" id="lvAsk" hidden></div>
-      <div class="t-sthumbs" id="lvThumbs" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
-      <div class="aero-panel t-sview" id="lvView" hidden></div>
+      <div class="t-mid" id="lvMid">
+        <div class="t-midl">
+          <div class="t-sthumbs" id="lvThumbs" hidden></div>
+          <div class="aero-panel t-sview" id="lvView" hidden></div>
+        </div>
+        <div class="aero-panel t-ask" id="lvAsk" hidden></div>
+      </div>
       <div class="aero-panel t-ctl" id="lvCtl" hidden>
         <span class="t-ctl-group" id="lvStateBar"></span>
         <span class="t-ctl-group" id="lvCtlQ"></span>
@@ -252,7 +256,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=39"></script>
+<script src="common.js?v=40"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -390,6 +394,7 @@ function onTState(s) {
   refreshViewQ();
   checkTimeUps();
   if (!$("homeView").hidden) renderLiveCard();
+  renderStartRoster();
   if (!$("studentsView").hidden) renderHomeWho();
   if (!$("liveView").hidden) renderLive();
 }
@@ -1223,12 +1228,32 @@ async function renderStart(force) {
       ...ordered.map((p) => el("button", { class: "t-sblock t-sb" + (parseInt(p.name, 10) || 0), "aria-pressed": String(p.id === startPick.block),
         text: p.name + (levelOfBlock(p.name) ? " · " + LEVELS[levelOfBlock(p.name)] : ""),
         onclick: () => { startPick.block = p.id === startPick.block ? null : p.id; store("cl_startBlock", p.id); renderStart(); } }))) : null,
-    blk || !ordered.length ? el("div", { class: "t-slessons" },
-      el("h3", { text: "Lessons" }),
-      ...lessons.map(lessonRow),
-      !lessons.length ? el("p", { class: "t-hint", text: "No lessons yet." }) : null) : null,
-    blk || !ordered.length ? el("button", { class: "t-small", style: "margin-top:16px", text: "Start " + (blk ? blk.name : "class") + " without a lesson",
-      title: "Students wait on the waiting screen until you start a lesson", onclick: () => link.send({ t: "classStart", periodId: startPick.block || null }) }) : null].filter(Boolean));
+    blk || !ordered.length ? el("div", { class: "t-startcols" },
+      el("div", { class: "t-startl" },
+        el("div", { class: "t-slessons" },
+          el("h3", { text: "Lessons" }),
+          ...lessons.map(lessonRow),
+          !lessons.length ? el("p", { class: "t-hint", text: "No lessons yet." }) : null),
+        el("button", { class: "t-small", style: "margin-top:16px", text: "Start " + (blk ? blk.name : "class") + " without a lesson",
+          title: "Students wait on the waiting screen until you start a lesson", onclick: () => link.send({ t: "classStart", periodId: startPick.block || null }) })),
+      el("aside", { class: "aero-panel t-roster", id: "startRoster", hidden: true })) : null].filter(Boolean));
+  renderStartRoster();
+}
+// the class list beside the lessons, with who is signed in (only on a computer with the name file)
+function renderStartRoster() {
+  const box = $("startRoster");
+  if (!box) return;
+  const blk = renderStart.data && renderStart.data.periods.find((p) => p.id === startPick.block);
+  const has = blk && Object.keys(names).length && !(tstate && tstate.live);
+  box.hidden = !has;
+  if (!has) return;
+  const rows = ((tstate && tstate.students) || []).filter((x) => x.cls === blk.name).map((x) => ({ ...x, name: lastFirst(names[x.code]) || x.code }));
+  rows.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const n = rows.filter((x) => x.connected).length;
+  box.replaceChildren(
+    el("h3", { text: blk.name }),
+    el("p", { class: "t-roster-n", text: n + " of " + rows.length + " signed in" }),
+    el("ul", {}, ...rows.map((x) => el("li", { class: x.connected ? "on" : "", title: x.code, text: x.name + (x.connected ? "" : " · not signed in") }))));
 }
 const startPick = { block: null, lesson: null, full: null, pages: new Set(), preview: null };
 // second version of the Control room (/teacher2): a lesson can be previewed before class
