@@ -275,6 +275,15 @@ function canvasify(page) {
       }
       page.cv = 3;
     }
+    // sims used to be told the page state's number when nothing was set; write those numbers in once, so page states and sim states are separate
+    if (!page.sm) {
+      const sts = pageStates(page);
+      if (sts.length > 1) for (const b of page.blocks || []) {
+        if (!b || b.type !== "sim") continue;
+        for (const [i, x] of sts.entries()) { if (!blockShowsIn(b, x.id)) continue; b.simStates ||= {}; if (!String(b.simStates[x.id] || "").trim()) b.simStates[x.id] = String(i + 1); }
+      }
+      page.sm = 1;
+    }
     return page;
   }
   page.cv = 2;
@@ -387,22 +396,24 @@ function blockShowsIn(b, sid) { return !Array.isArray(b.states) || !b.states.len
 function blockLockedIn(b, sid) { return Array.isArray(b.lock) && b.lock.includes(sid); }
 const stateAttrs = (b) => ({ "data-bs": Array.isArray(b.states) ? b.states.join(",") : "", "data-lk": Array.isArray(b.lock) ? b.lock.join(",") : "" });
 // Tells each sim on the page which state the page is in: {classlive:"state", state:"closeup"} when the sim has
-// a setting for this state (b.simStates[stateId]), otherwise {classlive:"state", n: position from 1}.
+// a setting for this state (b.simStates[stateId], a number or a name). Page states and sim states are separate things:
+// a page state with no setting tells the sim nothing.
 // Sent when the state changes, every time the sim finishes loading, and when the sim asks with {classlive:"getState"}.
 const simOverride = new WeakMap(); // builder only: a state picked with the "Sim shows" buttons, kept until the page state changes
 function simStateMsg(page, b, sid) {
   if (b && simOverride.has(b)) return simOverride.get(b);
   const word = b && b.simStates && String(b.simStates[sid] || "").trim();
+  if (/^\d+$/.test(word || "")) return { classlive: "state", n: +word };
   if (word) return { classlive: "state", state: word };
-  return { classlive: "state", n: Math.max(1, pageStates(page).findIndex((x) => x.id === sid) + 1) };
+  return null; // nothing set for this page state: the sim is told nothing and keeps what it is showing
 }
-function postSimState(f) { try { f.contentWindow.postMessage(f._clMsg, "*"); f._clSent = JSON.stringify(f._clMsg); } catch {} }
+function postSimState(f) { if (!f._clMsg) return; try { f.contentWindow.postMessage(f._clMsg, "*"); f._clSent = JSON.stringify(f._clMsg); } catch {} }
 function syncSimStates(root, page, sid) {
   for (const f of root.querySelectorAll(".cl-sim iframe")) {
     if (!f._clBlock) continue;
     f._clMsg = simStateMsg(page, f._clBlock, sid);
     if (!f._clHooked) { f._clHooked = true; f.addEventListener("load", () => { f._clLoaded = true; postSimState(f); }); }
-    if (f._clLoaded && f._clSent !== JSON.stringify(f._clMsg)) postSimState(f);
+    if (f._clMsg && f._clLoaded && f._clSent !== JSON.stringify(f._clMsg)) postSimState(f);
   }
 }
 window.addEventListener("message", (e) => {

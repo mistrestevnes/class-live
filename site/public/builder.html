@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=44">
+<link rel="stylesheet" href="app.css?v=45">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=38"></script>
+<script src="common.js?v=39"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -959,13 +959,13 @@ function renderTools() {
       el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim in each page state" }),
         ...pageStates(page).map((x, i) => el("label", { class: "b-staterow" },
           el("span", { style: "display:inline;margin:0;min-width:70px", text: x.name || "State " + (i + 1) }),
-          el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: (declaredStates.get(b.url) || [])[i] ? "n = " + (i + 1) + " (" + declaredStates.get(b.url)[i] + ")" : "n = " + (i + 1), autocapitalize: "off", spellcheck: false,
+          el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: "nothing", autocapitalize: "off", spellcheck: false,
             oninput: (e) => {
               const v = e.target.value.trim();
               if (v) (b.simStates ||= {})[x.id] = v; else if (b.simStates) { delete b.simStates[x.id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
               changed(); if (fitBox) syncSimStates(fitBox, page, curSid());
             } }))),
-        el("p", { class: "t-hint", text: "Type a state name the sim understands (for example closeup). Left blank, the sim is told the state's number." })),
+        el("p", { class: "t-hint", text: "Page states and sim states are separate. Type the sim state to show in each page state: a name the sim understands (for example closeup) or a number. Left blank, the sim is told nothing and keeps what it is showing." })),
       simShowsField(b),
       el("datalist", { id: "simWords" }, ...(declaredStates.get(b.url) || []).map((w) => el("option", { value: w }))),
       el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
