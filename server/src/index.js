@@ -7,6 +7,21 @@
 import { DurableObject } from "cloudflare:workers";
 import { FREEZE_JS } from "./freeze.js";
 
+// Class Live roundRect: draws rounded rectangles on browsers that lack ctx.roundRect
+const ROUNDRECT_JS = `/* Class Live roundRect */(function () {
+  for (const P of [window.CanvasRenderingContext2D, window.Path2D, window.OffscreenCanvasRenderingContext2D]) {
+    if (!P || P.prototype.roundRect) continue;
+    P.prototype.roundRect = function (x, y, w, h, r) {
+      r = Array.isArray(r) ? r[0] : r; r = (r && typeof r === "object") ? (r.x || 0) : r;
+      r = Math.max(0, Math.min(+r || 0, Math.abs(w) / 2, Math.abs(h) / 2));
+      this.moveTo(x + r, y); this.lineTo(x + w - r, y); this.arcTo(x + w, y, x + w, y + r, r);
+      this.lineTo(x + w, y + h - r); this.arcTo(x + w, y + h, x + w - r, y + h, r);
+      this.lineTo(x + r, y + h); this.arcTo(x, y + h, x, y + h - r, r);
+      this.lineTo(x, y + r); this.arcTo(x, y, x + r, y, r); this.closePath();
+    };
+  }
+})();`;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -617,6 +632,15 @@ export class Classroom extends DurableObject {
     const sim = await this.ctx.storage.get("sim:" + id.replace(/[^a-z0-9]/g, ""));
     if (!sim) return new Response("That sim was not found.", { status: 404 });
     let html = sim.html;
+    // older school Chromebooks (Chrome before 99) have no canvas roundRect; without it a sim that uses it stops drawing
+    if (!/Class Live roundRect/.test(html)) {
+      const tag = "<script>" + ROUNDRECT_JS + "</script>";
+      let at = 0;
+      let m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i);
+      if (m) at = m.index + m[0].length;
+      else { m = html.match(/^\s*<!doctype[^>]*>/i); if (m) at = m[0].length; }
+      html = html.slice(0, at) + tag + html.slice(at);
+    }
     if (!/Class Live freeze/.test(html)) { // every sim gets it unless it already has it pasted in
       const tag = "<script>" + FREEZE_JS + "</script>";
       let at = 0;
