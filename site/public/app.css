@@ -233,8 +233,8 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-figure.size-full:fullscreen { height: 100vh; }
 
 /* ---- freeform pages: a 1600 x 900 canvas scaled to fit (--s is how much; --is is its inverse) ---- */
-.cl-canvas-fit { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; margin: 0 auto; border-radius: var(--aero-radius-sm); flex: none; }
-.cl-canvas { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform: scale(var(--s, .5)); transform-origin: 0 0; font-size: 36px; line-height: 1.4;
+.cl-canvas-fit { position: relative; width: 100%; aspect-ratio: 1366 / 599; overflow: hidden; margin: 0 auto; border-radius: var(--aero-radius-sm); flex: none; }
+.cl-canvas { position: absolute; left: 0; top: 0; width: 1600px; height: 702px; transform: scale(var(--s, .5)); transform-origin: 0 0; font-size: 36px; line-height: 1.4;
   /* the same type on every page that shows it (the teacher pages set their own) */
   font-family: var(--aero-font-body); font-weight: 400; font-style: normal; letter-spacing: .02em; word-spacing: .08em; text-transform: none; text-align: left; font-feature-settings: "cv05", "cv08"; }
 .cl-cblock { position: absolute; box-sizing: border-box; overflow: hidden; }
@@ -314,3 +314,21 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 /* answers never scroll inside the box: the box grows instead (see growQ on the student page) */
 .cl-canvas .cl-qblock, .cl-canvas .cl-qblock > .cl-inline { overflow: hidden; }
 .cl-canvas .cl-qblock > .cl-inline textarea { overflow: hidden; }
+
+/* during a lesson the page fills the whole browser window; the timer, connection and buttons float over it */
+body.cl-paged .cl-top { position: fixed; left: 0; right: 0; top: 0; z-index: 60; background: none; border: 0; box-shadow: none; padding: 8px 12px; pointer-events: none; }
+body.cl-paged .cl-top > * { pointer-events: auto; }
+body.cl-paged .cl-top .cl-title, body.cl-paged #pageNum { display: none !important; }
+body.cl-paged .cl-toptimer { background: #0B1A14; padding: 2px 18px; border-radius: 10px; }
+body.cl-paged #status { font-size: 14px; padding: 2px 10px; background: rgba(11, 26, 20, .85); color: #FFFFFF; }
+body.cl-paged .cl-main { padding: 0; }
+body.cl-paged #nav { position: fixed; right: 24px; bottom: 24px; z-index: 60; margin: 0; padding: 6px; gap: 8px; width: auto; justify-content: flex-end; }
+body.cl-paged #nav #navNote { display: none; }
+body.cl-paged #nav button { min-height: 44px; padding: 4px 16px; font-size: 18px; }
+body.cl-paged .cl-qbtn { bottom: 92px; }
+.cl-canvas-fit.cl-stretch { border-radius: 0; aspect-ratio: auto; }
+body.cl-paged { padding-bottom: 0 !important; }
+body.cl-paged #status { font-size: 0; width: 14px; height: 14px; padding: 0; border-radius: 50%; overflow: hidden; }
+body.cl-paged #status::before { margin: 0; }
+.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 100px !important; }
+body.cl-paged #nav .cl-qbtn { position: static; min-height: 44px; padding: 4px 16px; font-size: 18px; }

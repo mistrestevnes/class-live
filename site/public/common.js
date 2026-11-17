@@ -210,7 +210,7 @@ function formatText(src) {
 // ---------------------------------------------------------------- freeform pages
 // A page is a 1600 x 900 canvas (16:9). Every block has x, y, w, h in canvas units and the whole canvas is scaled to fit
 // the screen showing it, so text wraps the same way everywhere. Text sizes are canvas units too: 24 is about 14 px on a Chromebook.
-const CANVAS_W = 1600, CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 1, HEAD_SIZE = 64, TEXT_SIZE = 36;
+const CANVAS_W = 1600, CANVAS_H = 702, OLD_CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 1, HEAD_SIZE = 64, TEXT_SIZE = 36;
 // width and height a new block starts at
 const BLOCK_START = { heading: [1200, 110], text: [1000, 280], image: [640, 400], sim: [1200, 700], video: [960, 540], poll: [1100, 560], question: [1300, 540] };
 
@@ -259,7 +259,16 @@ function measureText(b, size, width) {
 // Turns an older page (blocks stacked top to bottom) into a canvas page, once. Blocks keep their order and
 // go where they were, top to bottom; a sim or a full-screen picture on its own fills the whole canvas.
 function canvasify(page) {
-  if (page.layout === "canvas") return page;
+  if (page.layout === "canvas") {
+    // pages made on the old 16:9 page get the Chromebook page shape: every box keeps its place, squeezed top to bottom
+    if (page.cv !== 2) {
+      const k = CANVAS_H / OLD_CANVAS_H;
+      for (const b of page.blocks || []) { if (!b) continue; b.y = Math.round((b.y || 0) * k); b.h = Math.max(20, Math.round((b.h || 100) * k)); }
+      page.cv = 2;
+    }
+    return page;
+  }
+  page.cv = 2;
   page.layout = "canvas";
   page.bg = safeColor(page.bg) || CANVAS_BG;
   // blank text boxes were never shown to students, so they don't take a place
@@ -403,13 +412,16 @@ function applyStates(root, sid) {
 }
 const BLOCK_CLASS = { heading: "cl-ctext", text: "cl-ctext", image: "cl-cimg", sim: "cl-csim", video: "cl-cvid", poll: "cl-cpoll", question: "cl-cq" };
 
+// a question box reaching the bottom of the page: its Submit sits above the floating Back / Next buttons
+const qLow = (b) => ((b.y || 0) + (b.h || 0) >= CANVAS_H - 12 ? " cl-qlow" : "");
+const geo = (b) => [b.x || 0, b.y || 0, b.w || 200, b.h || 100].map((v) => Math.round(v)).join(",");
 function renderBlock(b, opts = {}) {
   const box = blockBox(b);
   // a question block stays hidden until the teacher opens it; the question then appears right in this box
-  if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock", "data-id": b.id || "", ...stateAttrs(b), hidden: true, style: box });
+  if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock" + qLow(b), "data-id": b.id || "", ...stateAttrs(b), "data-g": geo(b), hidden: true, style: box });
   const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
-  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" : ""), ...stateAttrs(b), style: box }, inner);
+  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" + qLow(b) : ""), ...stateAttrs(b), "data-g": geo(b), style: box }, inner);
 }
 
 // opts: { myChoice, closed, onVote(choice), results: {counts,total}, preview }
@@ -420,7 +432,7 @@ function renderPage(page, opts = {}) {
   const canvas = el("div", { class: "cl-canvas", style: "background:" + bg + ";color:" + autoInk(bg) });
   let qn = 0;
   for (const b of page.blocks || []) { const n = renderBlock(b, b.type === "question" ? { ...opts, qn: ++qn } : opts); if (n) canvas.append(n); }
-  return el("div", { class: "cl-canvas-fit" }, canvas);
+  return el("div", { class: "cl-canvas-fit" + (opts.stretch ? " cl-stretch" : "") }, canvas);
 }
 
 // Makes a canvas box the biggest 16:9 that fits inside parent, and tells it how much it is scaled (--s).
@@ -434,6 +446,26 @@ function fitCanvasBox(fit, parent) {
     const h = parent.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const s = Math.max(0.1, Math.min(w / CANVAS_W, h / CANVAS_H));
     const extra = +fit.dataset.extra || 0; // a question box that grew past the bottom makes the page taller
+    if (fit.classList.contains("cl-stretch")) {
+      // the page fills the whole space: each box keeps its place against the edges and grows with the page;
+      // nothing inside is stretched (text keeps its size, pictures and sims keep their shape)
+      const cw = w / s, ch = h / s, kx = cw / CANVAS_W, ky = ch / CANVAS_H;
+      fit.style.width = Math.floor(w) + "px";
+      fit.style.height = Math.floor((ch + extra) * s) + "px";
+      fit.dataset.ch = String(ch);
+      const cv = fit.querySelector(".cl-canvas");
+      if (cv) { cv.style.width = cw + "px"; cv.style.height = (ch + extra) + "px"; }
+      for (const n of fit.querySelectorAll(".cl-cblock[data-g]")) {
+        const [x, y, bw, bh] = n.dataset.g.split(",").map(Number);
+        n.style.left = x * kx + "px"; n.style.top = y * ky + "px"; n.style.width = bw * kx + "px";
+        const h0 = bh * ky;
+        if (n.classList.contains("cl-qblock")) { n.dataset.h0 = String(h0); n.style.height = Math.max(parseFloat(n.style.height) || 0, h0) + "px"; }
+        else n.style.height = h0 + "px";
+      }
+      fit.style.setProperty("--s", String(s));
+      fit.style.setProperty("--is", String(1 / s));
+      return;
+    }
     fit.style.width = Math.floor(CANVAS_W * s) + "px";
     fit.style.height = Math.floor((CANVAS_H + extra) * s) + "px";
     const cv = fit.querySelector(".cl-canvas");

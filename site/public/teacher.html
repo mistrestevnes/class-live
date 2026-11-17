@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=40">
 <link rel="stylesheet" href="teacher.css?v=19">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -252,7 +252,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=34"></script>
+<script src="common.js?v=36"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -625,13 +625,13 @@ function renderPreview(body) {
     el("span", { text: list.length ? (it ? "Question " + (it.qi + 1) + (it.q.parts.length > 1 ? ", part " + (it.pi + 1) + " of " + it.q.parts.length : "") : "No question showing") : "No questions to send on this page" }),
     list.length ? nav("◀ Question", () => { pvQ = Math.max(-1, pvQ - 1); renderEditor(); }, pvQ < 0) : null,
     list.length ? nav("Question ▶", () => { pvQ = Math.min(list.length - 1, pvQ + 1); renderEditor(); }, pvQ >= list.length - 1) : null);
-  // the frame is a Chromebook screen (1366 × 768), scaled to fit. It stays in place (moving a frame reloads it).
+  // the frame is a Chromebook screen (1366 × 599, the page area), scaled to fit. It stays in place (moving a frame reloads it).
   if (!pvFrame) {
-    pvFrame = el("iframe", { src: "/?preview=1", title: "Student screen preview", style: "position:absolute;left:0;top:0;width:1366px;height:768px;border:0;transform-origin:0 0" });
+    pvFrame = el("iframe", { src: "/?preview=1", title: "Student screen preview", style: "position:absolute;left:0;top:0;width:1366px;height:599px;border:0;transform-origin:0 0" });
     renderPreview.holder = el("div", { style: "position:relative;overflow:hidden;border-radius:8px;margin-top:12px" }, pvFrame);
     renderPreview.bar = el("div");
     renderPreview.hint = el("p", { class: "t-hint", text: "This is the real student page at Chromebook size. Questions that start on their own appear when you use the sim." });
-    const fit = () => { const h = renderPreview.holder, s = Math.min(1, h.clientWidth / 1366); pvFrame.style.transform = "scale(" + s + ")"; h.style.height = 768 * s + "px"; };
+    const fit = () => { const h = renderPreview.holder, s = Math.min(1, h.clientWidth / 1366); pvFrame.style.transform = "scale(" + s + ")"; h.style.height = 599 * s + "px"; };
     new ResizeObserver(fit).observe(renderPreview.holder);
   }
   const holder = renderPreview.holder;
@@ -1286,10 +1286,10 @@ function sendPreview() {
 function fitPreview() {
   const h = pvwFrame && pvwFrame.parentNode;
   if (!h || !h.clientWidth) return;
-  const sc = Math.min(h.clientWidth / 1366, h.clientHeight / 768);
+  const sc = Math.min(h.clientWidth / 1366, h.clientHeight / 599);
   pvwFrame.style.transform = "scale(" + sc + ")";
   pvwFrame.style.left = Math.max(0, (h.clientWidth - 1366 * sc) / 2) + "px";
-  pvwFrame.style.top = Math.max(0, (h.clientHeight - 768 * sc) / 2) + "px";
+  pvwFrame.style.top = Math.max(0, (h.clientHeight - 599 * sc) / 2) + "px";
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && pvwFrame && e.source === pvwFrame.contentWindow) { pvwReady = true; sendPreview(); } });
 // what's on a page: its states, questions, sims, poll, videos and pictures
@@ -1601,10 +1601,10 @@ function lvSendView() {
 }
 function lvFitView() {
   if (!lvFrame) return;
-  const h = $("lvView"), s = Math.min(h.clientWidth / 1366, h.clientHeight / 768);
+  const h = $("lvView"), s = Math.min(h.clientWidth / 1366, h.clientHeight / 599);
   lvFrame.style.transform = "scale(" + s + ")";
   lvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
-  lvFrame.style.top = Math.max(0, (h.clientHeight - 768 * s) / 2) + "px";
+  lvFrame.style.top = Math.max(0, (h.clientHeight - 599 * s) / 2) + "px";
 }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady && lvFrame && e.source === lvFrame.contentWindow) { lvFrameReady = true; lvSendView(); } });
 

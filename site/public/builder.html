@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=40">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -30,7 +30,7 @@
   .b-thumbs li { margin: 0 0 10px; }
   .b-thumbs button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; min-height: 0; }
   .b-thumbs .b-tlabel { display: block; font: 700 12px Helvetica, Arial, sans-serif; margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .b-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
+  .b-thumb { position: relative; width: 100%; aspect-ratio: 1366 / 599; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
   .b-thumb > * { pointer-events: none; }
   .b-thumbs button[aria-pressed="true"], .b-thumbs button:hover { background: none !important; color: inherit !important; }
   .b-thumbs button[aria-pressed="true"] .b-thumb { outline: 4px solid #17A673; }
@@ -52,7 +52,7 @@
   #bPreview { position: fixed; inset: 0; z-index: 50; background: #0b1a14; display: flex; flex-direction: column; }
   #bPreview .aero-bar { margin: 8px 12px; flex: none; gap: 10px; }
   #bPreviewHold { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-  #bPreviewHold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; border-radius: 8px; }
+  #bPreviewHold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 599px; border: 0; transform-origin: 0 0; border-radius: 8px; }
   .t-media .cl-figure.size-full { flex: 1 1 100%; }
 
   /* the page being built: everything sized in canvas units, so lines and handles use --is (1 / scale) to stay the same size on screen */
@@ -69,6 +69,10 @@
   .t-ta.cl-chead { font-weight: 700; line-height: 1.2; }
   .t-ph { padding: 8px 14px; opacity: .45; }
   .t-rich.t-in { font-weight: inherit !important; }
+  .t-float { position: absolute; z-index: 5; pointer-events: none; border: 3px dashed rgba(180, 35, 24, .8); border-radius: 10px; background: rgba(255, 255, 255, .55); color: #B42318;
+    display: flex; align-items: center; justify-content: center; font: 700 26px Helvetica, Arial, sans-serif; box-sizing: border-box; }
+  .t-float-time { left: 50%; top: 9px; width: 190px; height: 66px; transform: translateX(-50%); }
+  .t-float-nav { right: 28px; bottom: 28px; width: 445px; height: 66px; }
   .t-rich { white-space: pre-wrap; outline: 0; cursor: text; min-height: 1.4em; }
   .t-rich b { font-weight: 700; } .t-rich i { font-style: italic; font-weight: inherit; } .t-rich b i { font-weight: 700; }
   .t-rich.t-empty::before { content: attr(data-ph); opacity: .45; pointer-events: none; }
@@ -159,13 +163,14 @@
     <span id="pvLabel" style="font-weight:700"></span>
     <span id="pvS" class="t-row" style="gap:6px"></span>
     <span id="pvQ" class="t-row" style="gap:6px"></span>
+    <span id="pvV" class="t-row" style="gap:6px"></span>
     <span class="cl-grow"></span>
     <span class="t-hint">The real student page at Chromebook size. Pick a question to see it as students do once you open it.</span>
   </div>
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=34"></script>
+<script src="common.js?v=36"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -258,7 +263,8 @@ function makeWin(win, onToggle) {
   };
 }
 function fitCanvas() {
-  $("bCanvas").style.setProperty("--padR", $("winTools").classList.contains("min") ? "210px" : "350px");
+  const w = $("winTools");
+  $("bCanvas").style.setProperty("--padR", (w.hidden ? 40 : w.offsetWidth + 56) + "px"); // the page uses all the room left of the tools window
 }
 makeWin($("winTools"), fitCanvas);
 
@@ -429,6 +435,8 @@ function renderStage() {
   const cv = el("div", { class: "cl-canvas t-canvas", style: "background:" + bg + ";color:" + autoInk(bg) });
   page.blocks.forEach((b, i) => { if (blockShowsIn(b, curSid())) cv.append(editBlock(page, b, i)); }); // only this state's elements
   cv.append(el("div", { class: "t-guides" }));
+  // the template: where the timer and the floating buttons sit over the page on a Chromebook
+  cv.append(el("div", { class: "t-float t-float-time", text: "Timer" }), el("div", { class: "t-float t-float-nav", text: "Ask a question · Back · Next" }));
   fitBox = el("div", { class: "cl-canvas-fit t-fit" }, cv);
   if (stageRO) stageRO.disconnect();
   $("bSheet").replaceChildren(fitBox);
@@ -449,7 +457,7 @@ function markOverflow() {
 function editBlock(page, b, i) {
   const sel = b === edSel;
   const sid = curSid();
-  const wrap = el("div", { class: "cl-cblock t-cb t-cb-" + b.type + (sel ? " sel" : "") + (blockShowsIn(b, sid) ? "" : " t-off"), "data-i": i, style: blockBox(b) });
+  const wrap = el("div", { class: "cl-cblock t-cb t-cb-" + b.type + (b.type === "question" ? qLow(b) : "") + (sel ? " sel" : "") + (blockShowsIn(b, sid) ? "" : " t-off"), "data-i": i, style: blockBox(b) });
   wrap.append(el("div", { class: "t-body" }, ...blockBody(b, sel)));
   if (blockLockedIn(b, sid)) wrap.append(el("div", { class: "t-lockbadge", text: "Locked in this state" }));
   if (sel) {
@@ -794,6 +802,7 @@ async function fitImageBox(b) { // the box takes the picture's shape, keeping it
 
 let bgOpen = false;
 function renderTools() {
+  requestAnimationFrame(fitCanvas);
   $("winTools").classList.remove("b-adding");
   const page = ed.pages[edPage], tools = $("bTools");
   if (!edSel) {
@@ -1065,9 +1074,13 @@ function pvState() {
 }
 function pvSend() { if (pvFrame && pvFrame.contentWindow) pvFrame.contentWindow.postMessage({ clPreview: pvState() }, location.origin); }
 window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data && e.data.clPreviewReady) pvSend(); });
+// "View as": the student page in a window of each common shape (all 1366 wide)
+const VIEWS = [["Chromebook", 599], ["16:9", 768], ["16:10", 854], ["3:2", 911], ["4:3", 1025]];
+let pvH = 599;
 function pvFit() {
   if (!pvFrame) return;
-  const h = $("bPreviewHold"), s = Math.min(1, h.clientWidth / 1366, h.clientHeight / 768);
+  pvFrame.style.height = pvH + "px";
+  const h = $("bPreviewHold"), s = Math.min(1, h.clientWidth / 1366, h.clientHeight / pvH);
   pvFrame.style.transform = "scale(" + s + ")";
   pvFrame.style.left = Math.max(0, (h.clientWidth - 1366 * s) / 2) + "px";
 }
@@ -1085,6 +1098,8 @@ function pvRender() {
     ...sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => { edState = x.id; pvQ = -1; pvSeq++; pvRender(); } })),
     el("button", { text: "Next state ▶", disabled: sts.findIndex((x) => x.id === cur) >= sts.length - 1, onclick: () => { edState = sts[sts.findIndex((x) => x.id === cur) + 1].id; pvQ = -1; pvSeq++; pvRender(); } })] : []));
   $("pvLabel").textContent = "Page " + (edPage + 1) + " of " + ed.pages.length;
+  $("pvV").replaceChildren(el("span", { text: "View as:", style: "font-weight:700" }),
+    ...VIEWS.map(([name, h]) => el("button", { "aria-pressed": String(pvH === h), text: name, onclick: () => { pvH = h; pvFit(); pvRender(); } })));
   $("pvPrev").disabled = edPage === 0;
   $("pvNext").disabled = edPage >= ed.pages.length - 1;
   pvSend();

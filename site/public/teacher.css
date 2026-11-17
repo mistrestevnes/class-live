@@ -353,10 +353,10 @@ html.teacher #liveView .t-sthumbs { display: flex; justify-content: center; gap:
 html.teacher #liveView .t-sthumbs[hidden] { display: none; }
 .t-sthumb { width: 200px; display: flex; flex-direction: column; gap: 3px; }
 .t-sthumb-l { font: 700 12px Helvetica, Arial, sans-serif; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.t-sthumb-p { position: relative; width: 200px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #FFFFFF; outline: 1px solid rgba(255, 255, 255, .35); }
+.t-sthumb-p { position: relative; width: 200px; aspect-ratio: 1366 / 599; overflow: hidden; border-radius: 4px; background: #FFFFFF; outline: 1px solid rgba(255, 255, 255, .35); }
 .t-sthumb-p > * { pointer-events: none; }
 html.teacher #liveView .t-sview { flex: 1 1 0; min-height: 200px; position: relative; overflow: hidden; padding: 0; background: #0B1A14; }
-.t-sview iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; }
+.t-sview iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 599px; border: 0; transform-origin: 0 0; }
 html.teacher #liveView .t-ctl { flex: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 28px; padding: 10px 14px; }
 html.teacher #liveView .t-ctl[hidden], .t-ctl-group[hidden] { display: none !important; }
 .t-ctl-group { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
@@ -390,7 +390,7 @@ html.teacher .t-sgo { font-size: 20px; min-height: 50px; padding: 6px 22px; }
 html.teacher .t-spage { display: block; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; min-height: 0; color: inherit; }
 html.teacher .t-spage:hover { background: none; color: inherit; }
 .t-spage-l { display: block; font: 700 12px Helvetica, Arial, sans-serif; margin: 0 0 3px; }
-.t-spage-p { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
+.t-spage-p { position: relative; width: 100%; aspect-ratio: 1366 / 599; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
 .t-spage-p > * { pointer-events: none; }
 html.teacher .t-spage:hover .t-spage-p { outline: 4px solid #17A673; }
 html.teacher #lvPage h2.t-start-h { font-size: 30px !important; }
@@ -417,7 +417,7 @@ html.teacher #liveView #lvPage.t-pvmode { display: flex; flex-direction: column;
 .t-pvw-title { font-size: 20px; font-weight: 700; }
 .t-pvw-where { font-size: 20px; font-weight: 700; margin-left: auto; }
 .t-pvw-hold { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; background: #0B1A14; border-radius: 8px; }
-.t-pvw-hold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 768px; border: 0; transform-origin: 0 0; }
+.t-pvw-hold iframe { position: absolute; left: 0; top: 0; width: 1366px; height: 599px; border: 0; transform-origin: 0 0; }
 .t-pvw-bar { display: flex; align-items: center; justify-content: center; gap: 14px; flex: none; }
 .t-pvw-gap { width: 40px; }
 html.teacher #lvPage .t-pvw-bar button, html.teacher #lvPage .t-pvw-top button { font-size: 20px !important; min-height: 50px !important; padding: 6px 22px !important; }

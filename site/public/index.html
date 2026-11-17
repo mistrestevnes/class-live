@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=40">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -114,7 +114,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=34"></script>
+<script src="common.js?v=36"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -271,6 +271,7 @@ function render() {
     myChoice: mine,
     closed,
     stateId: (state.stateOf || {})[pg.id],
+    stretch: true,
     onVote: (choice) => {
       state.myVotes[pg.id] = choice; // show the choice right away
       render();
@@ -391,10 +392,12 @@ function placeAsk() {
 }
 // A question box grows downward as the student writes, so the whole answer is always in view (never a scrollbar
 // inside the box). It starts at the size the teacher drew; if it runs past the bottom of the page, the page scrolls.
+$("nav").prepend($("qBtn")); // Ask a question floats in the same row as Back and Next
 function growQ(typing) {
   const fit = $("pageBox").querySelector(".cl-canvas-fit"), cv = fit && fit.querySelector(".cl-canvas");
   if (!cv) return;
-  let bottom = CANVAS_H;
+  const baseH = +fit.dataset.ch || CANVAS_H;
+  let bottom = baseH;
   for (const slot of cv.querySelectorAll(".cl-qblock")) {
     if (!slot.dataset.h0) slot.dataset.h0 = String(parseFloat(slot.style.height) || 100);
     slot.style.height = slot.dataset.h0 + "px";
@@ -405,9 +408,10 @@ function growQ(typing) {
       if (need <= 1) break;
       slot.style.height = (slot.offsetHeight + need + 2) + "px";
     }
-    bottom = Math.max(bottom, slot.offsetTop + slot.offsetHeight + 24);
+    const end = slot.offsetTop + slot.offsetHeight;
+    if (end > baseH + 1) bottom = Math.max(bottom, end + 24);
   }
-  const extra = Math.max(0, Math.ceil(bottom - CANVAS_H));
+  const extra = Math.max(0, Math.ceil(bottom - baseH));
   if (String(extra) !== (fit.dataset.extra || "0")) { fit.dataset.extra = String(extra); if (fit._fit) fit._fit(); }
   if (typing) { // keep the line being typed on screen
     const ta = $("askText"), pb = $("pageBox");

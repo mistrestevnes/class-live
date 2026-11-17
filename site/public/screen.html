@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Screen</title>
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=40">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
   /* the TV page: open on the iPad and leave it. No controls, no names. */
@@ -59,7 +59,7 @@
     <button class="aero-btn-primary" id="tvBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=34"></script>
+<script src="common.js?v=36"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let state = { live: false };
@@ -93,7 +93,7 @@ function apply(s) {
   $("title").textContent = live ? s.title : "Class Live";
   if (live) {
     $("pageNum").textContent = "Page " + (s.pageNum + 1);
-    mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results, stateId: s.stateId });
+    mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results, stateId: s.stateId, stretch: true });
   }
   $("main").classList.toggle("paged", !!live);
   // the middle window: answers on display, else the running question, else paused
