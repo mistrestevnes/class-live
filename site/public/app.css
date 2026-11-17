@@ -299,7 +299,7 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 
 /* page states: a block that doesn't show in this state, and a sim that is locked in it */
 .cl-canvas .cl-cblock.cl-nostate { display: none !important; }
-.cl-canvas .cl-cblock.cl-locked::after { content: "Locked for now"; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 8px; background: #0B1A14; color: #FFFFFF; font: 700 24px Helvetica, Arial, sans-serif; pointer-events: none; white-space: nowrap; }
+.cl-canvas .cl-cblock.cl-locked::after { content: ""; position: absolute; top: 12px; left: 12px; width: 56px; height: 56px; border-radius: 10px; background: #0B1A14 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='10.5' width='14' height='10.5' rx='2' fill='%23FFFFFF'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3' fill='none' stroke='%23FFFFFF' stroke-width='2.4'/%3E%3C/svg%3E") center / 34px 34px no-repeat; pointer-events: none; }
 
 /* the timer lives at the top of the page (in the header), never in the question box */
 .cl-toptimer { font-size: 44px; line-height: 1; color: #FFD166; font-weight: 700; font-variant-numeric: tabular-nums; }

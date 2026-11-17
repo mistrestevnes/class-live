@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 <link rel="stylesheet" href="teacher.css?v=17">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -1112,7 +1112,7 @@ function renderLive() {
       box.querySelector(".t-sthumb-l").textContent = sid ? (which === "p" ? "Previous state: " : "Next state: ") + (sts[k].name || "State " + (k + 1)) : (which === "p" ? "No earlier state" : "No later state");
       const p = box.querySelector(".t-sthumb-p");
       p.hidden = !sid;
-      if (sid) mountPage(p, page, { preview: true, stateId: sid });
+      if (sid) mountPage(p, page, { preview: true, edit: { simPreview: true }, stateId: sid });
       return box;
     };
     slot(curIx - 1, "p"); slot(curIx + 1, "n");
@@ -1205,13 +1205,13 @@ async function renderStart(force) {
           onclick: () => { if (openPg) startPick.pages.delete(pg.id); else startPick.pages.add(pg.id); box._startKey = null; renderStart(); } },
           el("span", { class: "t-spage-l", text: (openPg ? "▾ " : "▸ ") + "Page " + (i + 1) + (pg.name ? " · " + pg.name : "") }), th),
         pageSummary(pg)));
-      requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, stateId: pageStates(pg)[0].id }); } catch {} });
+      requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: pageStates(pg)[0].id }); } catch {} });
       if (openPg) pageStates(pg).forEach((st, k) => {
         const sth = el("div", { class: "t-spage-p", inert: "" });
         grid.append(el("div", { class: "t-spage-row t-sstate-row" },
           el("div", { class: "t-spage" }, el("span", { class: "t-spage-l", text: st.name || "State " + (k + 1) }), sth),
           pageSummary({ blocks: (pg.blocks || []).filter((x) => blockShowsIn(x, st.id)) })));
-        requestAnimationFrame(() => { try { mountPage(sth, pg, { preview: true, stateId: st.id }); } catch {} });
+        requestAnimationFrame(() => { try { mountPage(sth, pg, { preview: true, edit: { simPreview: true }, stateId: st.id }); } catch {} });
       });
     });
     return row;

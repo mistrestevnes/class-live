@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -269,7 +269,7 @@ function drawThumbs() {
   clearTimeout(thumbTimer); thumbTimer = null;
   for (const p of ed.pages) {
     const box = thumbBoxes.get(p.id);
-    if (box && box.isConnected) { try { mountPage(box, p, { stateId: pageStates(p)[0].id, preview: true }); } catch {} }
+    if (box && box.isConnected) { try { mountPage(box, p, { stateId: pageStates(p)[0].id, preview: true, edit: { simPreview: true } }); } catch {} }
   }
 }
 const thumbsSoon = () => { clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbs, 900); };
