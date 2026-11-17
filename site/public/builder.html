@@ -951,7 +951,7 @@ function renderTools() {
       el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim in each page state" }),
         ...pageStates(page).map((x, i) => el("label", { class: "b-staterow" },
           el("span", { style: "display:inline;margin:0;min-width:70px", text: x.name || "State " + (i + 1) }),
-          el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", placeholder: "n = " + (i + 1), autocapitalize: "off", spellcheck: false,
+          el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: (declaredStates.get(b.url) || [])[i] ? "n = " + (i + 1) + " (" + declaredStates.get(b.url)[i] + ")" : "n = " + (i + 1), autocapitalize: "off", spellcheck: false,
             oninput: (e) => {
               const v = e.target.value.trim();
               if (v) (b.simStates ||= {})[x.id] = v; else if (b.simStates) { delete b.simStates[x.id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
@@ -959,6 +959,7 @@ function renderTools() {
             } }))),
         el("p", { class: "t-hint", text: "Type a state name the sim understands (for example closeup). Left blank, the sim is told the state's number." })),
       simShowsField(b),
+      el("datalist", { id: "simWords" }, ...(declaredStates.get(b.url) || []).map((w) => el("option", { value: w }))),
       el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
         el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: (e) => { b.url = e.target.value; changed(); }, onchange: () => renderStage() })),
       el("p", { class: "t-hint", text: "Upload a sim as a single .html file, or paste an address that starts with https://. The sim gets a window the size of its box, so a bigger box shows more of it. Uploaded sims freeze when you pause the class." }));
@@ -966,13 +967,29 @@ function renderTools() {
   tools.replaceChildren(...parts);
 }
 // "Sim states" list and the buttons that send one of them to the sim in the editor, whatever the page state is
+// the states a sim lists in its head: <meta name="classlive-states" content="ball,both,closeup">
+const declaredStates = new Map(); // url -> [names] (empty when the sim lists none or can't be read)
+function loadDeclared(url, then) {
+  if (!url || declaredStates.has(url)) return;
+  declaredStates.set(url, []);
+  fetch(url, { cache: "no-cache" }).then((r) => (r.ok ? r.text() : "")).then((html) => {
+    const m = /<meta[^>]+name=["']classlive-states["'][^>]*>/i.exec(html) || [""];
+    const c = /content=["']([^"']*)["']/i.exec(m[0]);
+    const list = c ? c[1].split(",").map((w) => w.trim()).filter(Boolean) : [];
+    declaredStates.set(url, list);
+    if (list.length && then) then();
+  }).catch(() => {});
+}
 function simList(b) {
-  const t = String(b.simList || "").trim();
+  const t = String(b.simList || "").trim() || (declaredStates.get(b.url) || []).join(",");
   if (/^\d+$/.test(t)) return Array.from({ length: Math.min(+t, 30) }, (_, i) => ({ label: String(i + 1), msg: { classlive: "state", n: i + 1 } }));
   return t.split(",").map((w) => w.trim()).filter(Boolean).map((w) => ({ label: w, msg: /^\d+$/.test(w) ? { classlive: "state", n: +w } : { classlive: "state", state: w } }));
 }
 function simShowsField(b) {
   const row = el("div", { class: "t-row", style: "flex-wrap:wrap;gap:6px" });
+  const input = el("input", { type: "text", value: b.simList || "", placeholder: "arrows, closeup   or   2", autocapitalize: "off", spellcheck: false,
+      oninput: (e) => { const v = e.target.value; if (v.trim()) b.simList = v; else delete b.simList; changed(); fill(); } });
+  const showDeclared = () => { const d = declaredStates.get(b.url) || []; if (d.length) input.placeholder = "From the sim: " + d.join(", "); };
   const fill = () => {
     const list = simList(b);
     row.replaceChildren(...(list.length ? [el("span", { style: "font-weight:700", text: "Sim shows:" })] : []), ...list.map((x) => el("button", {
@@ -983,11 +1000,11 @@ function simShowsField(b) {
         simOverride.set(b, x.msg); f._clMsg = x.msg; postSimState(f); fill();
       } })));
   };
-  fill();
+  fill(); showDeclared();
+  loadDeclared(b.url, () => { showDeclared(); fill(); renderTools(); });
   return el("div", { class: "cl-field" }, el("span", { text: "Sim states" }),
-    el("input", { type: "text", value: b.simList || "", placeholder: "arrows, closeup   or   2", autocapitalize: "off", spellcheck: false,
-      oninput: (e) => { const v = e.target.value; if (v.trim()) b.simList = v; else delete b.simList; changed(); fill(); } }),
-    el("p", { class: "t-hint", text: "List the states the sim has, separated by commas, or just a number for how many. Click one below to show it in the sim right now. This only changes the editor; students see the state each page state sets." }),
+    input,
+    el("p", { class: "t-hint", text: "Sims that list their states fill this in by themselves. Otherwise list them, separated by commas, or give a number. Click one below to show it in the sim right now (editor only)." }),
     row);
 }
 function simInfo(id) {

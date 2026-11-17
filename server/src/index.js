@@ -612,12 +612,12 @@ export class Classroom extends DurableObject {
   }
 
   // Serves the page with the Class Live freeze script added at the top, so Pause and
-  // pushed questions freeze it. A sim that already has its own Class Live code is left as it is.
+  // pushed questions freeze it (skipped only when the sim already has the freeze script pasted in).
   async serveSim(id) {
     const sim = await this.ctx.storage.get("sim:" + id.replace(/[^a-z0-9]/g, ""));
     if (!sim) return new Response("That sim was not found.", { status: 404 });
     let html = sim.html;
-    if (!/classlive/i.test(html)) {
+    if (!/Class Live freeze/.test(html)) { // every sim gets it unless it already has it pasted in
       const tag = "<script>" + FREEZE_JS + "</script>";
       let at = 0;
       let m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i);
