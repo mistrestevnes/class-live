@@ -370,3 +370,33 @@ html.teacher #liveView .t-ctl button { font-size: 20px !important; min-height: 4
 html.teacher #liveView .t-ctl { gap: 8px 24px; padding: 8px 12px; }
 html.teacher #liveView #lvQctl, html.teacher #liveView #lvSimProg { flex: none; max-height: 96px; overflow-y: auto; }
 .t-sthumb, .t-sthumb-p { width: 170px; }
+
+/* Start a class: colored block buttons, the lessons under them, a lesson's pages under it */
+html.teacher .t-start-h { font-size: 30px; margin: 0 0 14px; }
+.t-sblocks { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+html.teacher .t-sblock { font-size: 22px; min-height: 60px; padding: 8px 26px; color: #FFFFFF; background: #5A6B63; border: 0; border-radius: 10px; }
+html.teacher .t-sblock.t-sb1 { background: #C62828; }
+html.teacher .t-sblock.t-sb2 { background: #1E8449; }
+html.teacher .t-sblock.t-sb5 { background: #1565C0; }
+html.teacher .t-sblock[aria-pressed="true"] { outline: 5px solid #111111; outline-offset: 3px; }
+html.teacher .t-sblock:hover { filter: brightness(1.08); color: #FFFFFF; }
+.t-slessons h3 { font-size: 16px; margin: 0 0 8px; }
+.t-slesson { border-bottom: 1px solid rgba(0, 0, 0, .12); padding: 4px 0; }
+html.teacher .t-slesson-btn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; padding: 8px 6px; font-size: 18px; min-height: 0; color: inherit; }
+html.teacher .t-slesson-btn:hover, html.teacher .t-slesson.open .t-slesson-btn { background: rgba(23, 166, 115, .12); color: inherit; }
+.t-slesson .t-ltitle { font-weight: 700; }
+html.teacher .t-sgo { font-size: 20px; min-height: 50px; padding: 6px 22px; }
+.t-spages { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin: 0 0 14px; }
+html.teacher .t-spage { display: block; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; min-height: 0; color: inherit; }
+html.teacher .t-spage:hover { background: none; color: inherit; }
+.t-spage-l { display: block; font: 700 12px Helvetica, Arial, sans-serif; margin: 0 0 3px; }
+.t-spage-p { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; outline: 2px solid rgba(0, 0, 0, .2); background: #FFFFFF; }
+.t-spage-p > * { pointer-events: none; }
+html.teacher .t-spage:hover .t-spage-p { outline: 4px solid #17A673; }
+html.teacher #lvPage h2.t-start-h { font-size: 30px !important; }
+html.teacher #lvPage .t-sblock { font-size: 22px !important; min-height: 60px !important; padding: 8px 26px !important; }
+html.teacher #lvPage .t-slessons h3 { font-size: 16px !important; }
+html.teacher #lvPage .t-slesson-btn { font-size: 18px !important; min-height: 0 !important; }
+html.teacher #lvPage .t-slesson-btn .aero-chip { font-size: 13px; }
+html.teacher #lvPage .t-sgo { font-size: 20px !important; min-height: 50px !important; padding: 6px 22px !important; }
+html.teacher #lvPage .t-spage { min-height: 0 !important; padding: 0 !important; }
