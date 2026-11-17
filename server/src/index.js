@@ -529,7 +529,7 @@ export class Classroom extends DurableObject {
     lesson.plan = cleanPlan(srcPlan, lesson.pages);
     await this.ctx.storage.put("lesson:" + id, lesson);
     const index = ((await this.ctx.storage.get("lessons")) || []).filter((l) => l.id !== id);
-    index.unshift({ id, title: lesson.title, pages: lesson.pages.length, updated: lesson.updated, level: lesson.level, items: lesson.plan.length });
+    index.unshift({ id, title: lesson.title, pages: lesson.pages.reduce((n, pg) => n + (Array.isArray(pg.states) && pg.states.length ? pg.states.length : 1), 0), updated: lesson.updated, level: lesson.level, items: lesson.plan.length });
     await this.ctx.storage.put("lessons", index);
     if (this.live && this.live.lessonId === id) {
       this.liveLesson = lesson;

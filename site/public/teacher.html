@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=47">
-<link rel="stylesheet" href="teacher.css?v=37">
+<link rel="stylesheet" href="app.css?v=48">
+<link rel="stylesheet" href="teacher.css?v=39">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -238,7 +238,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=43"></script>
+<script src="common.js?v=44"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -496,7 +496,7 @@ async function startLesson(id, from) {
     const pg = (from || 0) + 1;
     let keepPlan = false;
     if (L.lessonId && L.planChanged) { keepPlan = await askKeepPlan("End the current lesson"); if (keepPlan === null) return; }
-    if (!(await askYesNo((L.lessonId ? "End the current lesson and start \"" : "Start \"") + title + "\" on page " + pg + "? Students will see only that page until you unlock the next.", "Start on page " + pg))) return;
+    if (!(await askYesNo((L.lessonId ? "End the current lesson and start \"" : "Start \"") + title + "\"?", "Start"))) return;
     if (edSaveTimer) saveNow(); await saveChain;
     lvSession = null; openForBlock = null;
     await link.send({ t: "start", lessonId: id, from: from || 0, keepPlan });
@@ -506,7 +506,7 @@ async function startLesson(id, from) {
   const pick = openForBlock !== null ? { id: openForBlock } : await pickBlock();
   openForBlock = null;
   if (!pick) return;
-  if (from !== undefined && !(await askYesNo("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\" with the class on page " + (from + 1) + "? Students will see only that page until you unlock the next.", "Start on page " + (from + 1)))) return;
+  if (from !== undefined && !(await askYesNo("Start \"" + (ed && ed.id === id ? ed.title : "this lesson") + "\"?", "Start"))) return;
   if (edSaveTimer) saveNow(); await saveChain;
   lvSession = null;
   await link.send({ t: "start", lessonId: id, periodId: pick.id, from: from || 0 });
@@ -1091,7 +1091,7 @@ function renderLive() {
       el("button", { class: "aero-btn-primary", text: "Next ▶", disabled: curIx >= sts.length - 1 || qOpen, title: why, onclick: () => goState(sts[curIx + 1].id) }));
   }
   // the page as students see it
-  $("lvPage").hidden = true; $("lvView").hidden = false; $("lvCtl").hidden = false;
+  $("lvPage").hidden = true; $("lvView").hidden = false; $("lvCtl").hidden = !$("lvPollBar").childElementCount; // only polls use this bar now
   lvSendView();
   renderSimProg(page);
   renderNav(lesson, live);
@@ -1176,18 +1176,14 @@ async function renderStart(force) {
       el("div", { class: "t-row", style: "margin:10px 0" },
         el("button", { class: "aero-btn-primary t-sgo", text: "Start " + (blk ? blk.name : "class") + " with this lesson", onclick: () => startWith(l.id, 0) }),
         V2 ? el("button", { class: "t-sgo", text: "Preview", title: "Step through the lesson as students will see it", onclick: () => { startPick.preview = { i: 0 }; box._startKey = null; renderStart(); } }) : null,
-        el("span", { class: "t-hint", text: "Each page\u2019s states are listed under it" })),
+        el("span", { class: "t-hint", text: "The lesson\u2019s pages, in order" })),
       grid);
-    (full.pages || []).forEach((pg, i) => {
-      const th = el("div", { class: "t-spage-p", inert: "" });
-      grid.append(el("div", { class: "t-spage-row" },
-        el("div", { class: "t-spage" }, el("span", { class: "t-spage-l", text: "Page " + (i + 1) + (pg.name ? " · " + pg.name : "") }), th),
-        pageSummary(pg)));
-      requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: pageStates(pg)[0].id }); } catch {} });
-      if (Array.isArray(pg.states) && pg.states.length > 1) pageStates(pg).forEach((st, k) => {
+    // a lesson's pages, one row each
+    (full.pages || []).forEach((pg) => {
+      pageStates(pg).forEach((st, k) => {
         const sth = el("div", { class: "t-spage-p", inert: "" });
-        grid.append(el("div", { class: "t-spage-row t-sstate-row" },
-          el("div", { class: "t-spage" }, el("span", { class: "t-spage-l", text: st.name || "State " + (k + 1) }), sth),
+        grid.append(el("div", { class: "t-spage-row" },
+          el("div", { class: "t-spage" }, el("span", { class: "t-spage-l", text: stepName(st, k) + (st.off ? " (greyed out)" : "") }), sth),
           pageSummary({ blocks: (pg.blocks || []).filter((x) => blockShowsIn(x, st.id)) })));
         requestAnimationFrame(() => { try { mountPage(sth, pg, { preview: true, edit: { simPreview: true }, stateId: st.id }); } catch {} });
       });
@@ -1252,7 +1248,7 @@ function renderPreview(box) {
   box._startKey = key;
   box.classList.add("t-pvmode");
   const go = (d) => { startPick.preview.i = idx + d; renderStart(); };
-  const where = "Page " + (step.i + 1) + " of " + lesson.pages.length + (step.n > 1 ? " · " + (step.st.name || "State " + (step.k + 1)) : "");
+  const where = stepName(step.st, step.k) + " · " + (step.k + 1) + " of " + step.n;
   if (!pvwFrame) {
     pvwFrame = el("iframe", { src: "/?preview=1", title: "What students will see" });
     new ResizeObserver(fitPreview).observe(box);
@@ -1268,7 +1264,7 @@ function renderPreview(box) {
       el("button", { text: "◀ Back", disabled: idx <= 0, onclick: () => go(-1) }),
       el("button", { class: "aero-btn-primary", text: "Next ▶", disabled: idx >= steps.length - 1, onclick: () => go(1) }),
       el("span", { class: "t-pvw-gap" }),
-      el("button", { class: "t-pvw-start t-sblock t-sb" + (blk ? parseInt(blk.name, 10) || 0 : 0), text: "Start " + (blk ? blk.name : "class") + " here", title: "Start the class on this page" + (step.n > 1 ? " and state" : ""),
+      el("button", { class: "t-pvw-start t-sblock t-sb" + (blk ? parseInt(blk.name, 10) || 0 : 0), text: "Start " + (blk ? blk.name : "class") + " here", title: "Start the class on this page",
         onclick: () => { pendingState = step.k ? { lessonId: lesson.id, pageId: step.pg.id, to: step.st.id } : null; startPick.preview = null;
           link.send({ t: "start", lessonId: lesson.id, periodId: startPick.block || null, from: step.i }); } })));
   fitPreview();
@@ -1295,7 +1291,6 @@ function pageSummary(pg) {
   const plain = (t) => String(t || "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
   const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
   const lines = [];
-  if (sts.length > 1) lines.push(["States", sts.map((x, i) => x.name || "State " + (i + 1)).join(", ")]);
   bl.filter((b) => b.type === "question").forEach((b, i) =>
     lines.push(["Question " + (i + 1), cut(plain(b.prompt) || "(no question typed)", 140) + " · " + (Number(b.min) || 3) + " min" + (b.kind === "mc" ? " · multiple choice" : "") + (b.auto ? " · appears by itself" : "")]));
   const sims = [...new Set(bl.filter((b) => b.type === "sim" && b.url).map((b) => {
@@ -1822,14 +1817,14 @@ function renderNav(lesson, live) {
       const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
         el("span", { class: "t-spage-l", text: label }), th,
         // the questions of this state, in small type (the first state is shown under its own state preview)
-        ...(!isState && pageStates(pg).length > 1 ? [] : (pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
+        ...((pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
           .map((b) => el("span", { class: "t-nvq" }, formatText(b.prompt)))));
       requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
       if (!isState) return btn;
       // states: drag to reorder within the page; the trash can greys a state out (students never see it), click again to bring it back
       const wrap = el("div", { class: "t-nvwrap" + (st.off ? " off" : ""), "data-page": i, "data-state": sid },
         btn,
-        el("button", { class: "t-nvtrash", title: st.off ? "Show this state to students again" : "Grey out: students never see this state",
+        el("button", { class: "t-nvtrash", title: st.off ? "Show this page to students again" : "Grey out: students never see this page",
           "aria-label": st.off ? "Bring back " + label : "Grey out " + label, "aria-pressed": st.off ? "true" : "false",
           onclick: (e) => { e.stopPropagation(); toggleStateOff(pg.id, sid); } },
           el("span", { "aria-hidden": "true", text: "🗑" })));
@@ -1841,12 +1836,8 @@ function renderNav(lesson, live) {
       });
       return wrap;
     };
-    box.replaceChildren(...lesson.pages.flatMap((pg, i) => {
-      const sts = pageStates(pg), first = sts.find((x) => !x.off) || sts[0];
-      const out = [mk(pg, i, "Page " + (i + 1) + (pg.name ? " · " + pg.name : ""), first, false)];
-      if (sts.length > 1) sts.forEach((st, k) => out.push(mk(pg, i, st.name || "State " + (k + 1), st, true)));
-      return out;
-    }));
+    // the lesson's pages (one row each, with its questions under it)
+    box.replaceChildren(...lesson.pages.flatMap((pg, i) => pageStates(pg).map((st, k) => mk(pg, i, stepName(st, k), st, true))));
   }
   const sel = Math.min(lvSelected, lesson.pages.length - 1), selPg = lesson.pages[sel];
   const curSid = stateOfPage(selPg, (live.states || {})[selPg.id]);
@@ -1856,7 +1847,7 @@ function renderNav(lesson, live) {
     b.classList.toggle("cur", i === sel && (isState ? b.dataset.state === curSid : pageStates(lesson.pages[i]).length < 2));
     b.classList.toggle("locked", i > live.unlocked);
     b.setAttribute("aria-disabled", String(isState && (off || !!live.ask || i > live.unlocked)));
-    b.title = off ? "Greyed out: students never see this state" : isState && live.ask ? "Close the question first" : "";
+    b.title = off ? "Greyed out: students never see this page" : isState && live.ask ? "Close the question first" : "";
   }
 }
 let navDrag = null;
@@ -1913,7 +1904,7 @@ function toggleStateOff(pageId, sid) {
   editStates(pageId, (pg) => {
     const st = pg.states.find((x) => x.id === sid);
     if (!st) return false;
-    if (!st.off && pg.states.filter((x) => !x.off).length < 2) { alert("At least one state has to stay on."); return false; }
+    if (!st.off && pg.states.filter((x) => !x.off).length < 2) { alert("At least one page has to stay on."); return false; }
     if (st.off) delete st.off; else st.off = true;
   });
 }
@@ -1927,7 +1918,7 @@ function moveState(pageId, fromSid, toSid, after) {
     if (j < 0) return false;
     pg.states.splice(after ? j + 1 : j, 0, st);
     // states that still have their automatic name are renumbered to their new place; names you typed stay
-    pg.states.forEach((x, k) => { if (!x.name || /^State \d+$/.test(x.name)) x.name = "State " + (k + 1); });
+    pg.states.forEach((x, k) => { if (!x.name || /^(State|Page) \d+$/.test(x.name)) x.name = "Page " + (k + 1); });
   });
 }
 

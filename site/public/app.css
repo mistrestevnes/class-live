@@ -344,3 +344,6 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 
 /* a thumbnail runs the sim in a window the size of its box on the page, then the whole thumbnail is scaled down (so the sim looks like the page, only smaller) */
 .t-spage-p .cl-csim .cl-sim, .b-thumb .cl-csim .cl-sim { width: 100% !important; height: 100% !important; transform: none !important; }
+
+/* a lesson is one screen: students only see the page the teacher is on, so no Back/Next */
+#nav #back, #nav #next, #nav #navNote { display: none !important; }

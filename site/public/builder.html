@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=47">
+<title>Class Live · Lesson builder</title>
+<link rel="stylesheet" href="app.css?v=48">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -125,7 +125,7 @@
   <button id="bBack">◀ Lessons</button>
   <input type="text" id="bTitle" class="t-title-input" aria-label="Lesson title">
   <span class="aero-chip" id="saveState">Saved</span>
-  <span id="bStates" class="b-states"></span>
+  <span id="bStates" class="b-states" hidden></span>
   <button id="bPlan" title="Plan items, questions and notes for this lesson">Plan &amp; questions</button>
   <button class="aero-btn-primary" id="bPreviewBtn">Preview</button>
 </header>
@@ -140,14 +140,14 @@
   <ul class="b-thumbs" id="bPages"></ul>
   <div class="b-side-tools">
     <div class="t-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
-      <button class="t-small" id="pgAdd">+ Page</button>
+      <button class="t-small" id="pgAdd" title="Add a blank page after this one">+ Page</button>
       <button class="t-small" id="pgUp" aria-label="Move page up">▲</button>
       <button class="t-small" id="pgDown" aria-label="Move page down">▼</button>
-      <button class="t-small" id="pgDup">Copy</button>
+      <button class="t-small" id="pgDup" title="Add a page after this one that starts with copies of this page's elements">Copy</button>
       <button class="t-small" id="pgDel">Delete</button>
     </div>
     <label class="cl-field"><span>Page name (only you see this)</span><input type="text" id="pgName"></label>
-    <div class="b-statelist" id="bStateList"></div>
+    
   </div>
 </aside>
 
@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=43"></script>
+<script src="common.js?v=44"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -272,68 +272,68 @@ function fitCanvas() {
 makeWin($("winTools"), fitCanvas);
 
 // ---------------------------------------------------------------- the pages window
+// A lesson is one screen; its pages are steps that each show some of the lesson's elements.
+// (Stored as the states of the lesson's single screen, so sims keep running from page to page.)
+const AUTO_NAME = /^(State|Page) \d+$/;
 const thumbBoxes = new Map(); // page id -> its thumbnail, kept so an unchanged page isn't drawn again (and its sims don't reload)
 let thumbTimer = null;
+function ensureStates(pg) { if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "Page 1" }]; return pg.states; }
 function drawThumbs() {
   clearTimeout(thumbTimer); thumbTimer = null;
-  for (const p of ed.pages) {
-    const box = thumbBoxes.get(p.id);
-    if (box && box.isConnected) { try { mountPage(box, p, { stateId: pageStates(p)[0].id, preview: true, edit: { simPreview: true } }); } catch {} }
+  const pg = ed.pages[edPage];
+  for (const x of pageStates(pg)) {
+    const box = thumbBoxes.get(x.id);
+    if (box && box.isConnected) { try { mountPage(box, pg, { stateId: x.id, preview: true, edit: { simPreview: true } }); } catch {} }
   }
 }
 const thumbsSoon = () => { clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbs, 900); };
+const pgName = (x, i) => x.name || "Page " + (i + 1);
 function renderPages() {
-  const ids = new Set(ed.pages.map((p) => p.id));
+  const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid(), ci = Math.max(0, sts.findIndex((x) => x.id === cur));
+  const ids = new Set(sts.map((x) => x.id));
   for (const k of [...thumbBoxes.keys()]) if (!ids.has(k)) thumbBoxes.delete(k);
-  $("bPages").replaceChildren(...ed.pages.map((p, i) => {
-    let box = thumbBoxes.get(p.id);
-    if (!box) { box = el("div", { class: "b-thumb", inert: "" }); thumbBoxes.set(p.id, box); }
+  $("bPages").replaceChildren(...sts.map((x, i) => {
+    let box = thumbBoxes.get(x.id);
+    if (!box) { box = el("div", { class: "b-thumb", inert: "" }); thumbBoxes.set(x.id, box); }
     return el("li", {},
-      el("button", { "aria-pressed": i === edPage ? "true" : "false", onclick: () => { edPage = i; edSel = null; renderAll(); } },
-        el("span", { class: "b-tlabel t-label", text: (i + 1) + ". " + pageLabel(p, i) }), box));
+      el("button", { "aria-pressed": x.id === cur ? "true" : "false", onclick: () => setState(x.id) },
+        el("span", { class: "b-tlabel t-label", text: (i + 1) + ". " + pgName(x, i) }), box));
   }));
-  $("pgUp").disabled = edPage === 0;
-  $("pgDown").disabled = edPage === ed.pages.length - 1;
-  $("winPagesTitle").textContent = "Pages · " + (edPage + 1) + " of " + ed.pages.length;
+  $("pgUp").disabled = ci === 0;
+  $("pgDown").disabled = ci === sts.length - 1;
+  $("pgDel").disabled = sts.length < 2;
+  $("winPagesTitle").textContent = "Pages · " + (ci + 1) + " of " + sts.length;
   const pn = $("pgName");
-  if (document.activeElement !== pn) pn.value = ed.pages[edPage].name || "";
-  pn.placeholder = pageLabel({ blocks: ed.pages[edPage].blocks }, edPage);
+  if (document.activeElement !== pn) pn.value = (sts[ci] && sts[ci].name && !AUTO_NAME.test(sts[ci].name)) ? sts[ci].name : "";
+  pn.placeholder = "Page " + (ci + 1);
   thumbsSoon();
-  const cur = $("bPages").children[edPage];
-  if (cur) cur.scrollIntoView({ block: "nearest" });
+  const li = $("bPages").children[ci];
+  if (li) li.scrollIntoView({ block: "nearest" });
 }
 function refreshPageLabels() {
   const labels = $("bPages").querySelectorAll(".t-label");
-  ed.pages.forEach((p, i) => { if (labels[i]) labels[i].textContent = (i + 1) + ". " + pageLabel(p, i); });
+  pageStates(ed.pages[edPage]).forEach((x, i) => { if (labels[i]) labels[i].textContent = (i + 1) + ". " + pgName(x, i); });
 }
-$("pgName").oninput = (e) => { ed.pages[edPage].name = e.target.value; changed(); refreshPageLabels(); };
-$("pgAdd").onclick = () => { ed.pages.splice(edPage + 1, 0, newPage()); edPage++; edSel = null; changed(); renderAll(); };
-$("pgDup").onclick = () => {
-  const copy = JSON.parse(JSON.stringify(ed.pages[edPage])); copy.id = randomId(8);
-  for (const b of copy.blocks || []) if (b.type === "question") b.id = newId();
-  ed.pages.splice(edPage + 1, 0, copy); edPage++; edSel = null; changed(); renderAll();
+$("pgName").oninput = (e) => {
+  const sts = ensureStates(ed.pages[edPage]), i = sts.findIndex((x) => x.id === curSid());
+  if (i < 0) return;
+  sts[i].name = e.target.value.trim() ? e.target.value : "Page " + (i + 1);
+  changed(); refreshPageLabels();
 };
-$("pgDel").onclick = async () => {
-  if (ed.pages.length === 1) { await askYesNo("A lesson needs at least one page.", "OK"); return; }
-  if (!(await askYesNo("Delete page " + (edPage + 1) + "?", "Delete"))) return;
-  ed.pages.splice(edPage, 1); edPage = Math.min(edPage, ed.pages.length - 1); edSel = null; changed(); renderAll();
-};
-$("pgUp").onclick = () => movePage(-1);
-$("pgDown").onclick = () => movePage(1);
-function movePage(d) {
-  const j = edPage + d;
-  if (j < 0 || j >= ed.pages.length) return;
-  [ed.pages[edPage], ed.pages[j]] = [ed.pages[j], ed.pages[edPage]];
-  edPage = j; changed(); renderAll();
-}
+$("pgAdd").onclick = () => addState(false);
+$("pgDup").onclick = () => addState(true);
+$("pgDel").onclick = () => confirmDeleteState(curSid());
+$("pgUp").onclick = () => moveState(curSid(), -1);
+$("pgDown").onclick = () => moveState(curSid(), 1);
 
 // ---------------------------------------------------------------- page states
 let edState = "";
 const curSid = () => stateOfPage(ed.pages[edPage], edState);
 function setState(id) { for (const b of ed.pages[edPage].blocks) simOverride.delete(b); edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
-function addState() {
+// + Page: a blank page. Copy: a page that starts with copies of the elements of the page you were on.
+function addState(copy) {
   const pg = ed.pages[edPage];
-  if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "State 1" }];
+  ensureStates(pg);
   const from = curSid();
   const st = { id: newId(), name: "" };
   // the new state starts with copies of the elements of the state you were on, so changing one does not change the other
@@ -341,7 +341,7 @@ function addState() {
   const copies = [];
   for (const b of pg.blocks) {
     if (!Array.isArray(b.states) || !b.states.length) b.states = old.slice(); // it was in every state; keep it only in those
-    if (!b.states.includes(from)) continue;
+    if (!copy || !b.states.includes(from)) continue;
     const c = JSON.parse(JSON.stringify(b));
     c.states = [st.id];
     if (Array.isArray(b.lock) && b.lock.includes(from)) c.lock = [st.id]; else delete c.lock;
@@ -353,9 +353,11 @@ function addState() {
   // the new state goes right after the one you were on; the ones after it move up one
   pg.states.splice(Math.max(0, pg.states.findIndex((x) => x.id === from)) + 1, 0, st);
   // states that still have their automatic name are renumbered to their new place; names you typed stay
-  pg.states.forEach((x, i) => { if (!x.name || /^State \d+$/.test(x.name)) x.name = "State " + (i + 1); });
-  edState = st.id; changed(); renderAll();
+  renumber(pg);
+  edState = st.id; edSel = null; changed(); renderAll();
 }
+// pages that still have their automatic name are renumbered to their place; names you typed stay
+function renumber(pg) { pg.states.forEach((x, i) => { if (!x.name || AUTO_NAME.test(x.name)) x.name = "Page " + (i + 1); }); }
 function deleteState(id) {
   const pg = ed.pages[edPage];
   if (pg.states.length < 2) return;
@@ -371,43 +373,30 @@ function deleteState(id) {
   }
   if (edSel && !pg.blocks.includes(edSel)) edSel = null;
   if (edState === id) edState = near;
+  renumber(pg);
   changed(); renderAll();
 }
 async function confirmDeleteState(id) {
   const pg = ed.pages[edPage], sts = pageStates(pg), i = sts.findIndex((x) => x.id === id);
   if (sts.length < 2 || i < 0) return;
   const only = pg.blocks.filter((b) => Array.isArray(b.states) && b.states.length === 1 && b.states[0] === id).length;
-  const nm = sts[i].name || "State " + (i + 1);
-  if (await askYesNo("Delete \"" + nm + "\" (State " + (i + 1) + ")? " + (only ? only + (only === 1 ? " element appears" : " elements appear") + " only in this state and will be deleted too. " : "") + "Elements shared with other states stay in them. This can't be undone.", "Delete")) deleteState(id);
+  const nm = pgName(sts[i], i);
+  if (await askYesNo("Delete \"" + nm + "\"? " + (only ? "Its " + only + (only === 1 ? " element" : " elements") + " will be deleted too. " : "") + "This can't be undone.", "Delete")) deleteState(id);
 }
 function moveState(id, d) {
   const pg = ed.pages[edPage], i = pg.states.findIndex((x) => x.id === id), j = i + d;
   if (i < 0 || j < 0 || j >= pg.states.length) return;
   [pg.states[i], pg.states[j]] = [pg.states[j], pg.states[i]];
+  renumber(pg);
   changed(); renderAll(); if (pvOn) pvRender();
 }
 function renderStates() {
-  const pg = ed.pages[edPage], sts = pageStates(pg), cur = curSid();
+  const sts = pageStates(ed.pages[edPage]), cur = curSid();
   $("bStateNum").hidden = false;
-  $("bStateNum").textContent = "Page " + (edPage + 1) + ", State " + (sts.findIndex((x) => x.id === cur) + 1);
-  $("bStates").replaceChildren(
-    el("span", { class: "aero-muted", style: "font-size:12px;font-weight:700", text: sts.length > 1 ? "Editing state:" : "Page states:" }),
-    ...(sts.length > 1 ? sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => setState(x.id) })) : []),
-    el("button", { text: "+ State", title: "Add another state to this page", onclick: addState }),
-    ...(sts.length > 1 ? [
-      el("button", { text: "Move earlier", title: "Move the state you're editing one place earlier", disabled: sts[0].id === cur, onclick: () => moveState(cur, -1) }),
-      el("button", { text: "Move later", title: "Move the state you're editing one place later", disabled: sts[sts.length - 1].id === cur, onclick: () => moveState(cur, 1) })] : []),
-    ...(sts.length > 1 ? [el("button", { text: "Delete this state", title: "Delete the state you're editing", onclick: () => confirmDeleteState(cur) })] : []),
-    ...(sts.length > 1 ? [el("button", { text: "Rename", title: "Rename or delete states", onclick: () => { const f = $("bStateList").querySelector("input"); if (f) { f.scrollIntoView({ block: "nearest" }); f.focus(); } } })] : []));
-  const list = $("bStateList");
-  if (sts.length < 2) { list.replaceChildren(); return; }
-  list.replaceChildren(el("h3", { text: "States of this page" }),
-    ...sts.map((x, i) => el("div", { class: "b-staterow" },
-      el("input", { type: "text", value: x.name || "", placeholder: "State " + (i + 1), "aria-label": "Name of state " + (i + 1),
-        oninput: (e) => { x.name = e.target.value; changed(); const chips = $("bStates").querySelectorAll("button[aria-pressed]"); if (chips[i]) chips[i].textContent = x.name || "State " + (i + 1); } }),
-      el("button", { class: "t-small", text: "✕", "aria-label": "Delete this state", disabled: sts.length < 2, onclick: () => confirmDeleteState(x.id) }))));
+  $("bStateNum").textContent = "Page " + (sts.findIndex((x) => x.id === cur) + 1);
+  $("bStates").replaceChildren();
 }
-// "Shows in" / "Locked in": one checkbox per state
+// "Shows in" / "Locked in": one checkbox per page
 function stateChecks(label, list, onSet, atLeastOne) {
   const sts = pageStates(ed.pages[edPage]);
   const on = (id) => list.includes(id);
@@ -416,7 +405,7 @@ function stateChecks(label, list, onSet, atLeastOne) {
       let next = sts.map((y) => y.id).filter((id) => (id === x.id ? e.target.checked : on(id)));
       if (atLeastOne && !next.length) { e.target.checked = true; return; }
       onSet(next); changed(); renderStage(); renderTools();
-    } }), el("span", { style: "display:inline;margin:0", text: x.name || "State " + (i + 1) }))));
+    } }), el("span", { style: "display:inline;margin:0", text: pgName(x, i) }))));
 }
 
 // ---------------------------------------------------------------- the page: a 16:9 canvas with blocks you drag, resize and type into
@@ -446,8 +435,7 @@ function renderStage() {
   const q = page.blocks.find((x) => x.type === "question" && blockShowsIn(x, curSid()));
   cv.append(el("div", { class: "t-float t-float-time", text: "Timer" }),
     el("div", { class: "t-float t-float-fs", text: "Fullscreen" }),
-    el("div", { class: "t-float t-float-ask", text: "Ask a question" }),
-    el("div", { class: "t-float t-float-nav", text: "Back · Next", style: q ? "right:auto;left:" + Math.round(Math.min(CANVAS_W - 188, Math.max(9, q.x + q.w / 2 - 90))) + "px" : "" }));
+    el("div", { class: "t-float t-float-ask", text: "Ask a question" }));
   fitBox = el("div", { class: "cl-canvas-fit t-fit" }, cv);
   if (stageRO) stageRO.disconnect();
   $("bSheet").replaceChildren(fitBox);
@@ -470,7 +458,7 @@ function editBlock(page, b, i) {
   const sid = curSid();
   const wrap = el("div", { class: "cl-cblock t-cb t-cb-" + b.type + (b.type === "question" ? qLow(b) : "") + (sel ? " sel" : "") + (blockShowsIn(b, sid) ? "" : " t-off"), "data-i": i, style: blockBox(b) });
   wrap.append(el("div", { class: "t-body" }, ...blockBody(b, sel)));
-  if (blockLockedIn(b, sid)) wrap.append(el("div", { class: "t-lockbadge", text: "Locked in this state" }));
+  if (blockLockedIn(b, sid)) wrap.append(el("div", { class: "t-lockbadge", text: "Locked on this page" }));
   if (sel) {
     wrap.append(el("div", { class: "t-bar" },
       el("button", { class: "t-mv", text: "⋮⋮ Move", "aria-label": "Drag to move" }),
@@ -647,7 +635,7 @@ function blockBody(b, sel) {
 async function removeBlock(page, b) {
   const sts = pageStates(page).map((x) => x.id), sid = curSid();
   const others = sts.filter((id) => id !== sid && blockShowsIn(b, id));
-  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + (others.length ? " from this state?" : "?"), "Remove"))) return;
+  if (!(await askYesNo("Remove this " + (BLOCK_NAMES[b.type] || "block").toLowerCase() + (others.length ? " from this page?" : "?"), "Remove"))) return;
   if (others.length) { b.states = others; if (Array.isArray(b.lock)) { b.lock = b.lock.filter((x) => x !== sid); if (!b.lock.length) delete b.lock; } if (b.simStates) delete b.simStates[sid]; } // other states keep it
   else page.blocks.splice(page.blocks.indexOf(b), 1);
   if (edSel === b) edSel = null;
@@ -846,7 +834,7 @@ function renderTools() {
         if (e.target.checked) l.push(sid);
         if (l.length) b.lock = l; else delete b.lock;
         changed(); renderStage(); renderTools();
-      } }), el("span", { style: "display:inline;margin:0", text: pageStates(page).length > 1 ? "Locked in this state" : "Locked" }))));
+      } }), el("span", { style: "display:inline;margin:0", text: pageStates(page).length > 1 ? "Locked on this page" : "Locked" }))));
   }
   const set = (k) => (e) => { b[k] = e.target.value; changed(); refreshPageLabels(); };
   if (b.type === "heading" || b.type === "text") {
@@ -894,9 +882,9 @@ function renderTools() {
           oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
       el("div", { class: "cl-field b-checks" }, el("span", { text: "When it appears" }),
         el("label", {}, el("input", { type: "checkbox", checked: !!b.auto, onchange: (e) => { if (e.target.checked) b.auto = true; else delete b.auto; changed(); if (pvOn) pvRender(); } }),
-          el("span", { style: "display:inline;margin:0", text: "By itself when this page or state opens" })),
+          el("span", { style: "display:inline;margin:0", text: "By itself when this page opens" })),
         el("p", { class: "t-hint", text: "Students see it right away but can't answer until you press Start timer in the Control room." })),
-      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question on this page in the Control room. It appears in this box on their page, so make the box big enough to write in. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
+      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question in the Control room. It appears in this box on their page, so make the box big enough to write in. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
   } else if (b.type === "image") {
     const status = el("span", { class: "aero-muted" });
     const file = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
@@ -956,16 +944,16 @@ function renderTools() {
         cur ? el("button", { class: "t-small", text: "Replace this sim's file", onclick: () => upRep.click() }) : null,
         status, upNew, upRep),
       simInfo(cur && cur[1]),
-      el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim in each page state" }),
+      el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim on each page" }),
         ...pageStates(page).map((x, i) => el("label", { class: "b-staterow" },
-          el("span", { style: "display:inline;margin:0;min-width:70px", text: x.name || "State " + (i + 1) }),
+          el("span", { style: "display:inline;margin:0;min-width:70px", text: pgName(x, i) }),
           el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: "nothing", autocapitalize: "off", spellcheck: false,
             oninput: (e) => {
               const v = e.target.value.trim();
               if (v) (b.simStates ||= {})[x.id] = v; else if (b.simStates) { delete b.simStates[x.id]; if (!Object.keys(b.simStates).length) delete b.simStates; }
               changed(); if (fitBox) syncSimStates(fitBox, page, curSid());
             } }))),
-        el("p", { class: "t-hint", text: "Page states and sim states are separate. Type the sim state to show in each page state: a name the sim understands (for example closeup) or a number. Left blank, the sim is told nothing and keeps what it is showing." })),
+        el("p", { class: "t-hint", text: "Pages and sim states are separate. Type the sim state to show on each page: a name the sim understands (for example closeup) or a number. Left blank, the sim is told nothing and keeps what it is showing." })),
       simShowsField(b),
       el("datalist", { id: "simWords" }, ...(declaredStates.get(b.url) || []).map((w) => el("option", { value: w }))),
       el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
@@ -1123,16 +1111,13 @@ function pvRender() {
     el("button", { "aria-pressed": String(pvQ === -1), text: "No question yet", onclick: () => pvSetQ(-1) }),
     ...qs.map((q, i) => el("button", { "aria-pressed": String(pvQ === i), text: "Question " + pvNum(q), title: (q.prompt || "").slice(0, 80), onclick: () => pvSetQ(i) })),
     el("button", { text: "Next question ▶", disabled: pvQ >= qs.length - 1, onclick: () => pvSetQ(pvQ + 1) })] : []));
-  const sts = pageStates(ed.pages[edPage]), cur = curSid();
-  $("pvS").replaceChildren(...(sts.length > 1 ? [
-    el("span", { text: "State:", style: "font-weight:700" }),
-    ...sts.map((x, i) => el("button", { "aria-pressed": String(x.id === cur), text: x.name || "State " + (i + 1), onclick: () => { edState = x.id; pvQ = -1; pvSeq++; pvRender(); } })),
-    el("button", { text: "Next state ▶", disabled: sts.findIndex((x) => x.id === cur) >= sts.length - 1, onclick: () => { edState = sts[sts.findIndex((x) => x.id === cur) + 1].id; pvQ = -1; pvSeq++; pvRender(); } })] : []));
-  $("pvLabel").textContent = "Page " + (edPage + 1) + " of " + ed.pages.length;
+  const sts = pageStates(ed.pages[edPage]), ci = sts.findIndex((x) => x.id === curSid());
+  $("pvS").replaceChildren();
+  $("pvLabel").textContent = "Page " + (ci + 1) + " of " + sts.length;
   $("pvV").replaceChildren(el("span", { text: "View as:", style: "font-weight:700" }),
     ...VIEWS.map(([name, h]) => el("button", { "aria-pressed": String(pvH === h), text: name, onclick: () => { pvH = h; pvFit(); pvRender(); } })));
-  $("pvPrev").disabled = edPage === 0;
-  $("pvNext").disabled = edPage >= ed.pages.length - 1;
+  $("pvPrev").disabled = ci <= 0;
+  $("pvNext").disabled = ci >= sts.length - 1;
   pvSend();
 }
 $("bPreviewBtn").onclick = () => {
@@ -1141,8 +1126,9 @@ $("bPreviewBtn").onclick = () => {
   pvFit(); pvRender();
 };
 $("pvBack").onclick = () => { pvOn = false; $("bPreview").hidden = true; renderAll(); };
-$("pvPrev").onclick = () => { edPage--; pvQ = -1; pvRender(); };
-$("pvNext").onclick = () => { edPage++; pvQ = -1; pvRender(); };
+function pvStep(d) { const sts = pageStates(ed.pages[edPage]), i = sts.findIndex((x) => x.id === curSid()) + d; if (i < 0 || i >= sts.length) return; edState = sts[i].id; pvQ = -1; pvSeq++; pvRender(); }
+$("pvPrev").onclick = () => pvStep(-1);
+$("pvNext").onclick = () => pvStep(1);
 window.addEventListener("resize", pvFit);
 
 // ---------------------------------------------------------------- opening and leaving

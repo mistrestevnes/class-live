@@ -551,3 +551,6 @@ html.teacher #liveView .t-nvbtn[aria-disabled="true"] { cursor: default; }
 html.teacher #liveView .t-nvwrap.off > .t-nvstate[aria-disabled="true"] { cursor: grab; }
 body.t-navdragging, body.t-navdragging * { cursor: grabbing !important; user-select: none !important; }
 html.teacher #liveView .t-nvwrap { user-select: none; -webkit-user-select: none; }
+/* a lesson is one screen now: no page locks */
+html.teacher #lvRelock, html.teacher #lvUnlock { display: none !important; }
+html.teacher #liveView .t-nvwrap { margin-left: 0; }

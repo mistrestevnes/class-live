@@ -431,7 +431,9 @@ function blockInner(b, opts = {}) {
 // ---- page states: a page can have several, the teacher moves the class from one to the next.
 // page.states = [{id, name}] (none: one state). A block's states (list of ids) says where it shows (none: all of them);
 // a sim's lock (list of ids) says where it is locked.
-function pageStates(page) { return Array.isArray(page.states) && page.states.length ? page.states : [{ id: "s1", name: "State 1" }]; }
+function pageStates(page) { return Array.isArray(page.states) && page.states.length ? page.states : [{ id: "s1", name: "Page 1" }]; }
+// what a step of a lesson is called on screen: "Page 2", or the name you gave it
+function stepName(x, i) { return x && x.name && !/^(State|Page) \d+$/.test(x.name) ? x.name : "Page " + (i + 1); }
 // a state the teacher greyed out (off) is never shown to students: they get the first state that is on
 function stateOfPage(page, wanted) { const all = pageStates(page), on = all.filter((x) => !x.off), st = on.length ? on : all; return st.some((x) => x.id === wanted) ? wanted : st[0].id; }
 function blockShowsIn(b, sid) { return !Array.isArray(b.states) || !b.states.length || b.states.includes(sid); }
