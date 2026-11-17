@@ -407,3 +407,6 @@ html.teacher #lvPage .t-spage { min-height: 0 !important; padding: 0 !important;
 .t-spage-info { flex: 1; min-width: 0; font-size: 16px; line-height: 1.4; padding-top: 18px; }
 .t-spage-info strong { font-weight: 700; }
 html.teacher #liveView #lvPage { overflow-y: auto; }
+
+.t-sstate-row { margin-left: 20px; }
+.t-sstate-row .t-spage { width: 240px; }
