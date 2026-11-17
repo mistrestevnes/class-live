@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=45">
-<link rel="stylesheet" href="teacher.css?v=20">
+<link rel="stylesheet" href="teacher.css?v=21">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -193,50 +193,13 @@
     <button class="t-small" id="lvEndLesson">End lesson</button>
     <button class="t-small" id="lvEnd">End class</button>
   </header>
-  <div class="t-tabs" id="lvTabs" role="tablist" hidden>
-    <button role="tab" id="tabClass" aria-selected="true">Class</button>
-    <button role="tab" id="tabResp" aria-selected="false">Responses <span class="t-badge" id="respBadge" hidden></span></button>
-    <button role="tab" id="tabNotes" aria-selected="false">My notes</button>
-  </div>
-  <!-- Responses: every question's answers, feedback, students' questions, who left the window -->
-  <div class="t-resp" id="lvRespTab" hidden>
-    <aside class="aero-panel t-side">
-      <h3>Questions</h3>
-      <ul class="t-qs" id="lvQs"></ul>
-    </aside>
-    <div class="aero-panel t-ask" id="lvAnswers"></div>
-    <div class="t-resp-side">
-      <div class="aero-panel t-sq" id="lvSq" hidden></div>
-      <div class="aero-panel t-sq" id="lvAct" hidden></div>
-      <div class="aero-panel t-hint" id="lvRespEmpty">Questions from students and who left the window show up here.</div>
-    </div>
-  </div>
-  <div class="t-notes-tab" id="lvNotesTab" hidden><div id="lvNotesSlot"></div></div>
-  <div class="t-cols" id="lvClassTab">
-    <aside class="aero-panel t-side">
-      <div id="lvPlanBox">
-        <h3>Plan</h3>
-        <ul class="t-pages t-plan" id="lvPlan"></ul>
-        <div class="t-row" style="flex-wrap:wrap">
-          <button class="t-small" id="lvItAdd">+ Item</button>
-          <button class="t-small" id="lvItIntro">+ Intro</button>
-          <button class="t-small" id="lvItExit">+ Exit Ticket</button>
-        </div>
-        <h3 style="margin-top:18px">Pages</h3>
-      </div>
-      <ul class="t-pages" id="lvPages"></ul>
-    </aside>
-    <div class="t-body">
+  <div class="t-cols t-livecols" id="lvClassTab">
+    <div class="t-body t-liveleft" id="lvLeft">
       <div class="t-timeup" id="lvTimeUp" hidden></div>
       <div class="aero-panel t-prep" id="lvPrep" hidden></div>
       <div class="aero-panel" id="lvPage"></div>
-      <div class="t-mid" id="lvMid">
-        <div class="t-midl">
-          <div class="t-sthumbs" id="lvThumbs" hidden></div>
-          <div class="aero-panel t-sview" id="lvView" hidden></div>
-        </div>
-        <div class="aero-panel t-ask" id="lvAsk" hidden></div>
-      </div>
+      <div class="aero-panel t-sview" id="lvView" hidden></div>
+      <ul class="t-pages t-pstrip" id="lvPages"></ul>
       <div class="aero-panel t-ctl" id="lvCtl" hidden>
         <span class="t-ctl-group" id="lvStateBar"></span>
         <span class="t-ctl-group" id="lvCtlQ"></span>
@@ -246,6 +209,39 @@
       </div>
       <div class="aero-panel t-sq" id="lvSimProg" hidden></div>
     </div>
+    <aside class="t-rside" id="lvRSide" hidden>
+      <div class="aero-panel t-ask" id="lvAsk" hidden></div>
+      <div class="t-tabs" id="lvTabs" role="tablist">
+        <button role="tab" id="tabResp" aria-selected="true">Responses <span class="t-badge" id="respBadge" hidden></span></button>
+        <button role="tab" id="tabPlan" aria-selected="false">Plan</button>
+        <button role="tab" id="tabNotes" aria-selected="false">My notes</button>
+      </div>
+      <div class="t-rpanes">
+        <!-- Responses: every question's answers, feedback, students' questions, who left the window -->
+        <div class="t-resp" id="lvRespTab">
+          <div class="aero-panel t-side">
+            <h3>Questions</h3>
+            <ul class="t-qs" id="lvQs"></ul>
+          </div>
+          <div class="aero-panel t-ask" id="lvAnswers"></div>
+          <div class="aero-panel t-sq" id="lvSq" hidden></div>
+          <div class="aero-panel t-sq" id="lvAct" hidden></div>
+          <div class="aero-panel t-hint" id="lvRespEmpty">Questions from students and who left the window show up here.</div>
+        </div>
+        <div class="aero-panel t-side" id="lvPlanTab" hidden>
+          <div id="lvPlanBox">
+            <h3>Plan</h3>
+            <ul class="t-pages t-plan" id="lvPlan"></ul>
+            <div class="t-row" style="flex-wrap:wrap">
+              <button class="t-small" id="lvItAdd">+ Item</button>
+              <button class="t-small" id="lvItIntro">+ Intro</button>
+              <button class="t-small" id="lvItExit">+ Exit Ticket</button>
+            </div>
+          </div>
+        </div>
+        <div class="t-notes-tab" id="lvNotesTab" hidden><div id="lvNotesSlot"></div></div>
+      </div>
+    </aside>
   </div>
   <footer class="cl-bottom aero-bar" id="lvFoot" hidden style="display:none">
     <button id="lvRelock" class="t-small">Re-lock last page</button>
@@ -256,7 +252,7 @@
   </footer>
 </section>
 
-<script src="common.js?v=40"></script>
+<script src="common.js?v=41"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -279,6 +275,7 @@ const VIEWS = ["loginView", "homeView", "editView", "liveView", "studentsView", 
 const NAV = { liveView: "navLive", homeView: "navLessons", editView: "navLessons", studentsView: "studentsBtn", pastView: "pastBtn", videosView: "videosBtn", calView: "calBtn" };
 function show(v) {
   for (const id of VIEWS) $(id).hidden = id !== v;
+  if (v !== "liveView") document.body.classList.remove("t-inlesson");
   $("topNav").hidden = v === "loginView";
   for (const b of $("topNav").querySelectorAll("button")) b.setAttribute("aria-selected", NAV[v] === b.id ? "true" : "false");
 }
@@ -1028,9 +1025,11 @@ function renderLive() {
   const { live, lesson, presence, tallies } = tstate;
   const inLesson = !!(live && lesson && lesson.pages.length);
   $("lvPlanBox").hidden = !inLesson;
-  $("lvTabs").hidden = !inLesson;
-  $("lvClassTab").classList.toggle("idle", !inLesson);
-  if (!inLesson && lvTab !== "class") setTab("class");
+  $("lvRSide").hidden = !live; // the right sidebar: the running question, Responses, Plan, My notes
+  $("tabPlan").hidden = !inLesson;
+  $("lvClassTab").classList.toggle("idle", !live);
+  document.body.classList.toggle("t-inlesson", inLesson); // the Control room fills the whole page during a lesson
+  if (!inLesson && lvTab === "plan") setTab("resp");
   const started = live ? "Class is live · started " + new Date(live.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   $("lvEnd").hidden = !live;
   $("lvEndLesson").hidden = !inLesson;
@@ -1040,7 +1039,7 @@ function renderLive() {
     $("lvLive").className = live ? "t-livestate on" : "t-livestate";
     $("lvLive").textContent = live ? started + " · no lesson yet" : "No class running";
     $("lvPages").replaceChildren();
-    $("lvPage").hidden = false; $("lvView").hidden = $("lvCtl").hidden = $("lvThumbs").hidden = true;
+    $("lvPage").hidden = false; $("lvView").hidden = $("lvCtl").hidden = true;
     notesBox.hidden = true;
     renderStart();
     $("lvUnlock").disabled = $("lvRelock").disabled = true;
@@ -1105,26 +1104,10 @@ function renderLive() {
       ...sts.map((x, i) => el("button", { class: "t-stbtn", text: (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", onclick: () => goState(x.id) })),
       el("button", { class: "aero-btn-primary", text: "Next state ▶", disabled: curIx >= sts.length - 1, onclick: () => goState(sts[curIx + 1].id) }));
   }
-  // the page as students see it, and the states before and after this one
+  // the page as students see it
   $("lvPage").hidden = true; $("lvView").hidden = false; $("lvCtl").hidden = false;
   lvSendView();
-  const th = $("lvThumbs");
-  th.hidden = sts.length < 2;
-  if (!th.hidden) {
-    if (th.children.length !== 2) th.replaceChildren(...["p", "n"].map((w) => el("div", { class: "t-sthumb", "data-w": w }, el("span", { class: "t-sthumb-l" }), el("div", { class: "t-sthumb-p", inert: "" }))));
-    const slot = (k, which) => {
-      const sid = sts[k] && sts[k].id;
-      const box = th.querySelector('[data-w="' + which + '"]');
-      box.querySelector(".t-sthumb-l").textContent = sid ? (which === "p" ? "Previous state: " : "Next state: ") + (sts[k].name || "State " + (k + 1)) : (which === "p" ? "No earlier state" : "No later state");
-      const p = box.querySelector(".t-sthumb-p");
-      p.hidden = !sid;
-      if (sid) mountPage(p, page, { preview: true, edit: { simPreview: true }, stateId: sid });
-      return box;
-    };
-    slot(curIx - 1, "p"); slot(curIx + 1, "n");
-  }
   renderSimProg(page);
-  qBlockControls(page);
   ctlQuestions(page);
 
   const next = live.unlocked + 1;
@@ -1775,18 +1758,19 @@ function renderAsk() {
 }
 
 // ---------- tabs: Class (running the class), Responses, My notes
-let lvTab = "class";
+let lvTab = "resp";
 function setTab(t) {
+  if (t === "class") t = "resp";
   lvTab = t;
-  $("lvClassTab").hidden = t !== "class";
   $("lvFoot").hidden = true; // its buttons live in the control group under the preview
   $("lvRespTab").hidden = t !== "resp";
+  $("lvPlanTab").hidden = t !== "plan";
   $("lvNotesTab").hidden = t !== "notes";
-  for (const [id, name] of [["tabClass", "class"], ["tabResp", "resp"], ["tabNotes", "notes"]]) $(id).setAttribute("aria-selected", String(t === name));
+  for (const [id, name] of [["tabResp", "resp"], ["tabPlan", "plan"], ["tabNotes", "notes"]]) $(id).setAttribute("aria-selected", String(t === name));
   if (t === "resp") { $("lvAnswers")._key = null; renderAsk(); }
 }
-$("tabClass").onclick = () => setTab("class");
 $("tabResp").onclick = () => setTab("resp");
+$("tabPlan").onclick = () => setTab("plan");
 $("tabNotes").onclick = () => setTab("notes");
 // the Responses tab shows how many students' questions still need a reply
 let badgeN = 0;

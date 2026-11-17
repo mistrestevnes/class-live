@@ -422,18 +422,6 @@ html.teacher #liveView #lvPage.t-pvmode { display: flex; flex-direction: column;
 .t-pvw-gap { width: 40px; }
 html.teacher #lvPage .t-pvw-bar button, html.teacher #lvPage .t-pvw-top button { font-size: 20px !important; min-height: 50px !important; padding: 6px 22px !important; }
 
-/* live class: the preview on the left, the question running beside it on the right */
-html.teacher #liveView .t-mid { flex: 1 1 0; min-height: 220px; display: flex; gap: 10px; align-items: stretch; }
-html.teacher #liveView .t-mid:not(:has(#lvView:not([hidden]), #lvAsk:not([hidden]))) { display: none; }
-html.teacher #liveView .t-midl { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-html.teacher #liveView .t-midl:not(:has(#lvView:not([hidden]))) { display: none; }
-html.teacher #liveView .t-midl .t-sview { flex: 1 1 0; min-height: 0; }
-html.teacher #liveView #lvAsk { flex: none; width: 320px; align-self: flex-start; max-height: 100%; overflow: auto; }
-html.teacher #liveView #lvAsk[hidden] { display: none; }
-html.teacher #liveView .t-midl:not(:has(#lvView:not([hidden]))) + #lvAsk { width: auto; flex: 1 1 0; }
-html.teacher #liveView #lvAsk .t-row { flex-wrap: wrap; gap: 8px; }
-html.teacher #liveView #lvAsk .t-row button { flex: 1 1 130px; }
-html.teacher #liveView #lvAsk .t-row .cl-grow { display: none; }
 /* before class: the lessons on the left, the class list on the right */
 html.teacher #lvPage .t-startcols { display: flex; gap: 16px; align-items: flex-start; }
 html.teacher #lvPage .t-startl { flex: 1 1 0; min-width: 0; }
@@ -446,3 +434,31 @@ html.teacher #lvPage .t-roster li { font-size: 18px; line-height: 1.5; padding-l
 html.teacher #lvPage .t-roster li::before { content: ""; position: absolute; left: 2px; top: .6em; width: 11px; height: 11px; border-radius: 50%; background: #B9C7BF; }
 html.teacher #lvPage .t-roster li.on { color: inherit; font-weight: 700; }
 html.teacher #lvPage .t-roster li.on::before { background: #17A673; }
+
+/* during a lesson the Control room fills the whole page: preview and buttons on the left, the right sidebar beside them */
+html.teacher body.t-inlesson { padding: 6px; }
+body.t-inlesson #topNav { display: none; }
+html.teacher #liveView .t-livecols { display: flex; gap: 8px; padding: 0; flex: 1; min-height: 0; }
+html.teacher #liveView .t-liveleft { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+html.teacher #liveView .t-liveleft > * { margin: 0; }
+html.teacher #liveView .t-liveleft .t-sview { flex: 1 1 0; min-height: 0; }
+html.teacher #liveView #lvPage { flex: 1 1 0; min-height: 0; }
+html.teacher #liveView .t-pstrip { flex: none; display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; margin: 0; padding: 0; list-style: none; }
+html.teacher #liveView .t-pstrip:empty { display: none; }
+html.teacher #liveView .t-pstrip li { flex: none; }
+html.teacher #liveView .t-pstrip button { font-size: 16px; min-height: 34px; padding: 2px 10px; max-width: 220px; display: inline-flex; align-items: center; gap: 8px; }
+html.teacher #liveView .t-pstrip button .t-num { width: 24px; height: 24px; font-size: 14px; }
+html.teacher #liveView .t-pstrip .t-count { font-size: 14px; padding: 0 7px; }
+html.teacher #liveView .t-rside { flex: none; width: 360px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+html.teacher #liveView .t-rside[hidden] { display: none; }
+html.teacher #liveView .t-rside #lvAsk { flex: none; width: auto; align-self: stretch; max-height: 45%; overflow: auto; margin: 0; }
+html.teacher #liveView .t-rside #lvAsk[hidden] { display: none; }
+html.teacher #liveView .t-rside #lvAsk .t-row { flex-wrap: wrap; gap: 8px; }
+html.teacher #liveView .t-rside #lvAsk .t-row button { flex: 1 1 110px; }
+html.teacher #liveView .t-rside #lvAsk .t-row .cl-grow { display: none; }
+html.teacher #liveView .t-rpanes { flex: 1 1 0; min-height: 0; overflow: auto; }
+html.teacher #liveView .t-rpanes > [hidden] { display: none; }
+html.teacher #liveView .t-rpanes .t-resp { display: flex; flex-direction: column; gap: 8px; padding: 8px; margin: 0; border-radius: 0 10px 10px 10px; }
+html.teacher #liveView .t-rpanes .t-resp > * { overflow: visible; min-height: 0; }
+html.teacher #liveView .t-rpanes .t-notes-tab { padding: 8px; }
+html.teacher #liveView .t-rpanes .t-notes-tab textarea { min-height: 40vh; }
