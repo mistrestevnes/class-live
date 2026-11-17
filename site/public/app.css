@@ -232,39 +232,39 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 .cl-figure.size-full figcaption { color: #FFFFFF; margin: 6px 0 0; }
 .cl-figure.size-full:fullscreen { height: 100vh; }
 
-/* ---- freeform pages: a 1600 x 900 canvas scaled to fit (--s is how much; --is is its inverse) ---- */
+/* ---- freeform pages: a 1366 x 599 canvas scaled to fit (--s is how much; --is is its inverse) ---- */
 .cl-canvas-fit { position: relative; width: 100%; aspect-ratio: 1366 / 599; overflow: hidden; margin: 0 auto; border-radius: var(--aero-radius-sm); flex: none; }
-.cl-canvas { position: absolute; left: 0; top: 0; width: 1600px; height: 702px; transform: scale(var(--s, .5)); transform-origin: 0 0; font-size: 36px; line-height: 1.4;
+.cl-canvas { position: absolute; left: 0; top: 0; width: 1366px; height: 599px; transform: scale(var(--s, .5)); transform-origin: 0 0; font-size: 31px; line-height: 1.4;
   /* the same type on every page that shows it (the teacher pages set their own) */
   font-family: var(--aero-font-body); font-weight: 400; font-style: normal; letter-spacing: .02em; word-spacing: .08em; text-transform: none; text-align: left; font-feature-settings: "cv05", "cv08"; }
 .cl-cblock { position: absolute; box-sizing: border-box; overflow: hidden; }
-.cl-ctextin { box-sizing: border-box; height: 100%; padding: 8px 14px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
+.cl-ctextin { box-sizing: border-box; height: 100%; padding: 7px 12px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
 .cl-ctextin.cl-chead { font-weight: 700; line-height: 1.2; white-space: pre-wrap; }
 .cl-ctextin .cl-text p { margin: 0 0 .7em; }
 .cl-canvas .cl-figure { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .cl-canvas .cl-figure img { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; border: 0; border-radius: 0; }
 .cl-canvas .cl-figure video { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; background: #000000; }
-.cl-canvas .cl-figure figcaption { font-size: 30px; line-height: 1.3; margin: 6px 0 0; color: inherit; }
+.cl-canvas .cl-figure figcaption { font-size: 26px; line-height: 1.3; margin: 5px 0 0; color: inherit; }
 /* a sim gets a real-size window (so it looks as it always has), placed in its box on the page */
 .cl-csim .cl-sim, .t-cb-sim .cl-sim { position: absolute; left: 0; top: 0; width: calc(100% * var(--s, 1)); height: calc(100% * var(--s, 1)); transform: scale(calc(1 / var(--s, 1))); transform-origin: 0 0; }
-.cl-canvas .cl-ph { width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #0B1C15; color: #E8EEEA; font-size: 32px; text-align: center; padding: 20px; }
-.cl-canvas .cl-ph-kind { font-weight: 700; font-size: 40px; }
+.cl-canvas .cl-ph { width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: #0B1C15; color: #E8EEEA; font-size: 27px; text-align: center; padding: 17px; }
+.cl-canvas .cl-ph-kind { font-weight: 700; font-size: 34px; }
 /* polls, and questions the teacher opens: bigger type, because the canvas is scaled down */
-.cl-cpoll { overflow: auto; padding: 8px; font-size: 32px; line-height: 1.4; }
-.cl-canvas .cl-option { min-height: 76px; padding: 12px 24px; font-size: 1em; }
-.cl-canvas .cl-letter { width: 54px; height: 54px; }
-.cl-canvas .cl-bar-track { height: 34px; border-radius: 17px; }
-.cl-canvas .cl-result-num { min-width: 160px; }
+.cl-cpoll { overflow: auto; padding: 7px; font-size: 27px; line-height: 1.4; }
+.cl-canvas .cl-option { min-height: 65px; padding: 10px 20px; font-size: 1em; }
+.cl-canvas .cl-letter { width: 46px; height: 46px; }
+.cl-canvas .cl-bar-track { height: 29px; border-radius: 15px; }
+.cl-canvas .cl-result-num { min-width: 137px; }
 .cl-canvas .cl-qblock { overflow: auto; }
-.cl-canvas .cl-qblock .cl-inline { font-size: 30px; padding: 20px 26px; }
-.cl-canvas .cl-ask-label { font-size: 30px; }
-.cl-canvas .cl-ask-prompt { font-size: 32px; }
-.cl-canvas .cl-ask-time { font-size: 3rem; }
-.cl-canvas #askText { font-size: 30px; }
-.cl-canvas .cl-ask-foot button { min-height: 76px; padding: 10px 40px; font-size: 30px; }
-.cl-canvas .cl-ask-foot .aero-muted, .cl-canvas #askNote { font-size: 30px; }
-.cl-canvas .cl-myans-text { font-size: 30px; }
-.cl-canvas .cl-qcard { height: 100%; box-sizing: border-box; overflow: hidden; font-size: 30px; }
+.cl-canvas .cl-qblock .cl-inline { font-size: 26px; padding: 17px 22px; }
+.cl-canvas .cl-ask-label { font-size: 26px; }
+.cl-canvas .cl-ask-prompt { font-size: 27px; }
+.cl-canvas .cl-ask-time { font-size: 2.56rem; }
+.cl-canvas #askText { font-size: 26px; }
+.cl-canvas .cl-ask-foot button { min-height: 65px; padding: 9px 34px; font-size: 26px; }
+.cl-canvas .cl-ask-foot .aero-muted, .cl-canvas #askNote { font-size: 26px; }
+.cl-canvas .cl-myans-text { font-size: 26px; }
+.cl-canvas .cl-qcard { height: 100%; box-sizing: border-box; overflow: hidden; font-size: 26px; }
 /* the box that holds a page on the student and TV pages */
 .cl-canvasbox { flex: 1 1 0; min-height: 0; display: flex; align-items: safe center; justify-content: center; padding: 0; overflow-y: auto; }
 .cl-paged .cl-main { display: flex; flex-direction: column; overflow: hidden; }
@@ -272,16 +272,16 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 /* a question box fills its block: the writing area takes the room that is left and Submit stays at the bottom */
 .cl-canvas .cl-qblock:not([hidden]) { display: flex; flex-direction: column; }
 .cl-canvas .cl-qblock > .cl-inline { flex: 1 1 auto; min-height: 0; margin: 0; display: flex; flex-direction: column; overflow: auto; }
-.cl-canvas .cl-qblock > .cl-inline #askText { flex: 1 1 auto; min-height: 90px; height: auto; resize: none; }
+.cl-canvas .cl-qblock > .cl-inline #askText { flex: 1 1 auto; min-height: 77px; height: auto; resize: none; }
 .cl-canvas .cl-qblock > .cl-inline .cl-ask-foot { flex: none; }
 
 /* question text formatting chosen in the builder (size, bold, italic) */
 .cl-inline .cl-ask-prompt, .cl-inline .cl-option { font-size: var(--qfs, inherit); }
-.cl-canvas .cl-qblock .cl-inline .cl-ask-prompt { font-size: var(--qfs, 32px); }
-.cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 30px); }
+.cl-canvas .cl-qblock .cl-inline .cl-ask-prompt { font-size: var(--qfs, 27px); }
+.cl-canvas .cl-qblock .cl-inline .cl-option { font-size: var(--qfs, 26px); }
 .cl-inline.qb .cl-ask-prompt, .cl-inline.qb .cl-option { font-weight: 700; }
 .cl-inline.qi .cl-ask-prompt, .cl-inline.qi .cl-option { font-style: italic; }
-.cl-canvas .cl-qblock > .cl-inline textarea { flex: 1 1 auto; min-height: 90px; height: auto; resize: none; font-size: 30px; }
+.cl-canvas .cl-qblock > .cl-inline textarea { flex: 1 1 auto; min-height: 77px; height: auto; resize: none; font-size: 26px; }
 .cl-canvas .cl-qcard .cl-ask-foot { flex: none; }
 
 /* a picture that fills its box: scaled up until the box is covered, extra edges trimmed, never stretched */
@@ -291,15 +291,15 @@ body.sp-lock .cl-mid .cl-main { pointer-events: none; opacity: .45; }
 #askBox .cl-ask-label, .cl-qcard .cl-ask-label { display: none; }
 .cl-inline .cl-ask-top, #askBox .cl-ask-top, .cl-qcard .cl-ask-top { justify-content: flex-end; margin-bottom: 4px; }
 .cl-inline .cl-ask-time, #askBox .cl-ask-time, .cl-qcard .cl-ask-time { font-size: 52px; line-height: 1; color: #B42318; }
-.cl-canvas .cl-ask-time, .cl-canvas #askBox .cl-ask-time, .cl-canvas .cl-qcard .cl-ask-time { font-size: 100px; line-height: 1; color: #B42318; }
+.cl-canvas .cl-ask-time, .cl-canvas #askBox .cl-ask-time, .cl-canvas .cl-qcard .cl-ask-time { font-size: 85px; line-height: 1; color: #B42318; }
 #askBox textarea, .cl-qcard textarea { background: #FFFFFF; color: #0B2A1F; border: 2px solid #8FB3A2; }
-.cl-canvas .cl-qblock > .cl-inline, .cl-canvas .cl-qcard { padding: 14px 22px; }
-.cl-canvas .cl-qblock > .cl-inline textarea, .cl-canvas .cl-qblock > .cl-inline #askText { min-height: 56px; }
-.cl-canvas .cl-ask-prompt { margin-bottom: 10px; }
+.cl-canvas .cl-qblock > .cl-inline, .cl-canvas .cl-qcard { padding: 12px 19px; }
+.cl-canvas .cl-qblock > .cl-inline textarea, .cl-canvas .cl-qblock > .cl-inline #askText { min-height: 48px; }
+.cl-canvas .cl-ask-prompt { margin-bottom: 9px; }
 
 /* page states: a block that doesn't show in this state, and a sim that is locked in it */
 .cl-canvas .cl-cblock.cl-nostate { display: none !important; }
-.cl-canvas .cl-cblock.cl-locked::after { content: ""; position: absolute; top: 12px; left: 12px; width: 56px; height: 56px; border-radius: 10px; background: #0B1A14 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='10.5' width='14' height='10.5' rx='2' fill='%23FFFFFF'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3' fill='none' stroke='%23FFFFFF' stroke-width='2.4'/%3E%3C/svg%3E") center / 34px 34px no-repeat; pointer-events: none; }
+.cl-canvas .cl-cblock.cl-locked::after { content: ""; position: absolute; top: 10px; left: 10px; width: 48px; height: 48px; border-radius: 9px; background: #0B1A14 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='10.5' width='14' height='10.5' rx='2' fill='%23FFFFFF'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3' fill='none' stroke='%23FFFFFF' stroke-width='2.4'/%3E%3C/svg%3E") center / 29px 29px no-repeat; pointer-events: none; }
 
 /* the timer lives at the top of the page (in the header), never in the question box */
 .cl-toptimer { font-size: 44px; line-height: 1; color: #FFD166; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -330,11 +330,11 @@ body.cl-paged #nav #navNote { display: none; }
 body.cl-paged { padding-bottom: 0 !important; }
 body.cl-paged #status { font-size: 0; width: 14px; height: 14px; padding: 0; border-radius: 50%; overflow: hidden; }
 body.cl-paged #status::before { margin: 0; }
-.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 100px !important; }
+.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 85px !important; }
 
 /* floating buttons: one row along the bottom, all the same height */
 body.cl-paged #nav { position: fixed; right: 24px; bottom: 14px; z-index: 60; margin: 0; padding: 0; gap: 8px; width: auto; height: 36px; align-items: center; background: none; border: 0; box-shadow: none; }
 body.cl-paged #nav button, body.cl-paged #fs, body.cl-paged .cl-qbtn { min-height: 0; height: 36px; padding: 0 12px; font-size: 18px; line-height: 1; box-sizing: border-box; }
 body.cl-paged #fs { position: fixed; left: 24px; bottom: 14px; z-index: 60; }
 body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); z-index: 60; }
-.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 70px !important; }
+.cl-canvas .cl-qlow .cl-qcard { padding-bottom: 60px !important; }

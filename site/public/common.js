@@ -208,11 +208,14 @@ function formatText(src) {
 }
 
 // ---------------------------------------------------------------- freeform pages
-// A page is a 1600 x 900 canvas (16:9). Every block has x, y, w, h in canvas units and the whole canvas is scaled to fit
-// the screen showing it, so text wraps the same way everywhere. Text sizes are canvas units too: 24 is about 14 px on a Chromebook.
-const CANVAS_W = 1600, CANVAS_H = 702, OLD_CANVAS_H = 900, CANVAS_BG = "#F7F4EE", MIN_FONT = 1, HEAD_SIZE = 64, TEXT_SIZE = 36;
-// width and height a new block starts at
-const BLOCK_START = { heading: [1200, 110], text: [1000, 280], image: [640, 400], sim: [1200, 700], video: [960, 540], poll: [1100, 560], question: [1300, 540] };
+// A page is a 1366 x 599 canvas. Every block has x, y, w, h in canvas units and the whole canvas is scaled to fit
+// the screen showing it, so text wraps the same way everywhere. Text sizes are canvas units too, which on a Chromebook are real pixels.
+// The page is the real Chromebook page area: 1366 x 599 px (units are Chromebook pixels). Older pages were 1600 x 900 (no cv)
+// or 1600 x 702 (cv 2); canvasify converts them once.
+const CANVAS_W = 1366, CANVAS_H = 599, CANVAS_BG = "#F7F4EE", MIN_FONT = 1, HEAD_SIZE = 55, TEXT_SIZE = 31;
+const OLD_W = 1600, OLD_HEAD = 64, OLD_TEXT = 36;
+// width, height (and place) a new block starts at: a sim is 1020 x 599 at the left, the question fills the rest on the right
+const BLOCK_START = { heading: [1025, 94], text: [854, 239], image: [546, 342], sim: [1020, 599, 0, 0], video: [820, 461], poll: [939, 478], question: [346, 599, 1020, 0] };
 
 const safeColor = (c) => (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c || "") ? c : "");
 // dark ink on a light page, white on a dark one
@@ -226,8 +229,8 @@ function autoInk(bg) {
 
 function newCanvasPage() {
   return { id: randomId(8), name: "", layout: "canvas", bg: CANVAS_BG, blocks: [
-    { type: "heading", text: "", x: 60, y: 50, w: 1480, h: 110, size: HEAD_SIZE, color: "" },
-    { type: "text", text: "", x: 60, y: 190, w: 1480, h: 560, size: TEXT_SIZE, color: "" },
+    { type: "heading", text: "", x: 51, y: 30, w: 1264, h: 84, size: HEAD_SIZE, color: "" },
+    { type: "text", text: "", x: 51, y: 124, w: 1264, h: 440, size: TEXT_SIZE, color: "" },
   ] };
 }
 
@@ -260,11 +263,17 @@ function measureText(b, size, width) {
 // go where they were, top to bottom; a sim or a full-screen picture on its own fills the whole canvas.
 function canvasify(page) {
   if (page.layout === "canvas") {
-    // pages made on the old 16:9 page get the Chromebook page shape: every box keeps its place, squeezed top to bottom
-    if (page.cv !== 2) {
-      const k = CANVAS_H / OLD_CANVAS_H;
-      for (const b of page.blocks || []) { if (!b) continue; b.y = Math.round((b.y || 0) * k); b.h = Math.max(20, Math.round((b.h || 100) * k)); }
-      page.cv = 2;
+    // pages made on the older 1600-wide pages get the Chromebook page (1366 x 599): every box keeps its place and shape
+    if (page.cv !== 3) {
+      const ky = CANVAS_H / (page.cv === 2 ? 702 : 900), kx = CANVAS_W / OLD_W;
+      for (const b of page.blocks || []) {
+        if (!b) continue;
+        b.x = Math.round((b.x || 0) * kx); b.w = Math.max(20, Math.round((b.w || 200) * kx));
+        b.y = Math.round((b.y || 0) * ky); b.h = Math.max(17, Math.round((b.h || 100) * ky));
+        if (b.size) b.size = Math.max(MIN_FONT, Math.round(b.size * kx));
+        if (b.qsize) b.qsize = Math.max(MIN_FONT, Math.round(b.qsize * kx));
+      }
+      page.cv = 3;
     }
     return page;
   }
@@ -275,18 +284,18 @@ function canvasify(page) {
   const bs = (page.blocks || []).filter((b) => b && !((b.type === "heading" || b.type === "text") && !(b.text || "").trim()));
   page.blocks = bs;
   const fills = (b) => (b.type === "sim" && (b.height || "tall") === "tall") || (b.type === "image" && b.size === "full");
-  if (bs.length === 1 && fills(bs[0])) { Object.assign(bs[0], { x: 0, y: 0, w: CANVAS_W, h: CANVAS_H }); return page; }
-  const L = 60, W = CANVAS_W - 2 * L, GAP = 26, TOP = 36, AVAIL = CANVAS_H - TOP - 36;
+  if (bs.length === 1 && fills(bs[0])) { Object.assign(bs[0], { x: 0, y: 0, w: OLD_W, h: 702 }); return canvasify(page); }
+  const L = 60, W = OLD_W - 2 * L, GAP = 26, TOP = 36, AVAIL = 702 - TOP - 36;
   const plan = (f) => {
     const rows = bs.map((b) => {
       const r = { b, x: L, w: W, h: 0, fill: false, size: 0 };
-      if (b.type === "heading") { r.size = Math.max(MIN_FONT, Math.round(HEAD_SIZE * f)); r.h = Math.ceil((measureText(b, r.size, W) || textHeight(b.text, r.size, W, true)) * 1.06) + 4; }
-      else if (b.type === "text") { r.size = Math.max(MIN_FONT, Math.round(TEXT_SIZE * f)); r.h = Math.ceil((measureText(b, r.size, W) || textHeight(b.text, r.size, W, false)) * 1.06) + 4; }
+      if (b.type === "heading") { r.size = Math.max(MIN_FONT, Math.round(OLD_HEAD * f)); r.h = Math.ceil((measureText(b, r.size, W) || textHeight(b.text, r.size, W, true)) * 1.06) + 4; }
+      else if (b.type === "text") { r.size = Math.max(MIN_FONT, Math.round(OLD_TEXT * f)); r.h = Math.ceil((measureText(b, r.size, W) || textHeight(b.text, r.size, W, false)) * 1.06) + 4; }
       else if (b.type === "image") {
         if (b.size === "full") r.fill = true;
-        else { r.w = Math.round(({ small: 360, medium: 560, large: 840 }[b.size] || 560) * f); r.h = Math.round(r.w * 0.66) + (b.caption ? 50 : 0); r.x = Math.round((CANVAS_W - r.w) / 2); }
+        else { r.w = Math.round(({ small: 360, medium: 560, large: 840 }[b.size] || 560) * f); r.h = Math.round(r.w * 0.66) + (b.caption ? 50 : 0); r.x = Math.round((OLD_W - r.w) / 2); }
       } else if (b.type === "sim") { if ((b.height || "tall") === "tall") r.fill = true; else r.h = Math.round(440 * f); }
-      else if (b.type === "video") { r.w = Math.round(840 * f); r.h = Math.round((r.w * 9) / 16) + (b.caption ? 50 : 0); r.x = Math.round((CANVAS_W - r.w) / 2); }
+      else if (b.type === "video") { r.w = Math.round(840 * f); r.h = Math.round((r.w * 9) / 16) + (b.caption ? 50 : 0); r.x = Math.round((OLD_W - r.w) / 2); }
       else if (b.type === "poll") { r.w = 1200; r.x = 200; r.h = textHeight(b.question, 36, 1200, false) + (b.options || []).length * 92 + 60; }
       else if (b.type === "question") r.h = 440 + (b.kind === "mc" ? (b.options || []).length * 84 : 0);
       else r.h = 200;
@@ -300,12 +309,12 @@ function canvasify(page) {
   const fillH = p.nFill ? Math.max(300, Math.floor((AVAIL - p.fixed) / p.nFill)) : 0;
   let y = TOP;
   for (const r of p.rows) {
-    if (r.fill) { r.h = fillH; r.x = 30; r.w = CANVAS_W - 60; }
+    if (r.fill) { r.h = fillH; r.x = 30; r.w = OLD_W - 60; }
     Object.assign(r.b, { x: r.x, y, w: r.w, h: r.h });
     if (r.size) { r.b.size = r.size; r.b.color = r.b.color || ""; }
     y += r.h + GAP;
   }
-  return page;
+  return canvasify(page);
 }
 
 const blockBox = (b) => "left:" + Math.round(b.x || 0) + "px;top:" + Math.round(b.y || 0) + "px;width:" + Math.round(b.w || 200) + "px;height:" + Math.round(b.h || 100) + "px";
@@ -314,8 +323,8 @@ function textStyle(b) {
   return "font-size:" + Math.max(MIN_FONT, b.size || (b.type === "heading" ? HEAD_SIZE : TEXT_SIZE)) + "px" + (c ? ";color:" + c : "");
 }
 
-// question text formatting: size (px on the 1600-wide canvas), bold, italic
-const QSIZE = 32;
+// question text formatting: size (px on the 1366-wide canvas), bold, italic
+const QSIZE = 27;
 function qFormat(b) { return { size: Math.max(MIN_FONT, Number(b && b.qsize) || QSIZE), bold: !!(b && b.qbold), italic: !!(b && b.qital) }; }
 function applyQFormat(box, b) {
   const f = qFormat(b);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Page builder</title>
-<link rel="stylesheet" href="app.css?v=41">
+<link rel="stylesheet" href="app.css?v=42">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -65,20 +65,20 @@
   .t-cb.sel { outline: calc(3px * var(--is, 1.6)) solid #17A673; cursor: default; }
   .t-body { position: absolute; inset: 0; overflow: hidden; }
   .t-cb-poll.sel > .t-body, .t-cb-question.sel > .t-body { overflow: auto; }
-  .t-ta { display: block; width: 100%; height: 100%; box-sizing: border-box; padding: 8px 14px; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; line-height: 1.4; resize: none; overflow: auto; }
+  .t-ta { display: block; width: 100%; height: 100%; box-sizing: border-box; padding: 7px 12px; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; line-height: 1.4; resize: none; overflow: auto; }
   .t-ta.cl-chead { font-weight: 700; line-height: 1.2; }
-  .t-ph { padding: 8px 14px; opacity: .45; }
+  .t-ph { padding: 7px 12px; opacity: .45; }
   .t-rich.t-in { font-weight: inherit !important; }
-  .t-float { position: absolute; z-index: 5; pointer-events: none; border: 3px dashed rgba(180, 35, 24, .8); border-radius: 10px; background: rgba(255, 255, 255, .55); color: #B42318;
-    display: flex; align-items: center; justify-content: center; font: 700 20px Helvetica, Arial, sans-serif; box-sizing: border-box; }
-  .t-float-time { left: 50%; top: 9px; width: 190px; height: 66px; transform: translateX(-50%); }
-  .t-float-nav { right: 28px; bottom: 16px; width: 210px; height: 42px; }
-  .t-float-ask { left: 50%; bottom: 16px; width: 180px; height: 42px; transform: translateX(-50%); }
-  .t-float-fs { left: 28px; bottom: 16px; width: 150px; height: 42px; }
+  .t-float { position: absolute; z-index: 5; pointer-events: none; border: 3px dashed rgba(180, 35, 24, .8); border-radius: 9px; background: rgba(255, 255, 255, .55); color: #B42318;
+    display: flex; align-items: center; justify-content: center; font: 700 18px Helvetica, Arial, sans-serif; box-sizing: border-box; }
+  .t-float-time { left: 50%; top: 8px; width: 162px; height: 56px; transform: translateX(-50%); }
+  .t-float-nav { right: 24px; bottom: 14px; width: 179px; height: 36px; }
+  .t-float-ask { left: 50%; bottom: 14px; width: 154px; height: 36px; transform: translateX(-50%); }
+  .t-float-fs { left: 24px; bottom: 14px; width: 128px; height: 36px; }
   .t-rich { white-space: pre-wrap; outline: 0; cursor: text; min-height: 1.4em; }
   .t-rich b { font-weight: 700; } .t-rich i { font-style: italic; font-weight: inherit; } .t-rich b i { font-weight: 700; }
   .t-rich.t-empty::before { content: attr(data-ph); opacity: .45; pointer-events: none; }
-  .t-poll, .t-qedit { font-size: 30px; }
+  .t-poll, .t-qedit { font-size: 26px; }
   .t-cb.over > .t-body { outline: calc(3px * var(--is, 1.6)) dashed #C0392B; outline-offset: calc(-3px * var(--is, 1.6)); }
   .t-cb.over::after { content: "Text is cut off. Make the box bigger or the text smaller."; position: absolute; left: 0; top: 100%; margin-top: calc(6px * var(--is, 1.6)); z-index: 6; font: 700 calc(13px * var(--is, 1.6)) Helvetica, Arial, sans-serif; color: #FFFFFF; background: #C0392B; padding: calc(3px * var(--is, 1.6)) calc(8px * var(--is, 1.6)); border-radius: calc(4px * var(--is, 1.6)); white-space: nowrap; }
   .t-bar { position: absolute; left: 0; bottom: 100%; margin-bottom: calc(6px * var(--is, 1.6)); display: flex; gap: calc(6px * var(--is, 1.6)); z-index: 6; }
@@ -172,7 +172,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=36"></script>
+<script src="common.js?v=37"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -193,8 +193,8 @@ const mb = (n) => (n / 1e6 >= 10 ? Math.round(n / 1e6) : (n / 1e6).toFixed(1)) +
 
 const newPage = newCanvasPage;
 function newBlock(type) {
-  const [w, h] = BLOCK_START[type];
-  const base = { type, x: 0, y: 0, w, h };
+  const [w, h, x = 0, y = 0] = BLOCK_START[type];
+  const base = { type, x, y, w, h };
   if (type === "poll") return { ...base, question: "", options: ["", ""] };
   if (type === "image") return { ...base, imageId: "", caption: "" };
   if (type === "sim") return { ...base, url: "" };
@@ -416,7 +416,7 @@ function stateChecks(label, list, onSet, atLeastOne) {
 
 // ---------------------------------------------------------------- the page: a 16:9 canvas with blocks you drag, resize and type into
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-const MIN_W = 90, MIN_H = 60;
+const MIN_W = 77, MIN_H = 51;
 const BG_SWATCHES = ["#F7F4EE", "#FFFFFF", "#DDEBE3", "#DCE8F5", "#FBF3D5", "#12291F", "#000000"];
 const INK_SWATCHES = ["#12291F", "#000000", "#FFFFFF", "#1E5E46", "#8A5A00", "#B3261E", "#1F4E9C"];
 let fitBox = null, stageRO = null;
@@ -442,7 +442,7 @@ function renderStage() {
   cv.append(el("div", { class: "t-float t-float-time", text: "Timer" }),
     el("div", { class: "t-float t-float-fs", text: "Fullscreen" }),
     el("div", { class: "t-float t-float-ask", text: "Ask a question" }),
-    el("div", { class: "t-float t-float-nav", text: "Back · Next", style: q ? "right:auto;left:" + Math.round(Math.min(CANVAS_W - 220, Math.max(10, q.x + q.w / 2 - 105))) + "px" : "" }));
+    el("div", { class: "t-float t-float-nav", text: "Back · Next", style: q ? "right:auto;left:" + Math.round(Math.min(CANVAS_W - 188, Math.max(9, q.x + q.w / 2 - 90))) + "px" : "" }));
   fitBox = el("div", { class: "cl-canvas-fit t-fit" }, cv);
   if (stageRO) stageRO.disconnect();
   $("bSheet").replaceChildren(fitBox);
@@ -749,8 +749,11 @@ function addBlock(type, cx, cy) {
   const page = ed.pages[edPage], n = page.blocks.length;
   if (type === "poll" && page.blocks.some((x) => x.type === "poll")) return;
   const b = newBlock(type);
-  b.x = cx == null ? 100 + ((n * 40) % 400) : cx - b.w / 2;
-  b.y = cy == null ? 90 + ((n * 40) % 300) : cy - b.h / 2;
+  const fixed = BLOCK_START[type].length > 2; // a sim and a question have a place of their own when added with a click
+  if (!fixed || cx != null) {
+    b.x = cx == null ? 100 + ((n * 40) % 400) : cx - b.w / 2;
+    b.y = cy == null ? 90 + ((n * 40) % 300) : cy - b.h / 2;
+  }
   b.x = Math.round(clamp(b.x, 0, CANVAS_W - b.w)); b.y = Math.round(clamp(b.y, 0, CANVAS_H - b.h));
   if (pageStates(page).length > 1) b.states = [curSid()]; // a new element goes only into the state being edited
   page.blocks.push(b);
@@ -796,8 +799,8 @@ async function fitImageBox(b) { // the box takes the picture's shape, keeping it
     const im = new Image();
     im.onload = () => {
       const ar = im.naturalWidth / im.naturalHeight || 1.6;
-      let w = clamp(b.w, 200, CANVAS_W), h = Math.round(w / ar);
-      if (h > CANVAS_H - 60) { h = CANVAS_H - 60; w = Math.round(h * ar); }
+      let w = clamp(b.w, 171, CANVAS_W), h = Math.round(w / ar);
+      if (h > CANVAS_H - 51) { h = CANVAS_H - 51; w = Math.round(h * ar); }
       b.w = w; b.h = h; b.x = clamp(b.x, 0, CANVAS_W - w); b.y = clamp(b.y, 0, CANVAS_H - h);
       res();
     };
