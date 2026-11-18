@@ -573,3 +573,8 @@ html.teacher .t-gcrow { padding: 2px 0; overflow-wrap: anywhere; }
 html.teacher .t-gcrow.hid { opacity: .4; text-decoration: line-through; }
 html.teacher .t-gcrow button { margin-left: 8px; }
 html.teacher .t-gcsys { padding: 2px 0; color: var(--aero-ink-muted); }
+
+/* group chat question card in the Control room preview */
+html.teacher .t-gcprev { border: 2px dashed var(--aero-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; background: rgba(255, 255, 255, .85); color: #12261E; max-height: 220px; overflow: auto; }
+html.teacher .t-gcprev-k { font-size: 12px; font-weight: 700; opacity: .75; margin-bottom: 4px; }
+html.teacher .t-gcprev-q { font-size: 18px; font-weight: 600; }

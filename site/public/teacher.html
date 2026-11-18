@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=48">
-<link rel="stylesheet" href="teacher.css?v=40">
+<link rel="stylesheet" href="teacher.css?v=41">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1568,6 +1568,9 @@ function sideQuestions(page) {
       const g = gcLive(), mine = !!(g && g.blockId === b.id), done = ((tstate.live.gcDone) || []).some((x) => x.blockId === b.id);
       const gcWhy = a ? "Another question is open" : g && !mine ? "Another group chat is running" : "";
       return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-gc": "1", "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300) },
+        el("div", { class: "t-gcprev" },
+          el("div", { class: "t-gcprev-k", text: "Group chat · " + (b.writeMin || 2) + " min writing, " + (b.chatMin || 5) + " min talking" + (mine ? " · running" : "") }),
+          el("div", { class: "t-gcprev-q", style: "white-space:pre-wrap" }, (b.prompt || "").trim() ? formatText(b.prompt) : "(No question typed yet)")),
         mine ? el("button", { class: "t-greenbtn", text: "Group chat running" + many + " · open it", onclick: () => { gcShow = true; gcKey = ""; renderGcT(); } })
           : el("button", { class: "t-redbtn", text: (done ? "Run group chat again" : "Start group chat") + many, disabled: !!gcWhy || !(b.prompt || "").trim(), title: gcWhy,
             onclick: () => gcOpen({ prompt: b.prompt || "", writeMin: b.writeMin || 2, chatMin: b.chatMin || 5, blockId: b.id }) }));
@@ -1637,7 +1640,7 @@ function lvFitView() {
       if (!g.classList.contains("t-qrun") && !g.dataset.gc) { g.style.visibility = "hidden"; continue; }
       g.style.visibility = ""; g.style.position = "absolute"; g.style.margin = "0";
       g.style.left = (h.offsetLeft + (Number(g.dataset.bx) || 0) * s) + "px";
-      g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + (g.dataset.gc ? 10 : 60)) * s) + "px";
+      g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + (g.dataset.gc ? 0 : 60)) * s) + "px";
       g.style.width = Math.max(150, (Number(g.dataset.bw) || 300) * s) + "px";
       continue;
     }
