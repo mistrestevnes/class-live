@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=44"></script>
+<script src="common.js?v=45"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1236,7 +1236,7 @@ function previewSteps(lesson) {
 }
 function previewStateFor(lesson, step) {
   const pages = lesson.pages.slice(0, step.i + 1).map((pg) => ({ ...pg, questions: [] }));
-  const q = (step.pg.blocks || []).find((b) => b.type === "question" && blockShowsIn(b, step.st.id));
+  const q = (step.pg.blocks || []).find((b) => b.type === "question" && b.kind !== "gc" && blockShowsIn(b, step.st.id));
   return { live: true, sessionId: "pvw" + lesson.id + ":" + step.i + ":" + step.st.id, title: lesson.title, unlocked: step.i, from: 0, total: lesson.pages.length, pages,
     myVotes: {}, closed: {}, goto: null, stateOf: { [step.pg.id]: step.st.id }, staged: q ? { blockId: q.id, pageId: step.pg.id } : null, now: Date.now(),
     paused: false, qpaused: false, ask: null, show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
@@ -1294,7 +1294,7 @@ function pageSummary(pg) {
   const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
   const lines = [];
   bl.filter((b) => b.type === "question").forEach((b, i) =>
-    lines.push(["Question " + (i + 1), cut(plain(b.prompt) || "(no question typed)", 140) + " · " + (Number(b.min) || 3) + " min" + (b.kind === "mc" ? " · multiple choice" : "") + (b.auto ? " · appears by itself" : "")]));
+    lines.push(["Question " + (i + 1), cut(plain(b.prompt) || "(no question typed)", 140) + " · " + (b.kind === "gc" ? (b.writeMin || 2) + " + " + (b.chatMin || 5) + " min · group chat" : (Number(b.min) || 3) + " min" + (b.kind === "mc" ? " · multiple choice" : "")) + (b.auto ? " · appears by itself" : "")]));
   const sims = [...new Set(bl.filter((b) => b.type === "sim" && b.url).map((b) => {
     const m = /^\/sim\/([a-z0-9]+)$/.exec(b.url), s = m && (simsCache || []).find((x) => x.id === m[1]);
     return s ? s.name || s.title || "Uploaded sim" : m ? "Uploaded sim" : b.url.replace(/^https:\/\//, "");
@@ -1540,7 +1540,7 @@ function qBlockControls(page) {
       : "Not shown to students yet";
     return el("div", { class: "t-qrow" + (running ? " run" : "") },
       el("div", { class: "t-qtext" }, el("strong", { text: nOf(b) + ". " }), el("span", { text: (b.prompt || "").trim() || "(No question typed yet)" }),
-        el("div", { class: "t-qrun", text: status + " · " + (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written") + (b.auto ? " · appears by itself" : "") })),
+        el("div", { class: "t-qrun", text: status + " · " + (b.kind === "gc" ? (b.writeMin || 2) + " + " + (b.chatMin || 5) + " min · group chat" : (Number(b.min) || 3) + " min · " + (b.kind === "mc" ? "multiple choice" : "written")) + (b.auto ? " · appears by itself" : "") })),
       running ? el("button", { text: "See responses", onclick: () => { viewQ = null; setTab("resp"); renderAnswers(); } }) : null,
       !running && ids.length ? el("button", { text: "See responses", onclick: see }) : null);
   }));
@@ -1554,7 +1554,7 @@ function sideQuestions(page) {
   const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
   const qs = allQs.filter((x) => blockShowsIn(x, curSid) || (a && a.blockId === x.id && a.pageId === page.id));
-  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, !!(a && a.paused), stg, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
+  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, !!(a && a.paused), stg, gcLive() && gcLive().blockId, (live && live.gcDone || []).length, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
   if (box._key === key) return;
   box._key = key;
   const askBox = $("lvAsk");
@@ -1564,6 +1564,14 @@ function sideQuestions(page) {
     const opts = b.kind === "mc" ? (b.options || []).map((o) => String(o).trim()).filter(Boolean) : [];
     const open = () => link.send({ t: "ask", blockId: b.id, pageId: page.id, options: opts, parts: [{ prompt: b.prompt || "", seconds: Math.round((Number(b.min) || 3) * 60) }] });
     const busy = !!a, why = a ? "Another question is open" : "";
+    if (b.kind === "gc") {
+      const g = gcLive(), mine = !!(g && g.blockId === b.id), done = ((tstate.live.gcDone) || []).some((x) => x.blockId === b.id);
+      const gcWhy = a ? "Another question is open" : g && !mine ? "Another group chat is running" : "";
+      return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-gc": "1", "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300) },
+        mine ? el("button", { class: "t-greenbtn", text: "Group chat running" + many + " · open it", onclick: () => { gcShow = true; gcKey = ""; renderGcT(); } })
+          : el("button", { class: "t-redbtn", text: (done ? "Run group chat again" : "Start group chat") + many, disabled: !!gcWhy || !(b.prompt || "").trim(), title: gcWhy,
+            onclick: () => gcOpen({ prompt: b.prompt || "", writeMin: b.writeMin || 2, chatMin: b.chatMin || 5, blockId: b.id }) }));
+    }
     const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
     if (a && a.blockId === b.id && a.pageId === page.id) {
       // open: the bar turns green, and the running controls sit beneath it
@@ -1591,7 +1599,7 @@ function lvViewState() {
     show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [],
     fade: (() => { // questions of this page state that have not been opened yet: shown faded in the preview
       const pg = lesson.pages[n], sid = stateOfPage(pg, (L.states || {})[pg.id]), bq = L.bq || {};
-      return (pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && !(a && a.blockId === b.id) && !(L.staged && L.staged.blockId === b.id) && !(bq[b.id] || []).length).map((b) => b.id);
+      return (pg.blocks || []).filter((b) => b.type === "question" && b.kind !== "gc" && blockShowsIn(b, sid) && !(a && a.blockId === b.id) && !(L.staged && L.staged.blockId === b.id) && !(bq[b.id] || []).length).map((b) => b.id);
     })() };
 }
 function lvSendView() {
@@ -1626,10 +1634,10 @@ function lvFitView() {
     const ar = ta ? ta.getBoundingClientRect() : pr;
     if (!pr || !pr.width) {
       // the student page hides the question while it is paused: the running controls stay at the question's own place so Resume is always reachable
-      if (!g.classList.contains("t-qrun")) { g.style.visibility = "hidden"; continue; }
+      if (!g.classList.contains("t-qrun") && !g.dataset.gc) { g.style.visibility = "hidden"; continue; }
       g.style.visibility = ""; g.style.position = "absolute"; g.style.margin = "0";
       g.style.left = (h.offsetLeft + (Number(g.dataset.bx) || 0) * s) + "px";
-      g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + 60) * s) + "px";
+      g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + (g.dataset.gc ? 10 : 60)) * s) + "px";
       g.style.width = Math.max(150, (Number(g.dataset.bw) || 300) * s) + "px";
       continue;
     }
@@ -2513,16 +2521,18 @@ function gcMakeGroups(codes) {
   list.forEach((c, i) => { groups[c] = order[i % k]; });
   return groups;
 }
-function gcOpen() {
+function gcOpen(pre) {
   if (!tstate || !tstate.live) return;
   if (gcLive()) { gcShow = true; gcKey = ""; return renderGcT(); }
+  if (pre && pre.blockId) gcDraft = null;   // started from a lesson question: its own prompt and times
   if (!gcDraft) {
     const codes = blockStudents().filter((x) => x.connected).map((x) => x.code);
-    gcDraft = { prompt: "", writeMin: Number(localStorage.getItem("cl_gcWrite")) || 2, chatMin: Number(localStorage.getItem("cl_gcChat")) || 5, groups: gcMakeGroups(codes), codes };
+    gcDraft = pre && pre.blockId ? { prompt: pre.prompt, writeMin: pre.writeMin, chatMin: pre.chatMin, blockId: pre.blockId, groups: gcMakeGroups(codes), codes }
+      : { prompt: "", writeMin: Number(localStorage.getItem("cl_gcWrite")) || 2, chatMin: Number(localStorage.getItem("cl_gcChat")) || 5, groups: gcMakeGroups(codes), codes };
   }
   gcShow = true; gcDrawSetup();
 }
-$("lvGcBtn").onclick = gcOpen;
+$("lvGcBtn").onclick = () => gcOpen();
 function gcDrawSetup() {
   const ov = $("gcOv"), d = gcDraft;
   if (!d) return;
@@ -2549,8 +2559,8 @@ function gcDrawSetup() {
     el("div", { class: "t-row", style: "justify-content:flex-end" },
       el("button", { class: "aero-btn-primary", text: "Start group chat", disabled: !d.codes.length, onclick: () => {
         if (!d.prompt.trim()) return document.getElementById("gcP").focus();
-        try { localStorage.setItem("cl_gcWrite", String(d.writeMin)); localStorage.setItem("cl_gcChat", String(d.chatMin)); } catch {}
-        link.send({ t: "gcStart", prompt: d.prompt.trim(), writeSec: Math.round(d.writeMin * 60), chatSec: Math.round(d.chatMin * 60), groups: d.groups });
+        if (!d.blockId) { try { localStorage.setItem("cl_gcWrite", String(d.writeMin)); localStorage.setItem("cl_gcChat", String(d.chatMin)); } catch {} }
+        link.send({ t: "gcStart", blockId: d.blockId || "", prompt: d.prompt.trim(), writeSec: Math.round(d.writeMin * 60), chatSec: Math.round(d.chatMin * 60), groups: d.groups });
         gcDraft = null; gcKey = "";
       } })));
 }

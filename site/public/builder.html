@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=44"></script>
+<script src="common.js?v=45"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -627,11 +627,12 @@ function blockBody(b, sel) {
   if (b.type === "question" && sel) {
     b.options ||= ["", ""];
     const qn = ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(b) + 1;
-    const mc = b.kind === "mc";
+    const mc = b.kind === "mc", gcq = b.kind === "gc";
     const card = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard t-qedit" },
       richPrompt(b),
-      mc ? choiceList(b) : el("textarea", { rows: 6, disabled: true, "aria-label": "Your answer" }),
-      el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
+      gcq ? el("p", { class: "aero-muted", text: "Group chat: students write an answer, then talk in small groups under made-up names. This box is not shown to students." }) : null,
+      gcq ? null : mc ? choiceList(b) : el("textarea", { rows: 6, disabled: true, "aria-label": "Your answer" }),
+      el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc || gcq ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
     applyQFormat(card, b);
     return [card];
   }
@@ -869,7 +870,8 @@ function renderTools() {
       el("label", { class: "cl-field" }, el("span", { text: "Kind of answer" }),
         el("select", { onchange: (e) => { b.kind = e.target.value; if (b.kind === "mc" && !(b.options || []).length) b.options = ["", ""]; changed(); renderStage(); } },
           el("option", { value: "text", text: "Written answer", selected: b.kind !== "mc" }),
-          el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }))),
+          el("option", { value: "mc", text: "Multiple choice", selected: b.kind === "mc" }),
+          el("option", { value: "gc", text: "Group chat", selected: b.kind === "gc" }))),
       (() => {
         const f = qFormat(b), setQ = (k, v) => { b[k] = v; changed(); renderStage(); renderTools(); };
         return el("div", { class: "cl-field" }, el("span", { text: "Question text" }),
@@ -882,14 +884,20 @@ function renderTools() {
             el("button", { class: "t-small", text: "Italic", style: "font-style:italic", onpointerdown: (e) => e.preventDefault(), onclick: (e) => { if (!richStyle("italic")) e.target.parentNode.nextSibling.textContent = "First select some words in the question."; } })),
           el("p", { class: "t-hint", text: "Select words in the question, then click Bold or Italic (or press Cmd+B / Cmd+I). Click again to undo it." }));
       })(),
-      el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
+      b.kind === "gc" ? el("div", { class: "cl-field" }, el("span", { text: "Writing time, then talking time (minutes)" }),
+        el("div", { class: "t-row" },
+          el("input", { type: "number", min: "0.5", max: "30", step: "0.5", value: b.writeMin || 2, style: "width:80px", "aria-label": "Writing minutes",
+            oninput: (e) => { b.writeMin = Math.max(0.5, Math.min(30, Number(e.target.value) || 2)); changed(); } }),
+          el("input", { type: "number", min: "1", max: "60", step: "0.5", value: b.chatMin || 5, style: "width:80px", "aria-label": "Talking minutes",
+            oninput: (e) => { b.chatMin = Math.max(1, Math.min(60, Number(e.target.value) || 5)); changed(); } }))) : null,
+      b.kind === "gc" ? null : el("label", { class: "cl-field" }, el("span", { text: "Time (minutes)" }),
         el("input", { type: "number", min: "0.5", max: "60", step: "0.5", value: b.min || 3, style: "width:90px",
           oninput: (e) => { b.min = Math.max(0.5, Math.min(60, Number(e.target.value) || 3)); changed(); } })),
-      el("div", { class: "cl-field b-checks" }, el("span", { text: "When it appears" }),
+      b.kind === "gc" ? null : el("div", { class: "cl-field b-checks" }, el("span", { text: "When it appears" }),
         el("label", {}, el("input", { type: "checkbox", checked: !!b.auto, onchange: (e) => { if (e.target.checked) b.auto = true; else delete b.auto; changed(); if (pvOn) pvRender(); } }),
           el("span", { style: "display:inline;margin:0", text: "By itself when this page opens" })),
         el("p", { class: "t-hint", text: "Students see it right away but can't answer until you press Start timer in the Control room." })),
-      el("p", { class: "t-hint", text: "Students don't see this question until you press Open question in the Control room. It appears in this box on their page, so make the box big enough to write in. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
+      el("p", { class: "t-hint", text: b.kind === "gc" ? "A group chat takes over the students' whole screen when you press Start group chat in the Control room. Everyone first writes an answer, then talks about it in a small group under made-up names. This box is not shown to students." : "Students don't see this question until you press Open question in the Control room. It appears in this box on their page, so make the box big enough to write in. After it closes they still see their answer, and you can reopen it so they answer again after discussion." }));
   } else if (b.type === "image") {
     const status = el("span", { class: "aero-muted" });
     const file = el("input", { type: "file", accept: "image/*", hidden: true, onchange: async () => {
@@ -1086,7 +1094,7 @@ async function uploadSim(file, id) {
 
 // ---------------------------------------------------------------- preview: the real student page in a Chromebook-sized frame
 let pvFrame = null, pvOn = false, pvQ = -1, pvEnds = 0, pvSeq = 0;
-function pvQuestions() { return (ed.pages[edPage].blocks || []).filter((x) => x.type === "question" && blockShowsIn(x, curSid())); }
+function pvQuestions() { return (ed.pages[edPage].blocks || []).filter((x) => x.type === "question" && x.kind !== "gc" && blockShowsIn(x, curSid())); }
 const pvNum = (q) => ed.pages[edPage].blocks.filter((x) => x.type === "question").indexOf(q) + 1;
 function pvAsk() {
   const q = pvQuestions()[pvQ];

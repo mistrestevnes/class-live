@@ -482,7 +482,7 @@ const geo = (b) => [b.x || 0, b.y || 0, b.w || 200, b.h || 100].map((v) => Math.
 function renderBlock(b, opts = {}) {
   const box = blockBox(b);
   // a question block stays hidden until the teacher opens it; the question then appears right in this box
-  if (b.type === "question" && !opts.preview) return el("div", { class: "cl-cblock cl-qblock" + qLow(b), "data-id": b.id || "", ...stateAttrs(b), "data-g": geo(b), hidden: true, style: box });
+  if (b.type === "question" && (b.kind === "gc" || !opts.preview)) return el("div", { class: "cl-cblock cl-qblock" + qLow(b), "data-id": b.id || "", ...stateAttrs(b), "data-g": geo(b), hidden: true, style: box });
   const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
   return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" + qLow(b) : ""), ...stateAttrs(b), "data-g": geo(b), style: box }, inner);

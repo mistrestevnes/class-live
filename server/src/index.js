@@ -992,7 +992,7 @@ export class Classroom extends DurableObject {
         if (!Object.keys(groups).length) return;
         const writeSec = Math.max(30, Math.min(Number(msg.writeSec) || 120, 1800)), chatSec = Math.max(60, Math.min(Number(msg.chatSec) || 300, 3600));
         const now = Date.now();
-        this.live.gc = { id: rid(8), prompt, startedAt: now, writeSec, chatSec, phase: "write", writeEndsAt: now + writeSec * 1000, chatEndsAt: 0,
+        this.live.gc = { id: rid(8), prompt, blockId: String(msg.blockId || "").slice(0, 16), startedAt: now, writeSec, chatSec, phase: "write", writeEndsAt: now + writeSec * 1000, chatEndsAt: 0,
           groups, alias: this.gcAliases(Object.keys(groups)), resp: {}, order: {}, msgs: [], muted: {}, conf: [] };
         await this.ctx.storage.put("live", this.live);
         await this.setAlarms();
