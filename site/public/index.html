@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=48">
+<link rel="stylesheet" href="app.css?v=49">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -110,6 +110,34 @@
   <!-- an animation attached to a question plays full size behind it -->
   <div class="cl-animstage" id="animStage" hidden></div>
 
+  <!-- group chat: write your own answer, then share it with a small group (made-up names only) -->
+  <section class="cl-gc" id="gc" hidden>
+    <div class="aero-bar cl-gc-top">
+      <span class="cl-gc-title" id="gcTitle">Group chat</span>
+      <span class="cl-gc-me" id="gcMe"></span>
+      <span class="cl-grow"></span>
+      <span class="cl-gc-time" id="gcTime"></span>
+      <button id="gcConfBtn">I do not understand something</button>
+    </div>
+    <div class="aero-panel cl-gc-conf" id="gcConfBox" hidden>
+      <div class="cl-gc-confq">What do you not understand? (You can leave this empty.) Only your teacher will see that it was you.</div>
+      <textarea id="gcConfText" rows="2" maxlength="300" aria-label="What you do not understand"></textarea>
+      <div class="cl-gc-row"><button id="gcConfCancel">Cancel</button><button class="aero-btn-primary" id="gcConfSend">Send</button></div>
+    </div>
+    <div class="aero-panel cl-gc-write" id="gcWrite" hidden>
+      <div class="cl-ask-prompt" id="gcPrompt"></div>
+      <textarea id="gcText" rows="6" aria-label="Your answer"></textarea>
+      <div class="cl-ask-foot"><span id="gcNote" class="aero-muted"></span><button class="aero-btn-primary" id="gcSubmit">Submit</button></div>
+    </div>
+    <div class="cl-gc-chat" id="gcChat" hidden>
+      <div class="aero-panel cl-gc-resp"><div class="cl-gc-h" id="gcPrompt2"></div><div id="gcResp"></div></div>
+      <div class="aero-panel cl-gc-talk">
+        <div class="cl-gc-msgs" id="gcMsgs"></div>
+        <div class="cl-gc-send"><textarea id="gcIn" rows="2" maxlength="300" aria-label="Your message to your group"></textarea><button class="aero-btn-primary" id="gcSend">Send</button></div>
+      </div>
+    </div>
+  </section>
+
   <div class="aero-panel cl-askback" id="askBack" hidden>
     <span id="askBackTime" class="cl-ask-time"></span>
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
@@ -161,6 +189,7 @@ function apply(s) {
   renderSp();
   renderQ();
   renderFb();
+  renderGc();
   if (!s.live) {
     sessionId = null; lastUnlocked = -1; gotoN = null;
     render();
@@ -316,10 +345,11 @@ function showToast(text, ms) {
   $("toast").textContent = text; $("toast").hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; }, ms);
 }
+let gcLock = false;        // a group chat covers the page
 let coverFrozen = false;    // the pause screen or a sent question covers the page
 let spLock = false;         // a question that starts on its own, set so students can't use the sim while answering
 function syncFreeze() {
-  const want = coverFrozen || spLock;
+  const want = coverFrozen || spLock || gcLock;
   if (want !== wasFrozen) { tellSims(want ? "pause" : "resume"); wasFrozen = want; }
 }
 const serverNow = () => Date.now() + clockSkew;
@@ -865,6 +895,78 @@ function renderFb() {
 }
 $("fbBtn").onclick = () => { $("fbBox").hidden = false; $("fbList")._key = null; renderFb(); };
 $("fbClose").onclick = () => { $("fbBox").hidden = true; renderFb(); };
+
+// ---------- group chat: write your own answer, then talk it over with a small group under made-up names
+let gcId = null, gcPhase = "", gcDirty = false, gcSaveTimer = null, gcTick = null, gcMsgKey = "", gcRespKey = "";
+function gcSendDraft(submit) {
+  clearTimeout(gcSaveTimer);
+  link.send({ t: submit ? "gcSubmit" : "gcResp", text: $("gcText").value });
+  gcDirty = false;
+}
+function gcClock() {
+  const g = state.gc; if (!g) return;
+  const left = Math.max(0, Math.ceil((g.endsAt - serverNow()) / 1000));
+  $("gcTime").textContent = (g.phase === "write" ? "Writing " : "Talking ") + clock(left);
+}
+function renderGc() {
+  const g = state.gc;
+  gcLock = !!g;
+  syncFreeze();
+  $("gc").hidden = !g;
+  if (!g) { gcId = null; gcPhase = ""; clearInterval(gcTick); gcTick = null; $("gcConfBox").hidden = true; return; }
+  if (g.id !== gcId) { gcId = g.id; gcPhase = ""; gcMsgKey = ""; gcRespKey = ""; $("gcText").value = g.mine.text || ""; $("gcIn").value = ""; $("gcConfBox").hidden = true; gcDirty = false; }
+  if (!gcTick) gcTick = setInterval(gcClock, 500);
+  gcClock();
+  $("gcMe").textContent = "Your name here: " + g.alias + " · " + g.size + " in your group";
+  const writing = g.phase === "write";
+  $("gcWrite").hidden = !writing; $("gcChat").hidden = writing;
+  if (writing) {
+    $("gcPrompt").textContent = g.prompt;
+    const ta = $("gcText");
+    if (g.mine.text && !ta.value && !gcDirty && document.activeElement !== ta) ta.value = g.mine.text;
+    $("gcSubmit").textContent = g.mine.done && !gcDirty ? "Submitted ✓" : "Submit";
+    $("gcNote").textContent = g.mine.done && !gcDirty ? "Saved. You can still change it until time is up." : "When time is up, what you wrote is shared with your group. Nobody sees your name.";
+    return;
+  }
+  if (gcPhase !== "chat") { gcPhase = "chat"; setTimeout(() => $("gcIn").focus(), 50); }
+  $("gcPrompt2").textContent = g.prompt;
+  const rk = JSON.stringify(g.resp);
+  if (rk !== gcRespKey) {
+    gcRespKey = rk;
+    $("gcResp").replaceChildren(...(g.resp.length ? g.resp.map((r) => el("div", { class: "cl-gc-card" + (r.mine ? " mine" : "") },
+      el("div", { class: "cl-gc-num", text: "Answer " + r.n + (r.mine ? " (yours)" : "") }), el("div", { text: r.text })))
+      : [el("div", { class: "aero-muted", text: "Nobody in your group shared an answer." })]));
+  }
+  const mk = JSON.stringify(g.msgs) + g.muted;
+  if (mk !== gcMsgKey) {
+    gcMsgKey = mk;
+    const box = $("gcMsgs"), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    box.replaceChildren(...(g.msgs.length ? g.msgs.map((m) => m.sys ? el("div", { class: "cl-gc-sys", text: m.text })
+      : el("div", { class: "cl-gc-msg" + (m.mine ? " mine" : "") }, el("b", { text: (m.mine ? "You (" + m.alias + ")" : m.alias) + ": " }), m.text))
+      : [el("div", { class: "aero-muted", text: "Say something to your group. Everyone here has a made-up name." })]));
+    if (atEnd) box.scrollTop = box.scrollHeight;
+  }
+  $("gcIn").disabled = !!g.muted; $("gcSend").disabled = !!g.muted;
+  $("gcIn").placeholder = g.muted ? "Your teacher has paused your chat." : "Type a message";
+}
+$("gcText").addEventListener("input", () => { gcDirty = true; $("gcSubmit").textContent = "Submit"; clearTimeout(gcSaveTimer); gcSaveTimer = setTimeout(() => gcSendDraft(false), 600); });
+$("gcSubmit").onclick = () => { gcSendDraft(true); if (state.gc) state.gc.mine = { text: $("gcText").value, done: true }; renderGc(); };
+function gcSay() {
+  const t = $("gcIn").value.replace(/\s+/g, " ").trim();
+  if (!t) return;
+  link.send({ t: "gcMsg", text: t });
+  $("gcIn").value = "";
+  if (state.gc) { state.gc.msgs.push({ id: "tmp" + Date.now(), alias: state.gc.alias, text: t, mine: true, at: Date.now() }); gcMsgKey = ""; renderGc(); }
+}
+$("gcSend").onclick = gcSay;
+$("gcIn").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); gcSay(); } });
+$("gcConfBtn").onclick = () => { $("gcConfBox").hidden = !$("gcConfBox").hidden; if (!$("gcConfBox").hidden) $("gcConfText").focus(); };
+$("gcConfCancel").onclick = () => { $("gcConfBox").hidden = true; };
+$("gcConfSend").onclick = () => {
+  link.send({ t: "gcConf", text: $("gcConfText").value });
+  $("gcConfText").value = ""; $("gcConfBox").hidden = true;
+  showToast("Sent. Only your teacher knows it was you.", 4000);
+};
 
 // ---------- no pasting into any box: here or in the sims on the page
 function noPaste(doc) {

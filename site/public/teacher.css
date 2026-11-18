@@ -554,3 +554,22 @@ html.teacher #liveView .t-nvwrap { user-select: none; -webkit-user-select: none;
 /* a lesson is one screen now: no page locks */
 html.teacher #lvRelock, html.teacher #lvUnlock { display: none !important; }
 html.teacher #liveView .t-nvwrap { margin-left: 0; }
+
+/* group chat (Control room) */
+html.teacher .t-gcov { position: fixed; inset: 50px; z-index: 90; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; font-weight: 600; }
+html.teacher .t-gchead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+html.teacher .t-gclab { font-weight: 700; }
+html.teacher .t-gcov textarea { width: 100%; box-sizing: border-box; font-size: 14px; }
+html.teacher .t-gcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px; align-items: start; }
+html.teacher .t-gccard { border: 1px solid var(--aero-line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: rgba(255, 255, 255, .5); }
+html.teacher .t-gccard h3 { margin: 0; font-size: 14px; }
+html.teacher .t-gcmems { display: flex; flex-direction: column; gap: 3px; }
+html.teacher .t-gcmem { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+html.teacher .t-gcmem.muted { opacity: .55; }
+html.teacher .t-gcmem.flag { color: #B00020; }
+html.teacher .t-gcconf { padding: 4px 8px; border-radius: 6px; background: #FDE7E9; color: #8A0018; }
+html.teacher .t-gcans, html.teacher .t-gcmsgs { max-height: 150px; overflow-y: auto; border-top: 1px solid var(--aero-line); padding-top: 4px; }
+html.teacher .t-gcrow { padding: 2px 0; overflow-wrap: anywhere; }
+html.teacher .t-gcrow.hid { opacity: .4; text-decoration: line-through; }
+html.teacher .t-gcrow button { margin-left: 8px; }
+html.teacher .t-gcsys { padding: 2px 0; color: var(--aero-ink-muted); }

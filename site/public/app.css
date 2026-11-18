@@ -347,3 +347,30 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 
 /* a lesson is one screen: students only see the page the teacher is on, so no Back/Next */
 #nav #back, #nav #next, #nav #navNote { display: none !important; }
+
+/* group chat */
+.cl-gc { position: fixed; inset: 0; z-index: 55; background: var(--aero-page); padding: 8px 12px 78px; display: flex; flex-direction: column; gap: 8px; font-size: 20px; }
+.cl-gc-top { flex: none; display: flex; align-items: center; gap: 16px; padding: 6px 14px; min-height: 56px; }
+.cl-gc-title { font-size: 24px; font-weight: 700; }
+.cl-gc-me { font-size: 20px; }
+.cl-gc-time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cl-gc-top button, .cl-gc-conf button, .cl-gc-send button { min-height: 48px; padding: 6px 20px; font-size: 20px; }
+.cl-gc textarea { width: 100%; font-size: 22px; box-sizing: border-box; }
+.cl-gc-conf { flex: none; padding: 10px 14px; }
+.cl-gc-confq { font-size: 20px; margin-bottom: 6px; }
+.cl-gc-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.cl-gc-write { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; display: flex; flex-direction: column; }
+.cl-gc-write textarea { flex: 1; min-height: 120px; }
+.cl-gc-chat { flex: 1; min-height: 0; display: grid; grid-template-columns: 5fr 6fr; gap: 10px; }
+.cl-gc-resp, .cl-gc-talk { min-height: 0; padding: 12px 16px; display: flex; flex-direction: column; overflow: hidden; }
+.cl-gc-resp { overflow: auto; display: block; }
+.cl-gc-h { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.cl-gc-card { padding: 8px 12px; margin-bottom: 8px; border: 2px solid var(--aero-line); border-radius: 8px; font-size: 20px; line-height: 1.4; white-space: pre-wrap; }
+.cl-gc-card.mine { border-color: var(--aero-jade); }
+.cl-gc-num { font-weight: 700; margin-bottom: 2px; }
+.cl-gc-msgs { flex: 1; min-height: 0; overflow-y: auto; font-size: 20px; line-height: 1.4; }
+.cl-gc-msg { padding: 5px 0; overflow-wrap: anywhere; }
+.cl-gc-msg.mine { color: var(--aero-jade); }
+.cl-gc-sys { padding: 8px 10px; margin: 4px 0; background: rgba(255, 255, 255, .08); border-radius: 8px; color: var(--aero-ink-muted); }
+.cl-gc-send { flex: none; display: flex; gap: 10px; align-items: stretch; margin-top: 8px; }
+.cl-gc-send textarea { flex: 1; resize: none; font-size: 20px; }

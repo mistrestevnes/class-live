@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=48">
-<link rel="stylesheet" href="teacher.css?v=39">
+<link rel="stylesheet" href="teacher.css?v=40">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -233,11 +233,13 @@
     <button id="lvRelock" class="t-small">Re-lock last page</button>
     <span class="cl-grow"></span>
     <button id="lvAskBtn" class="t-small">Ask a question</button>
+    <button id="lvGcBtn" class="t-small">Group chat</button>
     <button id="lvPause" class="t-small">Pause students</button>
     <button id="lvUnlock" class="aero-btn-primary t-unlock">Unlock next page ▶</button>
   </footer>
 </section>
 
+<div class="aero-panel t-gcov" id="gcOv" hidden></div>
 <script src="common.js?v=44"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
@@ -993,7 +995,7 @@ function showLive() {
   renderLive();
 }
 
-for (const id of ["lvRelock", "lvUnlock", "lvAskBtn", "lvPause"]) { const b = $(id); b.className = id === "lvUnlock" ? "t-unlock" : ""; (id === "lvAskBtn" || id === "lvPause" ? $("lvTopBar") : $("lvCtlMain")).append(b); }
+for (const id of ["lvRelock", "lvUnlock", "lvAskBtn", "lvGcBtn", "lvPause"]) { const b = $(id); b.className = id === "lvUnlock" ? "t-unlock" : ""; (id === "lvAskBtn" || id === "lvGcBtn" || id === "lvPause" ? $("lvTopBar") : $("lvCtlMain")).append(b); }
 $("lvEdit").onclick = () => { if (tstate && tstate.live && tstate.live.lessonId) location.href = "/builder?id=" + tstate.live.lessonId; };
 $("lvEnd").onclick = endClass;
 $("lvEndLesson").onclick = endLesson;
@@ -1689,6 +1691,7 @@ function renderAsk() {
   const a = live && live.ask;
   $("lvAskBtn").disabled = !!a || !live;
   $("lvPause").disabled = !live;
+  renderGcT();
   renderQs();
   renderPrep();
   renderSq();
@@ -2321,6 +2324,23 @@ async function showPast(id) {
         p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
         ...p.options.map((o, i) => el("div", { style: "font-size:inherit;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
     }
+    for (const g of r.gc || []) {
+      const gs = [...new Set(Object.values(g.groups || {}))].sort((x, y) => x - y);
+      parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
+        el("h3", { style: "margin:0 0 6px", text: "Group chat · " + new Date(g.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " · " + gs.length + " groups" }),
+        el("div", { class: "t-ask-prompt" }, formatText(g.prompt)),
+        ...gs.map((n) => {
+          const mem = Object.keys(g.groups).filter((c) => g.groups[c] === n);
+          const ans = (g.order && g.order[n]) || mem.filter((c) => g.resp && g.resp[c] && g.resp[c].text);
+          const msgs = (g.msgs || []).filter((m) => m.g === n && !m.sys);
+          const flags = (g.conf || []).filter((x) => x.g === n);
+          return el("div", { class: "t-sqitem" },
+            el("div", { style: "font-weight:700", text: "Group " + n + ": " + mem.map((c) => (g.alias[c] || "?") + " = " + who(c)).join(", ") }),
+            ...ans.map((c, i) => el("div", { style: "padding:2px 0", text: "Answer " + (i + 1) + " · " + who(c) + ": " + g.resp[c].text })),
+            ...msgs.map((m) => el("div", { style: "padding:2px 0" + (m.hidden ? ";opacity:.5" : ""), text: (g.alias[m.code] || "?") + " (" + who(m.code) + "): " + m.text + (m.hidden ? " [hidden]" : "") })),
+            ...flags.map((x) => el("div", { style: "color:#B00020", text: "Did not understand: " + who(x.code) + (x.text ? " · " + x.text : "") })));
+        })));
+    }
     for (const sp of r.sims || []) parts.push(el("div", { class: "aero-panel t-sq", style: "margin-bottom:12px" },
       el("div", { class: "t-hint", text: "Page " + sp.page + (sp.sim ? " · " + sp.sim : "") }), ...simProgTable(sp.events, sp.got || {}, [])));
     const at = actTable(r.act, false);
@@ -2332,7 +2352,7 @@ async function showPast(id) {
         q.text ? el("div", { style: "font-weight:700", text: q.text }) : null,
         q.imageId ? el("a", { href: "/img/" + q.imageId, target: "_blank", rel: "noopener" }, el("img", { class: "t-sqimg", src: "/img/" + q.imageId, alt: "Picture of the student's sim" })) : null,
         q.reply ? el("div", { class: "t-sqreply", text: "You: " + q.reply }) : null))));
-    if (!r.questions.length && !(r.polls || []).length && !(r.sq || []).length) parts.push(el("div", { class: "aero-panel" }, el("p", { text: "No questions, polls or student questions in this class." })));
+    if (!r.questions.length && !(r.polls || []).length && !(r.sq || []).length && !(r.gc || []).length) parts.push(el("div", { class: "aero-panel" }, el("p", { text: "No questions, polls or student questions in this class." })));
     parts.push(el("div", { class: "t-row" }, el("span", { class: "cl-grow" }),
       r.loose ? null : el("button", { text: "Delete this record", onclick: async () => {
         if (!confirm("Delete this past lesson record? The answers stay in your Questions list.")) return;
@@ -2478,12 +2498,133 @@ function blockStudents() {
   const all = (tstate && tstate.students) || [];
   return L && L.periodName ? all.filter((x) => x.cls === L.periodName) : all;
 }
+// ---------------------------------------------------------------- group chat
+// Students write their own answer, then talk it over in small groups under made-up names. The groups are made here, on
+// this computer, from the cohorts in the name file (1, 2, 3), so each group mixes cohorts. The server only gets who is in which group.
+let gcDraft = null, gcShow = false, gcKey = "", gcScroll = {}, gcTimeEl = null;
+const gcLive = () => (tstate && tstate.live && tstate.live.gc) || null;
+const gcWho = (c) => shortName(names[c]) || c;
+function gcMakeGroups(codes) {
+  const by = { 1: [], 2: [], 3: [], 0: [] };
+  const shuf = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  for (const c of codes) (by[cohorts[c] || 0] || by[0]).push(c);
+  const list = [...shuf(by[1]), ...shuf(by[2]), ...shuf(by[3]), ...shuf(by[0])];
+  const k = Math.max(1, Math.round(list.length / 3.5));
+  const order = shuf(Array.from({ length: k }, (_, i) => i + 1));   // which group gets the first of each deal is mixed up
+  const groups = {};
+  list.forEach((c, i) => { groups[c] = order[i % k]; });
+  return groups;
+}
+function gcOpen() {
+  if (!tstate || !tstate.live) return;
+  if (gcLive()) { gcShow = true; gcKey = ""; return renderGcT(); }
+  if (!gcDraft) {
+    const codes = blockStudents().filter((x) => x.connected).map((x) => x.code);
+    gcDraft = { prompt: "", writeMin: Number(localStorage.getItem("cl_gcWrite")) || 2, chatMin: Number(localStorage.getItem("cl_gcChat")) || 5, groups: gcMakeGroups(codes), codes };
+  }
+  gcShow = true; gcDrawSetup();
+}
+$("lvGcBtn").onclick = gcOpen;
+function gcDrawSetup() {
+  const ov = $("gcOv"), d = gcDraft;
+  if (!d) return;
+  ov.hidden = false; gcKey = "setup";
+  const nG = Math.max(0, ...Object.values(d.groups)), withC = d.codes.filter((c) => cohorts[c]).length;
+  const memberBox = (n) => {
+    const mem = d.codes.filter((c) => d.groups[c] === n);
+    return el("div", { class: "t-gccard" }, el("h3", { text: "Group " + n + " · " + mem.length }),
+      ...mem.map((c) => el("div", { class: "t-gcmem" }, el("span", { text: gcWho(c) + (cohorts[c] ? " · cohort " + cohorts[c] : " · no cohort") }),
+        el("select", { "aria-label": "Move " + gcWho(c), onchange: (e) => { d.groups[c] = Number(e.target.value); gcDrawSetup(); } },
+          ...Array.from({ length: nG }, (_, i) => el("option", { value: String(i + 1), text: "Group " + (i + 1), selected: i + 1 === n }))))));
+  };
+  ov.replaceChildren(
+    el("div", { class: "t-gchead" }, el("h2", { text: "Group chat", style: "margin:0" }), el("span", { class: "cl-grow" }),
+      el("button", { class: "t-small", text: "Cancel", onclick: () => { gcShow = false; gcDraft = null; ov.hidden = true; } })),
+    el("label", { class: "t-gclab", text: "What should the groups write about and then discuss?" }),
+    el("textarea", { id: "gcP", rows: 3, value: d.prompt, oninput: (e) => { d.prompt = e.target.value; } }),
+    el("div", { class: "t-row" },
+      el("label", { text: "Writing time (minutes) " }, el("input", { type: "number", min: "1", max: "30", step: "0.5", value: String(d.writeMin), style: "width:70px", oninput: (e) => { d.writeMin = Number(e.target.value); } })),
+      el("label", { text: "Talking time (minutes) " }, el("input", { type: "number", min: "1", max: "60", step: "0.5", value: String(d.chatMin), style: "width:70px", oninput: (e) => { d.chatMin = Number(e.target.value); } })),
+      el("button", { class: "t-small", text: "Make the groups again", onclick: () => { d.codes = blockStudents().filter((x) => x.connected).map((x) => x.code); d.groups = gcMakeGroups(d.codes); gcDrawSetup(); } })),
+    el("p", { class: "t-hint", style: "margin:0", text: d.codes.length + " students signed in, in " + nG + " groups. " + (d.codes.length ? (withC === d.codes.length ? "Every group mixes the cohorts. " : (withC ? (d.codes.length - withC) + " have no cohort in the name file and are spread evenly. " : "No cohorts are loaded (Students tab, Open name file), so the groups are random. ")) : "Nobody is signed in yet. ") + "Students told the groups are random. Anyone who signs in later joins the smallest group." }),
+    el("div", { class: "t-gcgrid" }, ...Array.from({ length: nG }, (_, i) => memberBox(i + 1))),
+    el("div", { class: "t-row", style: "justify-content:flex-end" },
+      el("button", { class: "aero-btn-primary", text: "Start group chat", disabled: !d.codes.length, onclick: () => {
+        if (!d.prompt.trim()) return document.getElementById("gcP").focus();
+        try { localStorage.setItem("cl_gcWrite", String(d.writeMin)); localStorage.setItem("cl_gcChat", String(d.chatMin)); } catch {}
+        link.send({ t: "gcStart", prompt: d.prompt.trim(), writeSec: Math.round(d.writeMin * 60), chatSec: Math.round(d.chatMin * 60), groups: d.groups });
+        gcDraft = null; gcKey = "";
+      } })));
+}
+function renderGcT() {
+  const ov = $("gcOv"), g = gcLive();
+  const btn = $("lvGcBtn");
+  btn.textContent = g ? "Group chat (running)" : "Group chat";
+  btn.disabled = !(tstate && tstate.live);
+  if (!g) { if (!gcDraft) { ov.hidden = true; gcKey = ""; gcTimeEl = null; } return; }
+  const conf = (g.conf || []).length;
+  btn.textContent = "Group chat" + (conf ? " · " + conf + " ⚑" : " (running)");
+  if (!gcShow) { ov.hidden = true; return; }
+  ov.hidden = false;
+  const key = JSON.stringify([g.phase, g.groups, g.resp, g.msgs, g.muted, g.conf, g.order, g.writeEndsAt, g.chatEndsAt, Object.keys(names).length]);
+  if (key === gcKey) return;
+  gcKey = key;
+  // keep each group's scroll place (stick to the end when it was at the end)
+  for (const b of ov.querySelectorAll("[data-gcs]")) gcScroll[b.dataset.gcs] = { top: b.scrollTop, end: b.scrollHeight - b.scrollTop - b.clientHeight < 30 };
+  const gs = [...new Set(Object.values(g.groups))].sort((a, b) => a - b);
+  const submitted = Object.keys(g.groups).filter((c) => g.resp[c] && g.resp[c].text.trim()).length;
+  gcTimeEl = el("b", { id: "gcClock" });
+  const card = (n) => {
+    const mem = Object.keys(g.groups).filter((c) => g.groups[c] === n).sort((a, b) => gcWho(a).localeCompare(gcWho(b)));
+    const flagged = new Set((g.conf || []).filter((x) => x.g === n).map((x) => x.code));
+    const msgs = g.msgs.filter((m) => m.g === n);
+    const answers = g.phase === "write" ? mem.map((c) => ({ c, t: (g.resp[c] || {}).text || "" })) : (g.order[n] || []).map((c) => ({ c, t: g.resp[c].text }));
+    return el("div", { class: "t-gccard" },
+      el("h3", { text: "Group " + n + " · " + mem.length + " students" }),
+      el("div", { class: "t-gcmems" }, ...mem.map((c) => el("span", { class: "t-gcmem" + (g.muted[c] ? " muted" : "") + (flagged.has(c) ? " flag" : "") },
+        el("span", { text: g.alias[c] + " = " + gcWho(c) + (cohorts[c] ? " (" + cohorts[c] + ")" : "") + (flagged.has(c) ? " ⚑" : "") }),
+        el("button", { class: "t-small", text: g.muted[c] ? "Unmute" : "Mute", onclick: () => link.send({ t: "gcMute", code: c, on: !g.muted[c] }) })))),
+      ...((g.conf || []).filter((x) => x.g === n).map((x) => el("div", { class: "t-gcconf", text: "⚑ " + gcWho(x.code) + " does not understand" + (x.text ? ": " + x.text : "") }))),
+      el("div", { class: "t-gcans", "data-gcs": "a" + n },
+        ...answers.map((a, i) => el("div", { class: "t-gcrow" }, el("b", { text: (g.phase === "write" ? gcWho(a.c) : "Answer " + (i + 1) + " · " + gcWho(a.c)) + ": " }), a.t || "(nothing yet)"))),
+      g.phase === "write" ? null : el("div", { class: "t-gcmsgs", "data-gcs": "m" + n },
+        ...(msgs.length ? msgs.map((m) => m.sys ? el("div", { class: "t-gcsys", text: "(the group was told someone does not understand something)" })
+          : el("div", { class: "t-gcrow" + (m.hidden ? " hid" : "") },
+            el("b", { text: g.alias[m.code] + " (" + gcWho(m.code) + "): " }), m.text,
+            el("button", { class: "t-small", text: m.hidden ? "Show" : "Hide", onclick: () => link.send({ t: "gcHide", id: m.id, on: !m.hidden }) }))) : [el("div", { class: "t-hint", text: "No messages yet." })])));
+  };
+  ov.replaceChildren(
+    el("div", { class: "t-gchead" },
+      el("h2", { text: "Group chat", style: "margin:0" }),
+      el("span", {}, el("b", { text: g.phase === "write" ? "Writing · " : "Talking · " }), gcTimeEl, g.phase === "write" ? " · " + submitted + " of " + Object.keys(g.groups).length + " have written something" : ""),
+      el("span", { class: "cl-grow" }),
+      el("button", { class: "t-small", text: "−30 seconds", onclick: () => link.send({ t: "gcMore", seconds: -30 }) }),
+      el("button", { class: "t-small", text: "+1 minute", onclick: () => link.send({ t: "gcMore", seconds: 60 }) }),
+      g.phase === "write" ? el("button", { class: "t-small", text: "Start talking now", onclick: () => link.send({ t: "gcChatNow" }) }) : null,
+      el("button", { class: "t-small", text: "End group chat", onclick: () => { if (confirm("End the group chat for everyone? It is saved in Past lessons.")) link.send({ t: "gcEnd" }); } }),
+      el("button", { class: "t-small", text: "Back to class", onclick: () => { gcShow = false; $("gcOv").hidden = true; } })),
+    el("p", { class: "t-hint", style: "margin:0", text: "Prompt: " + g.prompt }),
+    el("div", { class: "t-gcgrid" }, ...gs.map(card)));
+  for (const b of ov.querySelectorAll("[data-gcs]")) { const sv = gcScroll[b.dataset.gcs]; b.scrollTop = !sv || sv.end ? b.scrollHeight : sv.top; }
+  gcClockT();
+}
+function gcClockT() {
+  const g = gcLive(), e = document.getElementById("gcClock");
+  if (!g || !e) return;
+  const left = Math.max(0, Math.ceil(((g.phase === "write" ? g.writeEndsAt : g.chatEndsAt) - teacherNow()) / 1000));
+  e.textContent = fmt(left);
+}
+setInterval(gcClockT, 500);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && gcShow && !gcDraft) { gcShow = false; $("gcOv").hidden = true; } });
+
 // ---------------------------------------------------------------- students
 // The server holds login codes only. Names come from a file on this computer
 // and are kept in this browser alone; they are never sent anywhere.
 const CODE_RE = /^\d{3}[a-z]{4,5}$/;
 let names = {};
 try { names = JSON.parse(localStorage.getItem("cl_names") || "{}") || {}; } catch { names = {}; }
+let cohorts = {};
+try { cohorts = JSON.parse(localStorage.getItem("cl_cohorts") || "{}") || {}; } catch { cohorts = {}; }
 let stDraft = [];
 
 function shortName(full) {
@@ -2491,13 +2632,17 @@ function shortName(full) {
   if (!parts[0]) return "";
   return parts.length > 1 ? parts[0] + " " + parts[parts.length - 1][0].toUpperCase() + "." : parts[0];
 }
-function readNameFile(text) {
+// A name file line is: code, first name, last name or initial, and (optional) a cohort 1, 2 or 3 as the last cell.
+// Cohorts stay on this computer too: they decide who is grouped with whom in a group chat.
+function readNameFile(text, cohortsOut) {
   const out = {};
   for (const line of text.split(/\r?\n/)) {
     const cells = line.split(",").map((c) => c.replace(/^\s*"|"\s*$/g, "").trim());
     const i = cells.findIndex((c) => CODE_RE.test(c.toLowerCase()));
     if (i < 0) continue;
-    const who = cells.slice(i + 1).filter(Boolean).join(" ");
+    let rest = cells.slice(i + 1).filter(Boolean);
+    if (rest.length >= 2 && /^[123]$/.test(rest[rest.length - 1])) { if (cohortsOut) cohortsOut[cells[i].toLowerCase()] = Number(rest[rest.length - 1]); rest = rest.slice(0, -1); }
+    const who = rest.join(" ");
     if (who) out[cells[i].toLowerCase()] = who;
   }
   return out;
@@ -2505,7 +2650,8 @@ function readNameFile(text) {
 function stMsg(t) { $("stMsg").textContent = t || ""; }
 function drawNamesNote() {
   const n = Object.keys(names).length;
-  $("stNamesNote").textContent = n ? n + " names loaded on this computer." : "No names loaded. Printed pages will show codes only.";
+  const nc = Object.keys(cohorts).length;
+  $("stNamesNote").textContent = n ? n + " names loaded on this computer" + (nc ? ", " + nc + " with a cohort (used for group chat)." : ". Add a cohort (1, 2 or 3) as the last column to balance group chats.") : "No names loaded. Printed pages will show codes only.";
   $("stForget").hidden = !n;
 }
 // ---------------------------------------------------------------- waiting-room questions
@@ -2609,17 +2755,20 @@ $("stOpenNames").onclick = () => {
   const inp = el("input", { type: "file", accept: ".csv,text/csv" });
   inp.onchange = async () => {
     const f = inp.files[0]; if (!f) return;
-    const got = readNameFile(await f.text());
+    const gotC = {};
+    const got = readNameFile(await f.text(), gotC);
     const n = Object.keys(got).length;
     if (!n) return stMsg("No codes with names were found. The file needs the code, then the first name, then the last name or initial.");
     names = { ...names, ...got }; // adds to the names already here; a code in this file replaces its old name
     try { localStorage.setItem("cl_names", JSON.stringify(names)); } catch {}
-    drawNamesNote(); stMsg(n + " names added. " + Object.keys(names).length + " in all on this computer.");
+    cohorts = { ...cohorts, ...gotC };
+    try { localStorage.setItem("cl_cohorts", JSON.stringify(cohorts)); } catch {}
+    drawNamesNote(); stMsg(n + " names added" + (Object.keys(gotC).length ? ", " + Object.keys(gotC).length + " with a cohort" : "") + ". " + Object.keys(names).length + " in all on this computer.");
   };
   inp.click();
 };
 $("stForget").onclick = () => {
-  names = {}; try { localStorage.removeItem("cl_names"); } catch {}
+  names = {}; cohorts = {}; try { localStorage.removeItem("cl_names"); localStorage.removeItem("cl_cohorts"); } catch {}
   drawNamesNote(); stMsg("Names removed from this computer.");
 };
 

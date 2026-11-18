@@ -65,6 +65,10 @@ const MAX_IMAGE_BYTES = 1_800_000;
 // does a block show in this page state? (no list: every state)
 const showsIn = (b, sid) => !Array.isArray(b.states) || !b.states.length || !sid || b.states.includes(sid);
 const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
+// Group chat: every student gets a made-up name for each chat, like BlueParrot (hand-picked words, so no pairing is rude)
+const GC_ADJ = ["Blue","Cubic","Red","Green","Swift","Quiet","Bright","Lucky","Brave","Calm","Gentle","Happy","Jolly","Mighty","Noble","Sunny","Witty","Clever","Cosmic","Golden","Silver","Amber","Coral","Misty","Rapid","Sleepy","Snowy","Stormy","Velvet","Wild","Round","Tiny","Proud","Cozy","Dusty","Fuzzy","Zesty","Hidden","Polar","Lunar"];
+const GC_ANI = ["Parrot","Lion","Otter","Falcon","Panda","Tiger","Koala","Dolphin","Fox","Heron","Lynx","Moose","Newt","Owl","Penguin","Rabbit","Seal","Turtle","Walrus","Zebra","Badger","Crane","Gecko","Hedgehog","Ibis","Jaguar","Lemur","Narwhal","Quokka","Raven","Beaver","Camel","Eagle","Ferret","Goat","Hippo","Iguana","Koi","Llama","Mole"];
+const GC_MAX_MSGS = 800;
 const ASK_GRACE = 6000; // students' answers are still saved for 5 s after time runs out
 const MAX_VIDEO_BYTES = 90_000_000; // one uploaded video (the site passes requests up to 100 MB)
 const VIDEO_TYPES = { "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov" };
@@ -973,6 +977,67 @@ export class Classroom extends DurableObject {
         break;
       }
       // the page the TV shows follows the page the teacher is looking at
+      // ---- group chat: write your own answer, then share it with a small group and talk it over. Groups come from the teacher's page (it knows the cohorts); the server only learns who is in which group.
+      case "gcStart": {
+        if (!this.live || (this.live.gc && this.live.gc.phase !== "ended")) return;
+        const prompt = String(msg.prompt || "").trim().slice(0, 1500);
+        if (!prompt) return;
+        const groups = {};
+        const roster = this.roster.periods.find((x) => x.id === this.live.periodId);
+        const ok = new Set(roster ? roster.students.map((x) => x.code) : this.roster.periods.flatMap((x) => x.students.map((y) => y.code)));
+        for (const [c, n] of Object.entries(msg.groups || {})) {
+          const g = Math.round(Number(n));
+          if (CODE_RE.test(c) && ok.has(c) && g >= 1 && g <= 40) groups[c] = g;
+        }
+        if (!Object.keys(groups).length) return;
+        const writeSec = Math.max(30, Math.min(Number(msg.writeSec) || 120, 1800)), chatSec = Math.max(60, Math.min(Number(msg.chatSec) || 300, 3600));
+        const now = Date.now();
+        this.live.gc = { id: rid(8), prompt, startedAt: now, writeSec, chatSec, phase: "write", writeEndsAt: now + writeSec * 1000, chatEndsAt: 0,
+          groups, alias: this.gcAliases(Object.keys(groups)), resp: {}, order: {}, msgs: [], muted: {}, conf: [] };
+        await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
+        break;
+      }
+      case "gcChatNow": {
+        const g = this.live && this.live.gc;
+        if (!g || g.phase !== "write") return;
+        this.gcStartChat();
+        await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
+        break;
+      }
+      // more or less time for the part that is running
+      case "gcMore": {
+        const g = this.live && this.live.gc;
+        if (!g || g.phase === "ended") return;
+        const sec = Math.max(-600, Math.min(Number(msg.seconds) || 60, 600)), now = Date.now(), k = g.phase === "write" ? "writeEndsAt" : "chatEndsAt";
+        g[k] = sec > 0 ? Math.max(g[k], now) + sec * 1000 : Math.max(now + 5000, g[k] + sec * 1000);
+        await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
+        break;
+      }
+      case "gcEnd": {
+        if (!this.live || !this.live.gc) return;
+        this.gcFinish();
+        await this.ctx.storage.put("live", this.live);
+        await this.setAlarms();
+        break;
+      }
+      case "gcMute": {
+        const g = this.live && this.live.gc;
+        if (!g || !CODE_RE.test(msg.code || "")) return;
+        if (msg.on) g.muted[msg.code] = true; else delete g.muted[msg.code];
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
+      case "gcHide": {
+        const g = this.live && this.live.gc;
+        const m = g && g.msgs.find((x) => x.id === msg.id);
+        if (!m) return;
+        m.hidden = !!msg.on;
+        await this.ctx.storage.put("live", this.live);
+        break;
+      }
       case "screenPage": {
         if (!this.live) return;
         const n = Math.max(0, Math.min(Number(msg.n) || 0, this.live.unlocked));
@@ -1036,6 +1101,107 @@ export class Classroom extends DurableObject {
   }
 
   // is this student in the block that is running? (no class running, or a class with no block set, counts as yes)
+  // ---------------------------------------------------------------- group chat
+  gcAliases(codes) {
+    const all = [];
+    for (const a of GC_ADJ) for (const n of GC_ANI) all.push(a + n);
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    const out = {};
+    codes.forEach((c, i) => { out[c] = all[i % all.length] + (i >= all.length ? String(Math.floor(i / all.length) + 1) : ""); });
+    return out;
+  }
+  // a student who signs in after the groups were made joins the smallest group, with a name of their own
+  gcEnsure(code) {
+    const g = this.live && this.live.gc;
+    if (!g || g.phase === "ended" || g.groups[code]) return;
+    const size = {};
+    for (const n of Object.values(g.groups)) size[n] = (size[n] || 0) + 1;
+    const ns = Object.keys(size).map(Number);
+    if (!ns.length) return;
+    ns.sort((a, b) => size[a] - size[b] || a - b);
+    g.groups[code] = ns[0];
+    const used = new Set(Object.values(g.alias));
+    let a = "", tries = 0;
+    do { a = GC_ADJ[Math.floor(Math.random() * GC_ADJ.length)] + GC_ANI[Math.floor(Math.random() * GC_ANI.length)]; } while (used.has(a) && ++tries < 200);
+    g.alias[code] = a;
+    this.ctx.waitUntil(this.ctx.storage.put("live", this.live));
+  }
+  // the writing time is over: each group's answers get a number (in a mixed order, so a number says nothing about who wrote it)
+  gcStartChat() {
+    const g = this.live.gc;
+    g.phase = "chat"; g.chatEndsAt = Date.now() + g.chatSec * 1000;
+    const by = {};
+    for (const [c, n] of Object.entries(g.groups)) (by[n] ||= []).push(c);
+    for (const [n, codes] of Object.entries(by)) {
+      const list = codes.filter((c) => g.resp[c] && g.resp[c].text.trim());
+      for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+      g.order[n] = list;
+    }
+  }
+  gcFinish() {
+    const g = this.live.gc;
+    if (!g) return;
+    g.phase = "ended"; g.endedAt = Date.now();
+    (this.live.gcDone ||= []).push(g);
+    this.live.gc = null;
+  }
+  gcStudent(stu, msg) {
+    const g = this.live && this.live.gc;
+    if (!stu || !g || g.phase === "ended" || !this.inBlock(stu)) return null;
+    this.gcEnsure(stu.name);
+    return g;
+  }
+  async saveGcResp(msg, stu) {
+    const g = this.gcStudent(stu, msg);
+    if (!g || g.phase !== "write" || Date.now() > g.writeEndsAt + 5000) return;
+    g.resp[stu.name] = { text: String(msg.text || "").slice(0, 2000), at: Date.now(), done: !!msg.submit };
+    await this.ctx.storage.put("live", this.live);
+    this.broadcast({ teachersOnly: true });
+  }
+  async saveGcMsg(msg, stu) {
+    const g = this.gcStudent(stu, msg);
+    if (!g || g.phase !== "chat" || g.muted[stu.name]) return;
+    const text = String(msg.text || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    if (!text) return;
+    const now = Date.now(), last = (this._gcLast ||= {})[stu.name] || 0;
+    if (now - last < 600) return;
+    this._gcLast[stu.name] = now;
+    g.msgs.push({ id: rid(6), g: g.groups[stu.name], code: stu.name, text, at: now });
+    if (g.msgs.length > GC_MAX_MSGS) g.msgs.splice(0, g.msgs.length - GC_MAX_MSGS);
+    await this.ctx.storage.put("live", this.live);
+    this.broadcast();
+  }
+  // "I don't understand something": the teacher sees who and what; the group only sees that someone does not (no name, no words)
+  async saveGcConf(msg, stu) {
+    const g = this.gcStudent(stu, msg);
+    if (!g || g.phase === "ended") return;
+    const now = Date.now(), last = (this._gcConf ||= {})[stu.name] || 0;
+    if (now - last < 15000) return;
+    this._gcConf[stu.name] = now;
+    const n = g.groups[stu.name];
+    g.conf.push({ id: rid(6), g: n, code: stu.name, text: String(msg.text || "").trim().slice(0, 300), at: now });
+    g.msgs.push({ id: rid(6), g: n, sys: true, text: "Someone in your group does not understand something. Can anyone help explain?", at: now });
+    await this.ctx.storage.put("live", this.live);
+    this.broadcast();
+  }
+  // what one student may see of the group chat: their own group only, made-up names only
+  gcFor(stu) {
+    const g = this.live && this.live.gc;
+    if (!g || !stu || !this.inBlock(stu) || g.phase === "ended") return null;
+    this.gcEnsure(stu.name);
+    const n = g.groups[stu.name], alias = g.alias[stu.name];
+    const mine = g.resp[stu.name];
+    const members = Object.values(g.groups).filter((x) => x === n).length;
+    const out = { id: g.id, phase: g.phase, prompt: g.prompt, endsAt: g.phase === "write" ? g.writeEndsAt : g.chatEndsAt, alias, size: members,
+      mine: { text: mine ? mine.text : "", done: !!(mine && mine.done) }, muted: !!g.muted[stu.name] };
+    if (g.phase === "chat") {
+      out.resp = (g.order[n] || []).map((c, i) => ({ n: i + 1, text: g.resp[c].text, mine: c === stu.name }));
+      out.msgs = g.msgs.filter((m) => m.g === n && !m.hidden).slice(-150).map((m) => m.sys ? { id: m.id, sys: true, text: m.text, at: m.at }
+        : { id: m.id, alias: g.alias[m.code] || "", text: m.text, mine: m.code === stu.name, at: m.at });
+    }
+    return out;
+  }
+
   inBlock(stu) {
     return !this.live || !this.live.periodId || (!!stu && stu.periodId === this.live.periodId);
   }
@@ -1168,6 +1334,9 @@ export class Classroom extends DurableObject {
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
       startedAt: L.lessonAt || L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
       act: Object.fromEntries(Object.entries(this.act || {}).map(([c, a]) => [c, { ...a, away: a.away + (a.since ? Date.now() - a.since : 0), since: 0 }])) };
+    // group chats held in this class: everything, with real codes (Past lessons is for the teacher only)
+    const gcs = [...(L.gcDone || []), ...(L.gc ? [L.gc] : [])];
+    if (gcs.length) rec.gc = gcs;
     // sim progress per page: the events each sim says it reports (its own list first), and who reported which
     const sims = await this.simIndex().catch(() => []);
     rec.sims = [];
@@ -1338,6 +1507,10 @@ export class Classroom extends DurableObject {
     if (msg.t === "askAnswer") return this.saveAsk(msg, stu);
     if (msg.t === "askSubmit") return this.saveAsk({ ...msg, submit: true }, stu);
     if (msg.t === "sqSend") return this.saveSq(msg, stu);
+    if (msg.t === "gcResp") return this.saveGcResp(msg, stu);
+    if (msg.t === "gcSubmit") return this.saveGcResp({ ...msg, submit: true }, stu);
+    if (msg.t === "gcMsg") return this.saveGcMsg(msg, stu);
+    if (msg.t === "gcConf") return this.saveGcConf(msg, stu);
     if (msg.t === "act") return this.saveAct(msg, stu);
     if (msg.t === "spAnswer") return this.saveSp(msg, stu, false, sid);
     if (msg.t === "spSubmit") return this.saveSp(msg, stu, true, sid);
@@ -1395,6 +1568,7 @@ export class Classroom extends DurableObject {
     }
     if (a && a.blockId) a.prev = (blockAns[a.blockId] || []).slice(0, -1);
     return { ...this.lessonState(sid, inb), now: Date.now(), ...sh, sky: this.sky, signedIn: !!stu, me: stu ? stu.name : null, q: this.studentQuestion(stu), zodiac: this.zodiac,
+      gc: inb ? this.gcFor(stu) : null,
       spMine: inb ? this.spMine(stu) : {},
       blockAns,
       spExtra: inb && this.live ? this.live.spExtra || {} : {},
@@ -1599,6 +1773,9 @@ export class Classroom extends DurableObject {
     if (this.live && this.live.autoEndAt) t.push(this.live.autoEndAt);
     const a = this.live && this.live.ask;
     if (a && !a.paused) t.push(a.endsAt + ASK_GRACE); // close the question once its time is up
+    const gc = this.live && this.live.gc;
+    if (gc && gc.phase === "write") t.push(gc.writeEndsAt);
+    if (gc && gc.phase === "chat") t.push(gc.chatEndsAt);
     if (t.length) await this.ctx.storage.setAlarm(Math.min(...t));
     else await this.ctx.storage.deleteAlarm();
   }
@@ -1641,6 +1818,9 @@ export class Classroom extends DurableObject {
         await this.ctx.storage.put("live", this.live);
       }
     }
+    const gc = this.live && this.live.gc;
+    if (gc && gc.phase === "write" && Date.now() >= gc.writeEndsAt - 500) { this.gcStartChat(); await this.ctx.storage.put("live", this.live); }
+    else if (gc && gc.phase === "chat" && Date.now() >= gc.chatEndsAt - 500) { this.gcFinish(); await this.ctx.storage.put("live", this.live); }
     if (this.live && this.live.autoEndAt && Date.now() >= this.live.autoEndAt - 1000) {
       await this.teacherMessage({ t: "end" });
     }
