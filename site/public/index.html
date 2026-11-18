@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=51">
+<link rel="stylesheet" href="app.css?v=52">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -118,7 +118,7 @@
         <span class="cl-gc-time" id="gcTime"></span>
         <span class="cl-grow"></span>
         <button id="gcConfBtn">I do not understand something</button>
-        <button id="gcMin" aria-label="Minimize the group chat window">Minimize</button>
+        <button id="gcMin">Go to the simulation</button>
       </div>
       <div class="cl-gcwin-body" id="gcBodyW">
         <div class="cl-gc-me" id="gcMe"></div>
@@ -916,13 +916,15 @@ function gcClamp(r) {
 function gcApply() {
   const r = gcRects[gcCur]; if (!r) return;
   const win = $("gcWin"); gcClamp(r);
-  win.style.left = r.x + "px"; win.style.top = r.y + "px"; win.style.width = r.w + "px";
-  win.style.height = gcMini ? "" : r.h + "px";
+  if (gcMini) { win.style.left = "auto"; win.style.top = "auto"; win.style.right = "14px"; win.style.bottom = "14px"; win.style.width = "auto"; win.style.height = ""; }
+  else { win.style.right = "auto"; win.style.bottom = "auto"; win.style.left = r.x + "px"; win.style.top = r.y + "px"; win.style.width = r.w + "px"; win.style.height = r.h + "px"; }
   win.classList.toggle("min", gcMini);
-  $("gcMin").textContent = gcMini ? "Open" : "Minimize";
+  $("gcMin").textContent = gcMini ? "Back to the group chat" : "Go to the simulation";
+  $("gcMin").setAttribute("aria-label", gcMini ? "Open the group chat window again" : "Hide the group chat window so you can use the simulation");
 }
 function gcPlace(phase) {
   if (gcCur === phase && gcRects[phase]) return;
+  if (gcCur && gcCur !== phase) gcMini = false;   // a new step starts: the window comes back so they see it
   gcCur = phase;
   if (!gcRects[phase]) {
     const w = phase === "write" ? 580 : 840, h = phase === "write" ? 440 : 480;

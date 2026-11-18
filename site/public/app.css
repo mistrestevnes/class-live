@@ -386,3 +386,5 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 .cl-gcwin-bar .cl-gc-time { font-size: 24px; }
 .cl-gc-write textarea { min-height: 70px; }
 .cl-gc-write .cl-ask-foot { flex: none; margin-top: 8px; gap: 10px; }
+.cl-gcwin.min #gcConfBtn, .cl-gcwin.min .cl-grow { display: none; }
+.cl-gcwin.min { min-width: 0; }
