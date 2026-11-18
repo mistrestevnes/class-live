@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
 <link rel="stylesheet" href="app.css?v=48">
-<link rel="stylesheet" href="teacher.css?v=41">
+<link rel="stylesheet" href="teacher.css?v=42">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1073,6 +1073,10 @@ function renderLive() {
   if (poll) {
     bar.replaceChildren(
       el("span", { class: "t-ctl-info", text: "Poll: " + tally.total + " of " + presence.count + " voted · " + (revealed ? "results showing" : lvSelected > live.unlocked ? "page locked" : "voting open") }),
+      el("span", { class: "t-pollres", title: "Only you see these until you press Show results" }, ...(poll.options || []).map((o, i) => {
+        const n = tally.counts[i] || 0, pct = tally.total ? Math.round(100 * n / tally.total) : 0;
+        return el("span", { class: "t-pollopt" }, el("b", { text: "ABCDEFGH"[i] }), el("span", { class: "t-pollbar" }, el("span", { style: "width:" + pct + "%" })), el("span", { text: String(n) }));
+      })),
       el("button", { class: revealed ? "" : "aero-btn-primary", text: revealed ? "Hide results" : "Show results",
         onclick: () => link.send({ t: "reveal", pageId: page.id, on: !revealed }) }),
       el("button", { text: "Clear votes", disabled: !tally.total,

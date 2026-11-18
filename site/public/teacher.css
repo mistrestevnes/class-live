@@ -578,3 +578,9 @@ html.teacher .t-gcsys { padding: 2px 0; color: var(--aero-ink-muted); }
 html.teacher .t-gcprev { border: 2px dashed var(--aero-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; background: rgba(255, 255, 255, .85); color: #12261E; max-height: 220px; overflow: auto; }
 html.teacher .t-gcprev-k { font-size: 12px; font-weight: 700; opacity: .75; margin-bottom: 4px; }
 html.teacher .t-gcprev-q { font-size: 18px; font-weight: 600; }
+
+/* poll results for the teacher only */
+html.teacher .t-pollres { display: inline-flex; gap: 14px; align-items: center; }
+html.teacher .t-pollopt { display: inline-flex; gap: 5px; align-items: center; font-size: 14px; font-weight: 700; }
+html.teacher .t-pollbar { display: inline-block; width: 60px; height: 12px; border-radius: 3px; background: rgba(0, 0, 0, .12); overflow: hidden; }
+html.teacher .t-pollbar > span { display: block; height: 100%; background: #1F7A55; }
