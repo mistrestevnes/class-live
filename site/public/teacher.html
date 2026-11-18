@@ -1064,7 +1064,8 @@ function renderLive() {
 
   const page = lesson.pages[lvSelected];
   if (live.screenPage !== Math.min(lvSelected, live.unlocked) && lvSelected <= live.unlocked) link.send({ t: "screenPage", n: lvSelected });
-  const poll = (page.blocks || []).find((b) => b.type === "poll");
+  const pollSid = stateOfPage(page, (live.states || {})[page.id]);
+  const poll = (page.blocks || []).find((b) => b.type === "poll" && blockShowsIn(b, pollSid));
   const bar = $("lvPollBar");
   const revealed = !!live.revealed[page.id];
   const tally = tallies[page.id] || { counts: [], total: 0 };
@@ -2033,8 +2034,16 @@ function renderAnswers() {
   const box = $("lvAnswers");
   const live = tstate && tstate.live;
   const a = live && live.ask;
+  if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live
   const isLive = !!a && !viewQ;
+  const sessQs = live ? (tstate.qs || []).filter((x) => x.sessionId === live.sessionId).sort((x, y) => y.startedAt - x.startedAt) : [];
+  if (!a && !viewQ && sessQs.length && !box._opening) {   // nothing running: show the latest question from this class
+    box._opening = true;
+    openSaved(sessQs[0].id, true).finally(() => { box._opening = false; });
+  }
   const q = isLive ? a : viewQ && (tstate.qs || []).find((x) => x.id === viewQ.id);
+  const pick = sessQs.length > 1 ? el("div", { class: "t-row", style: "flex-wrap:wrap;gap:6px;margin-bottom:6px" }, el("span", { text: "This class:", style: "font-weight:700" }),
+    ...sessQs.map((x, i) => el("button", { class: "t-small", "aria-pressed": String(!!q && q.id === x.id), text: "Q" + (sessQs.length - i) + " " + (plain(x.prompt) || "").slice(0, 18), title: plain(x.prompt) || "", onclick: () => openSaved(x.id, true) }))) : null;
   if (!q) {
     if (box._key !== "none") { box._key = "none"; box.replaceChildren(el("p", { class: "t-hint", text: "Student responses show up here." })); }
     return;
@@ -2052,7 +2061,7 @@ function renderAnswers() {
   const spQid = spEntry ? spEntry[0].split(".")[0] : "", spEnds = spEntry ? spEntry[1].ends : 0;
   const spOpen = !!spEntry && spEnds > now;
   const rounds = otherRounds(isLive ? { ...q, sessionId: live.sessionId } : q);
-  const key = [q.id, isLive, JSON.stringify(answers), shown.join(), !!live, askOpen, isLive && a.paused, spQid, spOpen, JSON.stringify(rounds)].join("|");
+  const key = [q.id, isLive, sessQs.map((x) => x.id).join(), JSON.stringify(answers), shown.join(), !!live, askOpen, isLive && a.paused, spQid, spOpen, JSON.stringify(rounds)].join("|");
   if (box._key === key) return;
   // don't rebuild while a feedback box is being typed in
   const typing = document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA";
@@ -2067,6 +2076,7 @@ function renderAnswers() {
   // students who answered in another round show up too
   if (rounds.length) for (const r of rounds) if (r.answers) for (const [c, v] of Object.entries(r.answers)) if ((v.text || "").trim() && !withText.some(([x]) => x === c)) withText.push([c, { text: "" }]);
   box.replaceChildren(
+    ...(pick ? [pick] : []),
     el("div", { class: "t-row" },
       ...(spQid ? [
         btn("+30 seconds", () => link.send({ t: "spTime", qid: spQid, seconds: 30 })),
