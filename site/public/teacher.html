@@ -2500,15 +2500,13 @@ function blockStudents() {
 }
 // ---------------------------------------------------------------- group chat
 // Students write their own answer, then talk it over in small groups under made-up names. The groups are made here, on
-// this computer, from the cohorts in the name file (1, 2, 3), so each group mixes cohorts. The server only gets who is in which group.
+// this computer. The groups are random for now (cohorts are not built yet). The server only gets who is in which group.
 let gcDraft = null, gcShow = false, gcKey = "", gcScroll = {}, gcTimeEl = null;
 const gcLive = () => (tstate && tstate.live && tstate.live.gc) || null;
 const gcWho = (c) => shortName(names[c]) || c;
 function gcMakeGroups(codes) {
-  const by = { 1: [], 2: [], 3: [], 0: [] };
   const shuf = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  for (const c of codes) (by[cohorts[c] || 0] || by[0]).push(c);
-  const list = [...shuf(by[1]), ...shuf(by[2]), ...shuf(by[3]), ...shuf(by[0])];
+  const list = shuf(codes.slice());
   const k = Math.max(1, Math.round(list.length / 3.5));
   const order = shuf(Array.from({ length: k }, (_, i) => i + 1));   // which group gets the first of each deal is mixed up
   const groups = {};
@@ -2529,11 +2527,11 @@ function gcDrawSetup() {
   const ov = $("gcOv"), d = gcDraft;
   if (!d) return;
   ov.hidden = false; gcKey = "setup";
-  const nG = Math.max(0, ...Object.values(d.groups)), withC = d.codes.filter((c) => cohorts[c]).length;
+  const nG = Math.max(0, ...Object.values(d.groups));
   const memberBox = (n) => {
     const mem = d.codes.filter((c) => d.groups[c] === n);
     return el("div", { class: "t-gccard" }, el("h3", { text: "Group " + n + " · " + mem.length }),
-      ...mem.map((c) => el("div", { class: "t-gcmem" }, el("span", { text: gcWho(c) + (cohorts[c] ? " · cohort " + cohorts[c] : " · no cohort") }),
+      ...mem.map((c) => el("div", { class: "t-gcmem" }, el("span", { text: gcWho(c) }),
         el("select", { "aria-label": "Move " + gcWho(c), onchange: (e) => { d.groups[c] = Number(e.target.value); gcDrawSetup(); } },
           ...Array.from({ length: nG }, (_, i) => el("option", { value: String(i + 1), text: "Group " + (i + 1), selected: i + 1 === n }))))));
   };
@@ -2546,7 +2544,7 @@ function gcDrawSetup() {
       el("label", { text: "Writing time (minutes) " }, el("input", { type: "number", min: "1", max: "30", step: "0.5", value: String(d.writeMin), style: "width:70px", oninput: (e) => { d.writeMin = Number(e.target.value); } })),
       el("label", { text: "Talking time (minutes) " }, el("input", { type: "number", min: "1", max: "60", step: "0.5", value: String(d.chatMin), style: "width:70px", oninput: (e) => { d.chatMin = Number(e.target.value); } })),
       el("button", { class: "t-small", text: "Make the groups again", onclick: () => { d.codes = blockStudents().filter((x) => x.connected).map((x) => x.code); d.groups = gcMakeGroups(d.codes); gcDrawSetup(); } })),
-    el("p", { class: "t-hint", style: "margin:0", text: d.codes.length + " students signed in, in " + nG + " groups. " + (d.codes.length ? (withC === d.codes.length ? "Every group mixes the cohorts. " : (withC ? (d.codes.length - withC) + " have no cohort in the name file and are spread evenly. " : "No cohorts are loaded (Students tab, Open name file), so the groups are random. ")) : "Nobody is signed in yet. ") + "Students told the groups are random. Anyone who signs in later joins the smallest group." }),
+    el("p", { class: "t-hint", style: "margin:0", text: d.codes.length + " students signed in, in " + nG + " groups. " + (d.codes.length ? "" : "Nobody is signed in yet. ") + "The groups are random. Anyone who signs in later joins the smallest group." }),
     el("div", { class: "t-gcgrid" }, ...Array.from({ length: nG }, (_, i) => memberBox(i + 1))),
     el("div", { class: "t-row", style: "justify-content:flex-end" },
       el("button", { class: "aero-btn-primary", text: "Start group chat", disabled: !d.codes.length, onclick: () => {
@@ -2582,7 +2580,7 @@ function renderGcT() {
     return el("div", { class: "t-gccard" },
       el("h3", { text: "Group " + n + " · " + mem.length + " students" }),
       el("div", { class: "t-gcmems" }, ...mem.map((c) => el("span", { class: "t-gcmem" + (g.muted[c] ? " muted" : "") + (flagged.has(c) ? " flag" : "") },
-        el("span", { text: g.alias[c] + " = " + gcWho(c) + (cohorts[c] ? " (" + cohorts[c] + ")" : "") + (flagged.has(c) ? " ⚑" : "") }),
+        el("span", { text: g.alias[c] + " = " + gcWho(c) + (flagged.has(c) ? " ⚑" : "") }),
         el("button", { class: "t-small", text: g.muted[c] ? "Unmute" : "Mute", onclick: () => link.send({ t: "gcMute", code: c, on: !g.muted[c] }) })))),
       ...((g.conf || []).filter((x) => x.g === n).map((x) => el("div", { class: "t-gcconf", text: "⚑ " + gcWho(x.code) + " does not understand" + (x.text ? ": " + x.text : "") }))),
       el("div", { class: "t-gcans", "data-gcs": "a" + n },
@@ -2623,8 +2621,6 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && gcShow &
 const CODE_RE = /^\d{3}[a-z]{4,5}$/;
 let names = {};
 try { names = JSON.parse(localStorage.getItem("cl_names") || "{}") || {}; } catch { names = {}; }
-let cohorts = {};
-try { cohorts = JSON.parse(localStorage.getItem("cl_cohorts") || "{}") || {}; } catch { cohorts = {}; }
 let stDraft = [];
 
 function shortName(full) {
@@ -2632,16 +2628,14 @@ function shortName(full) {
   if (!parts[0]) return "";
   return parts.length > 1 ? parts[0] + " " + parts[parts.length - 1][0].toUpperCase() + "." : parts[0];
 }
-// A name file line is: code, first name, last name or initial, and (optional) a cohort 1, 2 or 3 as the last cell.
-// Cohorts stay on this computer too: they decide who is grouped with whom in a group chat.
-function readNameFile(text, cohortsOut) {
+// A name file line is: code, first name, last name or initial.
+function readNameFile(text) {
   const out = {};
   for (const line of text.split(/\r?\n/)) {
     const cells = line.split(",").map((c) => c.replace(/^\s*"|"\s*$/g, "").trim());
     const i = cells.findIndex((c) => CODE_RE.test(c.toLowerCase()));
     if (i < 0) continue;
-    let rest = cells.slice(i + 1).filter(Boolean);
-    if (rest.length >= 2 && /^[123]$/.test(rest[rest.length - 1])) { if (cohortsOut) cohortsOut[cells[i].toLowerCase()] = Number(rest[rest.length - 1]); rest = rest.slice(0, -1); }
+    const rest = cells.slice(i + 1).filter(Boolean);
     const who = rest.join(" ");
     if (who) out[cells[i].toLowerCase()] = who;
   }
@@ -2650,8 +2644,7 @@ function readNameFile(text, cohortsOut) {
 function stMsg(t) { $("stMsg").textContent = t || ""; }
 function drawNamesNote() {
   const n = Object.keys(names).length;
-  const nc = Object.keys(cohorts).length;
-  $("stNamesNote").textContent = n ? n + " names loaded on this computer" + (nc ? ", " + nc + " with a cohort (used for group chat)." : ". Add a cohort (1, 2 or 3) as the last column to balance group chats.") : "No names loaded. Printed pages will show codes only.";
+  $("stNamesNote").textContent = n ? n + " names loaded on this computer" + "." : "No names loaded. Printed pages will show codes only.";
   $("stForget").hidden = !n;
 }
 // ---------------------------------------------------------------- waiting-room questions
@@ -2755,20 +2748,17 @@ $("stOpenNames").onclick = () => {
   const inp = el("input", { type: "file", accept: ".csv,text/csv" });
   inp.onchange = async () => {
     const f = inp.files[0]; if (!f) return;
-    const gotC = {};
-    const got = readNameFile(await f.text(), gotC);
+    const got = readNameFile(await f.text());
     const n = Object.keys(got).length;
     if (!n) return stMsg("No codes with names were found. The file needs the code, then the first name, then the last name or initial.");
     names = { ...names, ...got }; // adds to the names already here; a code in this file replaces its old name
     try { localStorage.setItem("cl_names", JSON.stringify(names)); } catch {}
-    cohorts = { ...cohorts, ...gotC };
-    try { localStorage.setItem("cl_cohorts", JSON.stringify(cohorts)); } catch {}
-    drawNamesNote(); stMsg(n + " names added" + (Object.keys(gotC).length ? ", " + Object.keys(gotC).length + " with a cohort" : "") + ". " + Object.keys(names).length + " in all on this computer.");
+    drawNamesNote(); stMsg(n + " names added" + ". " + Object.keys(names).length + " in all on this computer.");
   };
   inp.click();
 };
 $("stForget").onclick = () => {
-  names = {}; cohorts = {}; try { localStorage.removeItem("cl_names"); localStorage.removeItem("cl_cohorts"); } catch {}
+  names = {}; try { localStorage.removeItem("cl_names"); } catch {}
   drawNamesNote(); stMsg("Names removed from this computer.");
 };
 
