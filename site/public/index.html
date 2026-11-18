@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=49">
+<link rel="stylesheet" href="app.css?v=51">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -112,29 +112,35 @@
 
   <!-- group chat: write your own answer, then share it with a small group (made-up names only) -->
   <section class="cl-gc" id="gc" hidden>
-    <div class="aero-bar cl-gc-top">
-      <span class="cl-gc-title" id="gcTitle">Group chat</span>
-      <span class="cl-gc-me" id="gcMe"></span>
-      <span class="cl-grow"></span>
-      <span class="cl-gc-time" id="gcTime"></span>
-      <button id="gcConfBtn">I do not understand something</button>
-    </div>
-    <div class="aero-panel cl-gc-conf" id="gcConfBox" hidden>
-      <div class="cl-gc-confq">What do you not understand? (You can leave this empty.) Only your teacher will see that it was you.</div>
-      <textarea id="gcConfText" rows="2" maxlength="300" aria-label="What you do not understand"></textarea>
-      <div class="cl-gc-row"><button id="gcConfCancel">Cancel</button><button class="aero-btn-primary" id="gcConfSend">Send</button></div>
-    </div>
-    <div class="aero-panel cl-gc-write" id="gcWrite" hidden>
-      <div class="cl-ask-prompt" id="gcPrompt"></div>
-      <textarea id="gcText" rows="6" aria-label="Your answer"></textarea>
-      <div class="cl-ask-foot"><span id="gcNote" class="aero-muted"></span><button class="aero-btn-primary" id="gcSubmit">Submit</button></div>
-    </div>
-    <div class="cl-gc-chat" id="gcChat" hidden>
-      <div class="aero-panel cl-gc-resp"><div class="cl-gc-h" id="gcPrompt2"></div><div id="gcResp"></div></div>
-      <div class="aero-panel cl-gc-talk">
-        <div class="cl-gc-msgs" id="gcMsgs"></div>
-        <div class="cl-gc-send"><textarea id="gcIn" rows="2" maxlength="300" aria-label="Your message to your group"></textarea><button class="aero-btn-primary" id="gcSend">Send</button></div>
+    <div class="aero-panel cl-gcwin" id="gcWin">
+      <div class="cl-gcwin-bar" id="gcBar">
+        <span class="cl-gc-title" id="gcTitle">Group chat</span>
+        <span class="cl-gc-time" id="gcTime"></span>
+        <span class="cl-grow"></span>
+        <button id="gcConfBtn">I do not understand something</button>
+        <button id="gcMin" aria-label="Minimize the group chat window">Minimize</button>
       </div>
+      <div class="cl-gcwin-body" id="gcBodyW">
+        <div class="cl-gc-me" id="gcMe"></div>
+        <div class="aero-panel cl-gc-conf" id="gcConfBox" hidden>
+          <div class="cl-gc-confq">What do you not understand? (You can leave this empty.) Only your teacher will see that it was you.</div>
+          <textarea id="gcConfText" rows="2" maxlength="300" aria-label="What you do not understand"></textarea>
+          <div class="cl-gc-row"><button id="gcConfCancel">Cancel</button><button class="aero-btn-primary" id="gcConfSend">Send</button></div>
+        </div>
+        <div class="cl-gc-write" id="gcWrite" hidden>
+          <div class="cl-ask-prompt" id="gcPrompt"></div>
+          <textarea id="gcText" rows="6" aria-label="Your answer"></textarea>
+          <div class="cl-ask-foot"><span id="gcNote" class="aero-muted"></span><button class="aero-btn-primary" id="gcSubmit">Submit</button></div>
+        </div>
+        <div class="cl-gc-chat" id="gcChat" hidden>
+          <div class="cl-gc-resp"><div class="cl-gc-h" id="gcPrompt2"></div><div id="gcResp"></div></div>
+          <div class="cl-gc-talk">
+            <div class="cl-gc-msgs" id="gcMsgs"></div>
+            <div class="cl-gc-send"><textarea id="gcIn" rows="2" maxlength="300" aria-label="Your message to your group"></textarea><button class="aero-btn-primary" id="gcSend">Send</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-gcwin-grip" id="gcGrip" aria-label="Resize the group chat window"></div>
     </div>
   </section>
 
@@ -349,7 +355,7 @@ let gcLock = false;        // a group chat covers the page
 let coverFrozen = false;    // the pause screen or a sent question covers the page
 let spLock = false;         // a question that starts on its own, set so students can't use the sim while answering
 function syncFreeze() {
-  const want = coverFrozen || spLock || gcLock;
+  const want = coverFrozen || spLock;
   if (want !== wasFrozen) { tellSims(want ? "pause" : "resume"); wasFrozen = want; }
 }
 const serverNow = () => Date.now() + clockSkew;
@@ -898,6 +904,45 @@ $("fbClose").onclick = () => { $("fbBox").hidden = true; renderFb(); };
 
 // ---------- group chat: write your own answer, then talk it over with a small group under made-up names
 let gcId = null, gcPhase = "", gcDirty = false, gcSaveTimer = null, gcTick = null, gcMsgKey = "", gcRespKey = "";
+// the group chat is a window over the page (the sim stays visible): drag it by the top bar, resize from the corner, or minimize it
+const gcRects = { write: null, chat: null };
+let gcCur = "", gcMini = false;
+function gcClamp(r) {
+  const vw = innerWidth, vh = innerHeight;
+  r.w = Math.max(420, Math.min(r.w, vw - 20)); r.h = Math.max(260, Math.min(r.h, vh - 20));
+  r.x = Math.max(10, Math.min(r.x, vw - r.w - 10)); r.y = Math.max(10, Math.min(r.y, vh - (gcMini ? 60 : r.h) - 10));
+  return r;
+}
+function gcApply() {
+  const r = gcRects[gcCur]; if (!r) return;
+  const win = $("gcWin"); gcClamp(r);
+  win.style.left = r.x + "px"; win.style.top = r.y + "px"; win.style.width = r.w + "px";
+  win.style.height = gcMini ? "" : r.h + "px";
+  win.classList.toggle("min", gcMini);
+  $("gcMin").textContent = gcMini ? "Open" : "Minimize";
+}
+function gcPlace(phase) {
+  if (gcCur === phase && gcRects[phase]) return;
+  gcCur = phase;
+  if (!gcRects[phase]) {
+    const w = phase === "write" ? 580 : 840, h = phase === "write" ? 440 : 480;
+    gcRects[phase] = { w: Math.min(w, innerWidth - 20), h: Math.min(h, innerHeight - 20), x: Math.max(10, (innerWidth - w) / 2), y: 20 };
+  }
+  gcApply();
+}
+{
+  let drag = null;
+  const down = (e, mode) => { if (e.target.closest("button")) return; const r = gcRects[gcCur]; if (!r) return; drag = { mode, sx: e.clientX, sy: e.clientY, r: { ...r } }; e.currentTarget.setPointerCapture(e.pointerId); e.preventDefault(); };
+  const move = (e) => {
+    if (!drag) return; const r = gcRects[gcCur], dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (drag.mode === "move") { r.x = drag.r.x + dx; r.y = drag.r.y + dy; } else { r.w = drag.r.w + dx; r.h = drag.r.h + dy; }
+    gcApply();
+  };
+  const up = () => { drag = null; };
+  for (const [id, mode] of [["gcBar", "move"], ["gcGrip", "size"]]) { const n = $(id); n.addEventListener("pointerdown", (e) => down(e, mode)); n.addEventListener("pointermove", move); n.addEventListener("pointerup", up); n.addEventListener("pointercancel", up); }
+  $("gcMin").onclick = () => { gcMini = !gcMini; gcApply(); };
+  addEventListener("resize", gcApply);
+}
 function gcSendDraft(submit) {
   clearTimeout(gcSaveTimer);
   link.send({ t: submit ? "gcSubmit" : "gcResp", text: $("gcText").value });
@@ -910,8 +955,6 @@ function gcClock() {
 }
 function renderGc() {
   const g = state.gc;
-  gcLock = !!g;
-  syncFreeze();
   $("gc").hidden = !g;
   if (!g) { gcId = null; gcPhase = ""; clearInterval(gcTick); gcTick = null; $("gcConfBox").hidden = true; return; }
   if (g.id !== gcId) { gcId = g.id; gcPhase = ""; gcMsgKey = ""; gcRespKey = ""; $("gcText").value = g.mine.text || ""; $("gcIn").value = ""; $("gcConfBox").hidden = true; gcDirty = false; }
@@ -920,6 +963,8 @@ function renderGc() {
   $("gcMe").textContent = "Your name here: " + g.alias + " · " + g.size + " in your group";
   const writing = g.phase === "write";
   $("gcWrite").hidden = !writing; $("gcChat").hidden = writing;
+  $("gcConfBtn").hidden = writing; $("gcTitle").textContent = writing ? "Your answer" : "Group chat";
+  gcPlace(writing ? "write" : "chat");
   if (writing) {
     $("gcPrompt").textContent = g.prompt;
     const ta = $("gcText");

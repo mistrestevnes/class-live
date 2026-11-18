@@ -1234,22 +1234,27 @@ function previewSteps(lesson) {
   (lesson.pages || []).forEach((pg, i) => pageStates(pg).forEach((st, k, all) => out.push({ i, pg, st, k, n: all.length })));
   return out;
 }
-function previewStateFor(lesson, step) {
+const previewQs = (step) => (step.pg.blocks || []).filter((b) => b.type === "question" && b.kind !== "gc" && blockShowsIn(b, step.st.id));
+function previewStateFor(lesson, step, qi, ends) {
   const pages = lesson.pages.slice(0, step.i + 1).map((pg) => ({ ...pg, questions: [] }));
-  const q = (step.pg.blocks || []).find((b) => b.type === "question" && b.kind !== "gc" && blockShowsIn(b, step.st.id));
+  const pq = qi >= 0 ? previewQs(step)[qi] : null;
+  const q = pq ? null : previewQs(step)[0];
+  const ask = pq ? { id: "pvw" + qi + ":" + ends, prompt: pq.prompt || "", endsAt: ends, part: 1, parts: 1, allowSim: false, imageId: "", sim: "", blockId: pq.id, pageId: step.pg.id,
+    options: pq.kind === "mc" ? (pq.options || []).filter((o) => String(o).trim()) : [], round: 1, mine: "", done: false } : null;
   return { live: true, sessionId: "pvw" + lesson.id + ":" + step.i + ":" + step.st.id, title: lesson.title, unlocked: step.i, from: 0, total: lesson.pages.length, pages,
     myVotes: {}, closed: {}, goto: null, stateOf: { [step.pg.id]: step.st.id }, staged: q ? { blockId: q.id, pageId: step.pg.id } : null, now: Date.now(),
-    paused: false, qpaused: false, ask: null, show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
+    paused: false, qpaused: false, ask, show: null, signedIn: true, me: "preview", spMine: {}, blockAns: {}, spExtra: {}, myFb: [], myQs: [] };
 }
 function renderPreview(box) {
   const lesson = startPick.full, steps = previewSteps(lesson);
   const idx = Math.max(0, Math.min(startPick.preview.i, steps.length - 1)), step = steps[idx];
   const blk = (renderStart.data.periods || []).find((p) => p.id === startPick.block);
-  const key = JSON.stringify(["pvw", lesson.id, idx, startPick.block]);
+  const pq = startPick.preview.q ?? -1, key = JSON.stringify(["pvw", lesson.id, idx, startPick.block, pq]);
   if (box._startKey === key) return;
   box._startKey = key;
   box.classList.add("t-pvmode");
-  const go = (d) => { startPick.preview.i = idx + d; renderStart(); };
+  const go = (d) => { startPick.preview.i = idx + d; startPick.preview.q = -1; renderStart(); };
+  const pqs = previewQs(step), setQ = (i) => { startPick.preview.q = i; startPick.preview.ends = Date.now() + (i >= 0 ? (Number(pqs[i].min) || 3) * 60000 : 0); box._startKey = null; renderStart(); };
   const where = stepName(step.st, step.k) + " · " + (step.k + 1) + " of " + step.n;
   if (!pvwFrame) {
     pvwFrame = el("iframe", { src: "/?preview=1", title: "What students will see" });
@@ -1262,6 +1267,10 @@ function renderPreview(box) {
       el("span", { class: "t-pvw-title", text: lesson.title || "Untitled lesson" }),
       el("span", { class: "t-pvw-where", text: where })),
     hold,
+    pqs.length ? el("div", { class: "t-pvw-bar" }, el("span", { text: "Students see:", style: "font-weight:700" }),
+      el("button", { "aria-pressed": String(pq === -1), text: "No question yet", onclick: () => setQ(-1) }),
+      ...pqs.map((q, i) => el("button", { "aria-pressed": String(pq === i), text: "Question " + ((step.pg.blocks || []).filter((x) => x.type === "question").indexOf(q) + 1), title: (q.prompt || "").slice(0, 80), onclick: () => setQ(i) })),
+      el("button", { text: "Next question ▶", disabled: pq >= pqs.length - 1, onclick: () => setQ(pq + 1) })) : null,
     el("div", { class: "t-pvw-bar" },
       el("button", { text: "◀ Back", disabled: idx <= 0, onclick: () => go(-1) }),
       el("button", { class: "aero-btn-primary", text: "Next ▶", disabled: idx >= steps.length - 1, onclick: () => go(1) }),
@@ -1276,7 +1285,7 @@ function sendPreview() {
   const steps = startPick.full && startPick.preview ? previewSteps(startPick.full) : null;
   if (!steps || !pvwReady || !pvwFrame || !pvwFrame.contentWindow) return;
   const step = steps[Math.max(0, Math.min(startPick.preview.i, steps.length - 1))];
-  pvwFrame.contentWindow.postMessage({ clPreview: previewStateFor(startPick.full, step) }, location.origin);
+  pvwFrame.contentWindow.postMessage({ clPreview: previewStateFor(startPick.full, step, startPick.preview.q ?? -1, startPick.preview.ends || 0) }, location.origin);
 }
 function fitPreview() {
   const h = pvwFrame && pvwFrame.parentNode;
