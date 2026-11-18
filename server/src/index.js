@@ -1164,7 +1164,7 @@ export class Classroom extends DurableObject {
     const text = String(msg.text || "").replace(/\s+/g, " ").trim().slice(0, 300);
     if (!text) return;
     const now = Date.now(), last = (this._gcLast ||= {})[stu.name] || 0;
-    if (now - last < 600) return;
+    if (now - last < 4800) return;
     this._gcLast[stu.name] = now;
     g.msgs.push({ id: rid(6), g: g.groups[stu.name], code: stu.name, text, at: now });
     if (g.msgs.length > GC_MAX_MSGS) g.msgs.splice(0, g.msgs.length - GC_MAX_MSGS);

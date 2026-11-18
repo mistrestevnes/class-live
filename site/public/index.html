@@ -951,9 +951,17 @@ function renderGc() {
 }
 $("gcText").addEventListener("input", () => { gcDirty = true; $("gcSubmit").textContent = "Submit"; clearTimeout(gcSaveTimer); gcSaveTimer = setTimeout(() => gcSendDraft(false), 600); });
 $("gcSubmit").onclick = () => { gcSendDraft(true); if (state.gc) state.gc.mine = { text: $("gcText").value, done: true }; renderGc(); };
+let gcLastSay = 0, gcWaitT = null;
 function gcSay() {
   const t = $("gcIn").value.replace(/\s+/g, " ").trim();
   if (!t) return;
+  if (Date.now() - gcLastSay < 5000) return;   // one message every 5 seconds; what they typed stays in the box
+  gcLastSay = Date.now();
+  const b = $("gcSend"), tick = () => {
+    const left = Math.ceil((gcLastSay + 5000 - Date.now()) / 1000);
+    if (left > 0) { b.disabled = true; b.textContent = "Wait " + left; } else { b.disabled = false; b.textContent = "Send"; clearInterval(gcWaitT); }
+  };
+  clearInterval(gcWaitT); tick(); gcWaitT = setInterval(tick, 250);
   link.send({ t: "gcMsg", text: t });
   $("gcIn").value = "";
   if (state.gc) { state.gc.msgs.push({ id: "tmp" + Date.now(), alias: state.gc.alias, text: t, mine: true, at: Date.now() }); gcMsgKey = ""; renderGc(); }
