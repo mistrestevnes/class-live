@@ -449,7 +449,7 @@ function blockInner(b, opts = {}) {
     const ok = /^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "");
     // the builder's page thumbnails: a still picture of the sim (taken when that page was open), not a running copy
     const snap = opts.edit && opts.edit.simSnap && ok ? opts.edit.simSnap(b) : "";
-    if (snap) return [el("div", { class: "cl-sim aero-stage cl-simsnap" }, el("img", { src: snap, alt: "", "data-snap": b.url }))];
+    if (snap) return [el("div", { class: "cl-sim aero-stage cl-simsnap" }, el("img", { src: snap, alt: "", "data-snap": b.url, "data-saved": snap.startsWith("/sim/") ? "1" : null }))];
     if (opts.edit && opts.edit.simPreview && ok) { const f = el("iframe", { src: b.url, title: "Simulation", allow: "autoplay", tabindex: "-1" }); f._clBlock = b; return [el("div", { class: "cl-sim aero-stage" }, f)]; }
     if (opts.edit) return ph("Sim", ok ? (opts.edit.simName ? opts.edit.simName(b.url) : b.url) : "Choose a sim in the window on the right");
     if (!ok) return null;
@@ -654,6 +654,52 @@ function snapSimCanvas(f) {
     g.drawImage(src, r.left / fw * w, r.top / fh * h, r.width / fw * w, r.height / fh * h);
     return out.toDataURL("image/jpeg", 0.7);
   } catch { return ""; } // a sim from another website can't be copied
+}
+// Saved sim pictures: the server keeps one small picture for each uploaded sim (sims list entry .snap), so page thumbnails
+// show the sim at once, with nothing running. savedSnap gives the picture's address for a sim block's address, or "".
+function savedSnap(list, url) {
+  const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
+  return e && e.snap ? "/sim/" + e.id + ".jpg?v=" + e.snap : "";
+}
+// saves a picture (data URL) for an uploaded sim that has none yet; callback when saved
+async function saveSnap(tapi, list, url, dataUrl) {
+  const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
+  if (!e || e.snap || !dataUrl || e._snapBusy) return false;
+  e._snapBusy = true;
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const r = await tapi("/api/sims/" + e.id + "/snap", { method: "PUT", headers: { "content-type": "image/jpeg" }, body: blob });
+    if (r && r.snap) { e.snap = r.snap; return true; }
+  } catch {} finally { e._snapBusy = false; }
+  return false;
+}
+// makes pictures for the uploaded sims in urls that have none: one hidden copy of the sim at a time, a few seconds each.
+// done() runs after each picture is saved. A sim with no canvas to copy is skipped (and remembered, so it is not tried again).
+const snapTried = new Set();
+let snapMaking = false;
+async function makeSnaps(tapi, list, urls, done) {
+  if (snapMaking) return;
+  snapMaking = true;
+  try {
+    for (const url of [...new Set(urls)]) {
+      const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
+      if (!e || e.snap) continue;
+      const tk = e.id + ":" + (e.updated || 0);
+      let skip = snapTried.has(tk); try { if (localStorage.getItem("cl-nosnap:" + tk)) skip = true; } catch {}
+      if (skip) continue;
+      snapTried.add(tk);
+      const f = document.createElement("iframe");
+      f.src = url; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
+      f.style.cssText = "position:fixed;left:-10000px;top:0;width:1366px;height:599px;border:0;opacity:0;pointer-events:none";
+      document.body.appendChild(f);
+      await new Promise((ok) => { f.addEventListener("load", ok, { once: true }); setTimeout(ok, 8000); });
+      let pic = "";
+      for (let i = 0; i < 3 && !pic; i++) { await new Promise((ok) => setTimeout(ok, i ? 1500 : 2000)); pic = snapSimCanvas(f); }
+      f.remove();
+      if (pic && await saveSnap(tapi, list, url, pic)) { if (done) done(); }
+      else if (!pic) { try { localStorage.setItem("cl-nosnap:" + tk, "1"); } catch {} }
+    }
+  } finally { snapMaking = false; }
 }
 // Polls: a screen holds the lesson's pages as its states, and each page can have its own poll.
 // A poll's votes are kept under its key: the screen's id for the first poll made before polls had ids (so old votes and

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=54">
+<link rel="stylesheet" href="app.css?v=55">
 <link rel="stylesheet" href="teacher.css?v=42">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=51"></script>
+<script src="common.js?v=52"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1849,7 +1849,7 @@ function navGo(i, sid, isState) {
 let navSimsAsked = false;
 const navThumbs = new Map(), simSnapsT = new Map(); // screen id|page id -> thumbnail; screen id|page id|sim -> picture
 const tSimName = (url) => { const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), x = m && (simsCache || []).find((q) => q.id === m[1]); return x ? x.name || "Uploaded sim" : url || ""; };
-function thumbOptsT(pg, sid) { return { preview: true, stateId: sid, edit: { simName: tSimName, simSnap: (b) => simSnapsT.get(pg.id + "|" + sid + "|" + b.url) || "" } }; }
+function thumbOptsT(pg, sid) { return { preview: true, stateId: sid, edit: { simName: tSimName, simSnap: (b) => simSnapsT.get(pg.id + "|" + sid + "|" + b.url) || savedSnap(simsCache, b.url) } }; }
 setInterval(() => {
   if (!lvFrame || document.hidden || !tstate || !tstate.live || !tstate.lesson) return;
   const L = tstate.live, pages = tstate.lesson.pages, pg = pages[Math.min(lvSelected, pages.length - 1)];
@@ -1866,10 +1866,19 @@ setInterval(() => {
     simSnapsT.set(k, url);
     const t = navThumbs.get(pg.id + "|" + sid);
     if (t) for (const im of t.th.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
+    if (simsCache) saveSnap(tapi, simsCache, b.url, url).then((ok) => { if (ok) redrawNavThumbs(); });
   }
   const t = navThumbs.get(pg.id + "|" + sid);
   if (fresh && t && t.th.isConnected) { t.th._key = null; try { mountPage(t.th, statePage(t.pg, sid), thumbOptsT(t.pg, sid)); } catch {} }
 }, 3000);
+function redrawNavThumbs() { for (const t of navThumbs.values()) { t.th._key = null; try { mountPage(t.th, statePage(t.pg, t.sid), thumbOptsT(t.pg, t.sid)); } catch {} } }
+// sims of the lesson with no saved picture get one made in the background
+setInterval(() => {
+  if (document.hidden || !tstate || !tstate.live || !tstate.lesson) return;
+  if (!simsCache) { loadSims().then(redrawNavThumbs); return; }
+  const urls = tstate.lesson.pages.flatMap((pg) => (pg.blocks || []).filter((b) => b && b.type === "sim").map((b) => b.url));
+  makeSnaps(tapi, simsCache, urls, redrawNavThumbs);
+}, 4000);
 function renderNav(lesson, live) {
   const box = $("lvNav");
   const key = JSON.stringify([live.lessonId, live.sessionId, lesson.pages.map((p) => [p.id, pageStates(p).map((x) => [x.id, x.name, !!x.off])])]);

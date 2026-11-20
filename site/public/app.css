@@ -410,3 +410,4 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 
 /* the builder's thumbnails show a still picture of a sim */
 .cl-simsnap img { display: block; width: 100%; height: 100%; object-fit: fill; background: #FFFFFF; }
+.cl-simsnap img[data-saved] { object-fit: cover; }
