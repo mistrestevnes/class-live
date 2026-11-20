@@ -415,3 +415,9 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 /* under a page thumbnail: the sim state that page shows */
 .cl-simlabel { display: block; margin-top: 3px; font: 600 12px Helvetica, Arial, sans-serif; color: #1F5F4A; white-space: normal; overflow-wrap: anywhere; }
 .cl-simlabel[hidden] { display: none; }
+/* a question sliding in from the right edge (and back out), and the sim making room, 0.75 s */
+.cl-qanim .cl-fq { transition: width .75s ease; }
+@keyframes clQin { from { transform: translateX(var(--qdx, 1366px)); } to { transform: translateX(0); } }
+@keyframes clQout { from { transform: translateX(0); } to { transform: translateX(var(--qdx, 1366px)); } }
+.cl-canvas .cl-qin { animation: clQin .75s ease both; }
+.cl-canvas .cl-qout { animation: clQout .75s ease both; pointer-events: none; }

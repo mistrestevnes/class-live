@@ -584,3 +584,9 @@ html.teacher .t-pollres { display: inline-flex; gap: 14px; align-items: center; 
 html.teacher .t-pollopt { display: inline-flex; gap: 5px; align-items: center; font-size: 14px; font-weight: 700; }
 html.teacher .t-pollbar { display: inline-block; width: 60px; height: 12px; border-radius: 3px; background: rgba(0, 0, 0, .12); overflow: hidden; }
 html.teacher .t-pollbar > span { display: block; height: 100%; background: #1F7A55; }
+/* a question not opened yet: its Open / Start timer button pulses */
+@keyframes tPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, .95); transform: scale(1); } 50% { box-shadow: 0 0 0 9px rgba(255, 193, 7, 0); transform: scale(1.06); } }
+.t-redbtn.t-pulse { animation: tPulse 1.1s ease-in-out infinite; }
+/* Navigation: a red ? on the thumbnail of a page with a question */
+.t-nvthw { position: relative; }
+.t-nvqbadge { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border-radius: 50%; background: #D32F2F; color: #FFFFFF; font: 800 17px/26px Helvetica, Arial, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: none; }

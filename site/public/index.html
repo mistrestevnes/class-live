@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=60">
+<link rel="stylesheet" href="app.css?v=61">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -438,7 +438,7 @@ document.body.append($("qBtn"), $("fs"));
 function placeNav() {
   const nav = $("nav");
   if (!document.body.classList.contains("cl-paged") || nav.hidden) return;
-  const q = [...$("pageBox").querySelectorAll(".cl-qblock")].find((n) => !n.hidden && !n.classList.contains("cl-nostate") && n.offsetParent);
+  const q = [...$("pageBox").querySelectorAll(".cl-qblock:not(.cl-qghost)")].find((n) => !n.hidden && !n.classList.contains("cl-nostate") && n.offsetParent);
   if (!q) { nav.style.left = ""; nav.style.right = "24px"; return; }
   const r = q.getBoundingClientRect(), w = nav.offsetWidth;
   nav.style.right = "auto";
@@ -450,7 +450,7 @@ function growQ(typing) {
   if (!cv) return;
   const baseH = +fit.dataset.ch || CANVAS_H;
   let bottom = baseH;
-  for (const slot of cv.querySelectorAll(".cl-qblock")) {
+  for (const slot of cv.querySelectorAll(".cl-qblock:not(.cl-qghost)")) {
     if (!slot.dataset.h0) slot.dataset.h0 = String(parseFloat(slot.style.height) || 100);
     slot.style.height = slot.dataset.h0 + "px";
     if (slot.hidden || slot.classList.contains("cl-nostate")) continue;
@@ -474,9 +474,30 @@ function growQ(typing) {
 window.addEventListener("resize", () => growQ());
 // closed question blocks show the student's own answers, read only; blocks never opened stay hidden
 // a sim set to fill the page until a question opens: full width when no question box is showing, its drawn width while one is
+// A question appearing slides in from the right edge while the sim's right edge moves left to make room (0.75 s);
+// a question going away slides back out to the right while the sim widens. No slide when a question was already showing.
+let qPrev = null; // { open, ghosts: copies of the question boxes that were showing, to slide out }
 function syncFullSim() {
-  const open = [...$("pageBox").querySelectorAll(".cl-qblock")].some((n) => !n.hidden && !n.classList.contains("cl-nostate"));
-  setFullSim($("pageBox"), !open);
+  const box = $("pageBox");
+  const shown = [...box.querySelectorAll(".cl-qblock")].filter((n) => !n.hidden && !n.classList.contains("cl-nostate") && !n.classList.contains("cl-qghost")
+    && [...n.children].some((c) => !c.hidden)); // a running question waiting out its countdown isn't showing yet
+  const open = shown.length > 0;
+  const fit = box.querySelector(".cl-canvas-fit"), cv = fit && fit.querySelector(".cl-canvas");
+  const slide = !!(qPrev && qPrev.open !== open && cv && !box.hidden);
+  if (slide) { fit.classList.add("cl-qanim"); clearTimeout(fit._qa); fit._qa = setTimeout(() => fit.classList.remove("cl-qanim"), 800); }
+  setFullSim(box, !open);
+  if (slide) {
+    const dx = (n) => Math.max(0, cv.offsetWidth - (parseFloat(n.style.left) || 0)) + "px"; // to just past the right edge
+    const go = (n, cls) => { n.classList.remove("cl-qin", "cl-qout"); n.style.setProperty("--qdx", dx(n)); void n.offsetWidth; n.classList.add(cls); };
+    if (open) for (const n of shown) { go(n, "cl-qin"); setTimeout(() => n.classList.remove("cl-qin"), 800); }
+    else for (const g of qPrev.ghosts) { cv.append(g); go(g, "cl-qout"); setTimeout(() => g.remove(), 760); }
+  }
+  qPrev = { open, ghosts: shown.map((n) => {
+    const g = n.cloneNode(true);
+    for (const x of [g, ...g.querySelectorAll("[id]")]) x.removeAttribute("id");
+    g.removeAttribute("data-id"); g.removeAttribute("data-bs"); g.removeAttribute("data-lk"); g.classList.remove("cl-qin", "cl-nostate"); g.classList.add("cl-qghost"); g.setAttribute("inert", "");
+    return g;
+  }) };
 }
 // does this page (in the state the class is on) have a sim that fills the page until a question opens?
 function pageHasFullSim(pg) {
@@ -493,7 +514,7 @@ function fillQBlocks(pg) {
   const stagedId = !runId && state.staged && state.staged.pageId === pg.id && qids.includes(state.staged.blockId) ? state.staged.blockId : null;
   let shownId = runId || stagedId;
   if (!shownId && !PREVIEW) for (const q of qids) if (((state.blockAns || {})[q] || []).length) shownId = q;
-  for (const slot of $("pageBox").querySelectorAll(".cl-qblock")) {
+  for (const slot of $("pageBox").querySelectorAll(".cl-qblock:not(.cl-qghost)")) {
     const id = slot.dataset.id;
     if (runId === id) { slot._sk = null; slot.style.opacity = ""; continue; } // running: placeAsk fills it
     // the page's sim fills the page until a question opens: only a question that is open or waiting to start shows;

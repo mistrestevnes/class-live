@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=56">
-<link rel="stylesheet" href="teacher.css?v=42">
+<link rel="stylesheet" href="app.css?v=57">
+<link rel="stylesheet" href="teacher.css?v=43">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -1590,14 +1590,15 @@ function sideQuestions(page) {
           : el("button", { class: "t-redbtn", text: (done ? "Run group chat again" : "Start group chat") + many, disabled: !!gcWhy || !(b.prompt || "").trim(), title: gcWhy,
             onclick: () => gcOpen({ prompt: b.prompt || "", writeMin: b.writeMin || 2, chatMin: b.chatMin || 5, blockId: b.id }) }));
     }
-    const red = (text, dis) => el("button", { class: "t-redbtn", text, disabled: dis, title: why, onclick: open });
+    // a question students haven't seen yet (or one waiting for its timer) pulses until it is opened
+    const red = (text, dis, pulse) => el("button", { class: "t-redbtn" + (pulse && !dis ? " t-pulse" : ""), text, disabled: dis, title: why, onclick: open });
     if (a && a.blockId === b.id && a.pageId === page.id) {
       // open: the bar turns green, and the running controls sit beneath it
       return el("div", { class: "t-qprev-btns t-qrun", "data-bid": b.id, "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300) },
         el("button", { class: "t-greenbtn", text: (a.paused ? "Question paused" : "Question open") + many, disabled: true, style: a.paused ? "background:#B7791F;border-color:#8A5A12" : "" }), askBox);
     }
     return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300), "data-fq": fullSim ? "1" : null },
-      stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
+      stg === b.id ? red("Start timer" + many, busy, true) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim(), !ids.length),
       stg === b.id ? el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }) : null);
   }));
   lvFitView();
@@ -1888,7 +1889,9 @@ function renderNav(lesson, live) {
       const sid = st.id;
       const th = el("div", { class: "t-spage-p", inert: "" });
       const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
-        el("span", { class: "t-spage-l", text: label }), th,
+        el("span", { class: "t-spage-l", text: label }),
+        // a page with a question gets a red ? in the corner of its thumbnail
+        el("div", { class: "t-nvthw" }, th, (pg.blocks || []).some((b) => b.type === "question" && blockShowsIn(b, sid)) ? el("span", { class: "t-nvqbadge", text: "?", title: "This page has a question" }) : null),
         ((txt) => txt ? el("span", { class: "cl-simlabel", text: txt }) : null)(pageSimLabel(pg, sid, tSimName, () => { navKey = ""; renderLive(); })),
         // the questions of this state, in small type (the first state is shown under its own state preview)
         ...((pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
