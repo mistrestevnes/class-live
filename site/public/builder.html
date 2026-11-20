@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=50"></script>
+<script src="common.js?v=51"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -288,7 +288,7 @@ function drawThumbs() {
   const pg = ed.pages[edPage];
   for (const x of pageStates(pg)) {
     const box = thumbBoxes.get(x.id);
-    if (box && box.isConnected) { try { mountPage(box, pg, thumbOpts(x.id)); } catch {} }
+    if (box && box.isConnected) { try { mountPage(box, statePage(pg, x.id), thumbOpts(x.id)); } catch {} } // each redraws only when its own page changed
   }
 }
 // copies what the open page's sims are showing into that page's thumbnail
@@ -299,26 +299,14 @@ function snapSims() {
   for (const f of fitBox.querySelectorAll(".cl-sim iframe")) {
     const b = f._clBlock;
     if (!b || !b.url) continue;
-    try {
-      const doc = f.contentDocument;
-      if (!doc) continue;
-      // the sim's biggest canvas (sims made of plain page parts get no picture)
-      const cvs = [...doc.querySelectorAll("canvas")].filter((c) => c.width > 40 && c.height > 40).sort((a, c) => c.width * c.height - a.width * a.height);
-      if (!cvs.length) continue;
-      const src = cvs[0], w = 320, h = Math.max(1, Math.round(320 * f.clientHeight / Math.max(1, f.clientWidth)));
-      const out = document.createElement("canvas"); out.width = w; out.height = h;
-      const g = out.getContext("2d");
-      g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, w, h);
-      // place the canvas where it sits in the sim's window
-      const r = src.getBoundingClientRect(), fw = Math.max(1, f.clientWidth), fh = Math.max(1, f.clientHeight);
-      g.drawImage(src, r.left / fw * w, r.top / fh * h, r.width / fw * w, r.height / fh * h);
-      const url = out.toDataURL("image/jpeg", 0.7), k = snapKey(sid, b.url);
-      if (!simSnaps.has(k)) fresh = true;
-      simSnaps.set(k, url);
-      if (box) for (const im of box.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
-    } catch {} // a sim from another website can't be copied: its thumbnail keeps the name box
+    const url = snapSimCanvas(f);
+    if (!url) continue;
+    const k = snapKey(sid, b.url);
+    if (!simSnaps.has(k)) fresh = true;
+    simSnaps.set(k, url);
+    if (box) for (const im of box.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
   }
-  if (fresh && box && box.isConnected) { box._key = null; try { mountPage(box, ed.pages[edPage], thumbOpts(sid)); } catch {} }
+  if (fresh && box && box.isConnected) { box._key = null; try { mountPage(box, statePage(ed.pages[edPage], sid), thumbOpts(sid)); } catch {} }
 }
 setInterval(snapSims, 3000);
 const thumbsSoon = () => { clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbs, 900); };
@@ -341,7 +329,8 @@ function renderPages() {
   const pn = $("pgName");
   if (document.activeElement !== pn) pn.value = (sts[ci] && sts[ci].name && !AUTO_NAME.test(sts[ci].name)) ? sts[ci].name : "";
   pn.placeholder = "Page " + (ci + 1);
-  thumbsSoon();
+  // thumbnails not drawn yet are drawn right away; after an edit they wait a moment, so typing isn't slowed down
+  if (sts.some((x) => { const b = thumbBoxes.get(x.id); return b && !b.firstChild; })) drawThumbs(); else thumbsSoon();
   const li = $("bPages").children[ci];
   if (li) li.scrollIntoView({ block: "nearest" });
 }

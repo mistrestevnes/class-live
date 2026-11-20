@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=50"></script>
+<script src="common.js?v=51"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1192,7 +1192,7 @@ async function renderStart(force) {
         grid.append(el("div", { class: "t-spage-row" },
           el("div", { class: "t-spage" }, el("span", { class: "t-spage-l", text: stepName(st, k) + (st.off ? " (greyed out)" : "") }), sth),
           pageSummary({ blocks: (pg.blocks || []).filter((x) => blockShowsIn(x, st.id)) })));
-        requestAnimationFrame(() => { try { mountPage(sth, pg, { preview: true, edit: { simPreview: true }, stateId: st.id }); } catch {} });
+        requestAnimationFrame(() => { try { mountPage(sth, statePage(pg, st.id), thumbOptsT(pg, st.id)); } catch {} });
       });
     });
     return row;
@@ -1844,11 +1844,39 @@ function navGo(i, sid, isState) {
   if (isState && i <= live.unlocked && !live.ask) link.send({ t: "state", pageId: lesson.pages[i].id, to: sid });
   renderLive();
 }
+// Page thumbnails don't run sims (a running copy for every page made the Control room slow): a sim shows as a still
+// picture taken from the preview while that page is on screen, or as a box with its name until then.
+let navSimsAsked = false;
+const navThumbs = new Map(), simSnapsT = new Map(); // screen id|page id -> thumbnail; screen id|page id|sim -> picture
+const tSimName = (url) => { const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), x = m && (simsCache || []).find((q) => q.id === m[1]); return x ? x.name || "Uploaded sim" : url || ""; };
+function thumbOptsT(pg, sid) { return { preview: true, stateId: sid, edit: { simName: tSimName, simSnap: (b) => simSnapsT.get(pg.id + "|" + sid + "|" + b.url) || "" } }; }
+setInterval(() => {
+  if (!lvFrame || document.hidden || !tstate || !tstate.live || !tstate.lesson) return;
+  const L = tstate.live, pages = tstate.lesson.pages, pg = pages[Math.min(lvSelected, pages.length - 1)];
+  if (!pg) return;
+  const sid = stateOfPage(pg, (L.states || {})[pg.id]);
+  let doc = null; try { doc = lvFrame.contentDocument; } catch {}
+  if (!doc) return;
+  let fresh = false;
+  for (const f of doc.querySelectorAll(".cl-sim iframe")) {
+    const b = f._clBlock, url = b && b.url && snapSimCanvas(f);
+    if (!url) continue;
+    const k = pg.id + "|" + sid + "|" + b.url;
+    if (!simSnapsT.has(k)) fresh = true;
+    simSnapsT.set(k, url);
+    const t = navThumbs.get(pg.id + "|" + sid);
+    if (t) for (const im of t.th.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
+  }
+  const t = navThumbs.get(pg.id + "|" + sid);
+  if (fresh && t && t.th.isConnected) { t.th._key = null; try { mountPage(t.th, statePage(t.pg, sid), thumbOptsT(t.pg, sid)); } catch {} }
+}, 3000);
 function renderNav(lesson, live) {
   const box = $("lvNav");
   const key = JSON.stringify([live.lessonId, live.sessionId, lesson.pages.map((p) => [p.id, pageStates(p).map((x) => [x.id, x.name, !!x.off])])]);
   if (key !== navKey) {
     navKey = key;
+    navThumbs.clear();
+    if (!simsCache && !navSimsAsked) { navSimsAsked = true; loadSims().then(() => { if (simsCache) { navKey = ""; renderLive(); } }); } // so sim boxes show the sim's name
     const mk = (pg, i, label, st, isState) => {
       const sid = st.id;
       const th = el("div", { class: "t-spage-p", inert: "" });
@@ -1857,7 +1885,8 @@ function renderNav(lesson, live) {
         // the questions of this state, in small type (the first state is shown under its own state preview)
         ...((pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
           .map((b) => el("span", { class: "t-nvq" }, formatText(b.prompt)))));
-      requestAnimationFrame(() => { try { mountPage(th, pg, { preview: true, edit: { simPreview: true }, stateId: sid }); } catch {} });
+      navThumbs.set(pg.id + "|" + sid, { th, pg, sid });
+      requestAnimationFrame(() => { try { mountPage(th, statePage(pg, sid), thumbOptsT(pg, sid)); } catch {} });
       if (!isState) return btn;
       // states: drag to reorder within the page; the trash can greys a state out (students never see it), click again to bring it back
       const wrap = el("div", { class: "t-nvwrap" + (st.off ? " off" : ""), "data-page": i, "data-state": sid },

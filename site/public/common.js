@@ -636,6 +636,25 @@ function mountPage(container, page, opts = {}, decoratePoll) {
     old.replaceWith(fresh);
   });
 }
+// Thumbnails of a lesson's pages: only that page's elements (fast to draw and to compare), and sims never run in them:
+// edit.simSnap gives a still picture of the sim when there is one, otherwise the sim shows as a box with its name.
+function statePage(pg, sid) { canvasify(pg); return { ...pg, blocks: ((pg && pg.blocks) || []).filter((b) => blockShowsIn(b, sid)) }; } // (older pages are converted once, on the page itself, before the copy)
+// a small still picture of what a running sim (an iframe from this site) is showing: its biggest canvas, placed where it sits
+function snapSimCanvas(f) {
+  try {
+    const doc = f.contentDocument;
+    if (!doc) return "";
+    const cvs = [...doc.querySelectorAll("canvas")].filter((c) => c.width > 40 && c.height > 40).sort((a, c) => c.width * c.height - a.width * a.height);
+    if (!cvs.length) return "";
+    const src = cvs[0], fw = Math.max(1, f.clientWidth), fh = Math.max(1, f.clientHeight), w = 320, h = Math.max(1, Math.round(320 * fh / fw));
+    const out = document.createElement("canvas"); out.width = w; out.height = h;
+    const g = out.getContext("2d");
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, w, h);
+    const r = src.getBoundingClientRect();
+    g.drawImage(src, r.left / fw * w, r.top / fh * h, r.width / fw * w, r.height / fh * h);
+    return out.toDataURL("image/jpeg", 0.7);
+  } catch { return ""; } // a sim from another website can't be copied
+}
 // Polls: a screen holds the lesson's pages as its states, and each page can have its own poll.
 // A poll's votes are kept under its key: the screen's id for the first poll made before polls had ids (so old votes and
 // results still match), otherwise screen id + ":" + the poll's id.
