@@ -1102,7 +1102,7 @@ function renderLive() {
   lvSendView();
   renderSimProg(page);
   renderNav(lesson, live);
-  if (live.ask && live.ask.id !== lvLastAsk) setTab("resp"); // a question just opened: show its responses
+  if (live.ask && live.ask.id !== lvLastAsk) { viewQ = null; setTab("resp"); } // a question just opened: show its responses (live, not an older one being viewed)
   lvLastAsk = live.ask ? live.ask.id : null;
   sideQuestions(page);
 
@@ -1568,7 +1568,8 @@ function sideQuestions(page) {
   const a = live && live.ask, stg = live && live.staged && live.staged.pageId === page.id ? live.staged.blockId : null;
   const bqOf = (id) => (live && live.bq && live.bq[id]) || [];
   const qs = allQs.filter((x) => blockShowsIn(x, curSid) || (a && a.blockId === x.id && a.pageId === page.id));
-  const key = JSON.stringify([page.id, curSid, !!a, a && a.blockId, !!(a && a.paused), stg, gcLive() && gcLive().blockId, (live && live.gcDone || []).length, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
+  const fullSim = (page.blocks || []).some((x) => x.type === "sim" && x.fullUntilQ && blockShowsIn(x, curSid));
+  const key = JSON.stringify([page.id, curSid, fullSim, !!a, a && a.blockId, !!(a && a.paused), stg, gcLive() && gcLive().blockId, (live && live.gcDone || []).length, qs.map((b) => [b.id, b.prompt, b.kind, b.options, b.min, bqOf(b.id).length])]);
   if (box._key === key) return;
   box._key = key;
   const askBox = $("lvAsk");
@@ -1595,7 +1596,7 @@ function sideQuestions(page) {
       return el("div", { class: "t-qprev-btns t-qrun", "data-bid": b.id, "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300) },
         el("button", { class: "t-greenbtn", text: (a.paused ? "Question paused" : "Question open") + many, disabled: true, style: a.paused ? "background:#B7791F;border-color:#8A5A12" : "" }), askBox);
     }
-    return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-bw": String(b.w || 300) },
+    return el("div", { class: "t-qprev-btns", "data-bid": b.id, "data-bx": String(b.x || 0), "data-by": String(b.y || 0), "data-bw": String(b.w || 300), "data-fq": fullSim ? "1" : null },
       stg === b.id ? red("Start timer" + many, busy) : red((ids.length ? "Reopen question" : "Open question") + many, busy || !(b.prompt || "").trim()),
       stg === b.id ? el("button", { text: "Hide question", onclick: () => link.send({ t: "unstage" }) }) : null);
   }));
@@ -1651,7 +1652,8 @@ function lvFitView() {
     const ar = ta ? ta.getBoundingClientRect() : pr;
     if (!pr || !pr.width) {
       // the student page hides the question while it is paused: the running controls stay at the question's own place so Resume is always reachable
-      if (!g.classList.contains("t-qrun") && !g.dataset.gc) { g.style.visibility = "hidden"; continue; }
+      // (on a page whose sim fills the page until a question opens, the question isn't drawn yet: its button still shows, where the question will appear)
+      if (!g.classList.contains("t-qrun") && !g.dataset.gc && !g.dataset.fq) { g.style.visibility = "hidden"; continue; }
       g.style.visibility = ""; g.style.position = "absolute"; g.style.margin = "0";
       g.style.left = (h.offsetLeft + (Number(g.dataset.bx) || 0) * s) + "px";
       g.style.top = (h.offsetTop + ((Number(g.dataset.by) || 0) + (g.dataset.gc ? 0 : 60)) * s) + "px";
@@ -2029,14 +2031,20 @@ function otherRounds(q) {
     return { round: x.round, id: x.id, n: all.length, answers: x.id === q.id ? null : (roundCache[x.id] || {}).answers || {} };
   });
 }
+const plain = (t) => String(t || "").replace(/\*/g, "").replace(/\s+/g, " ").trim(); // question text without markup
 const ansOrder = {}; // question id -> student code -> place in the list
 function renderAnswers() {
   const box = $("lvAnswers");
   const live = tstate && tstate.live;
   const a = live && live.ask;
   if (viewQ && a && viewQ.id === a.id) viewQ = null; // the running question shows live
+  // only the questions of the page (state) on screen in the Control room; questions asked on the spot (no page) always show
+  const lsn = tstate && tstate.lesson, selPg = lsn && live ? lsn.pages[Math.min(lvSelected, lsn.pages.length - 1)] : null;
+  const selSid = selPg ? stateOfPage(selPg, (live.states || {})[selPg.id]) : "";
+  const onThisPage = (x) => !x || !x.blockId || !selPg || (selPg.blocks || []).some((b) => b.id === x.blockId && blockShowsIn(b, selSid));
+  if (viewQ && !onThisPage((tstate.qs || []).find((x) => x.id === viewQ.id))) viewQ = null; // moved to another page: its responses go away
   const isLive = !!a && !viewQ;
-  const sessQs = live ? (tstate.qs || []).filter((x) => x.sessionId === live.sessionId).sort((x, y) => y.startedAt - x.startedAt) : [];
+  const sessQs = live ? (tstate.qs || []).filter((x) => x.sessionId === live.sessionId && onThisPage(x)).sort((x, y) => y.startedAt - x.startedAt) : [];
   if (!a && !viewQ && sessQs.length && !box._opening) {   // nothing running: show the latest question from this class
     box._opening = true;
     openSaved(sessQs[0].id, true).finally(() => { box._opening = false; });
