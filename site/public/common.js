@@ -447,6 +447,9 @@ function blockInner(b, opts = {}) {
   }
   if (b.type === "sim") {
     const ok = /^(https:\/\/|\/sim\/[a-z0-9]+$)/.test(b.url || "");
+    // the builder's page thumbnails: a still picture of the sim (taken when that page was open), not a running copy
+    const snap = opts.edit && opts.edit.simSnap && ok ? opts.edit.simSnap(b) : "";
+    if (snap) return [el("div", { class: "cl-sim aero-stage cl-simsnap" }, el("img", { src: snap, alt: "", "data-snap": b.url }))];
     if (opts.edit && opts.edit.simPreview && ok) { const f = el("iframe", { src: b.url, title: "Simulation", allow: "autoplay", tabindex: "-1" }); f._clBlock = b; return [el("div", { class: "cl-sim aero-stage" }, f)]; }
     if (opts.edit) return ph("Sim", ok ? (opts.edit.simName ? opts.edit.simName(b.url) : b.url) : "Choose a sim in the window on the right");
     if (!ok) return null;

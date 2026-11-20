@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Lesson builder</title>
-<link rel="stylesheet" href="app.css?v=53">
+<link rel="stylesheet" href="app.css?v=54">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=49"></script>
+<script src="common.js?v=50"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -278,14 +278,49 @@ const AUTO_NAME = /^(State|Page) \d+$/;
 const thumbBoxes = new Map(); // page id -> its thumbnail, kept so an unchanged page isn't drawn again (and its sims don't reload)
 let thumbTimer = null;
 function ensureStates(pg) { if (!Array.isArray(pg.states) || !pg.states.length) pg.states = [{ id: "s1", name: "Page 1" }]; return pg.states; }
+// Thumbnails don't run sims (a dozen running copies made the builder slow): each shows a still picture of the sim,
+// taken from the big editing area while that page is open; a page not opened yet shows a box with the sim's name.
+const simSnaps = new Map(); // screen id | page id | sim address -> picture (data URL)
+const snapKey = (sid, url) => ed.pages[edPage].id + "|" + sid + "|" + url;
+function thumbOpts(sid) { return { stateId: sid, preview: true, edit: { simName, simSnap: (b) => simSnaps.get(snapKey(sid, b.url)) || "" } }; }
 function drawThumbs() {
   clearTimeout(thumbTimer); thumbTimer = null;
   const pg = ed.pages[edPage];
   for (const x of pageStates(pg)) {
     const box = thumbBoxes.get(x.id);
-    if (box && box.isConnected) { try { mountPage(box, pg, { stateId: x.id, preview: true, edit: { simPreview: true } }); } catch {} }
+    if (box && box.isConnected) { try { mountPage(box, pg, thumbOpts(x.id)); } catch {} }
   }
 }
+// copies what the open page's sims are showing into that page's thumbnail
+function snapSims() {
+  if (!ed || !fitBox || document.hidden) return;
+  const sid = curSid(), box = thumbBoxes.get(sid);
+  let fresh = false;
+  for (const f of fitBox.querySelectorAll(".cl-sim iframe")) {
+    const b = f._clBlock;
+    if (!b || !b.url) continue;
+    try {
+      const doc = f.contentDocument;
+      if (!doc) continue;
+      // the sim's biggest canvas (sims made of plain page parts get no picture)
+      const cvs = [...doc.querySelectorAll("canvas")].filter((c) => c.width > 40 && c.height > 40).sort((a, c) => c.width * c.height - a.width * a.height);
+      if (!cvs.length) continue;
+      const src = cvs[0], w = 320, h = Math.max(1, Math.round(320 * f.clientHeight / Math.max(1, f.clientWidth)));
+      const out = document.createElement("canvas"); out.width = w; out.height = h;
+      const g = out.getContext("2d");
+      g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, w, h);
+      // place the canvas where it sits in the sim's window
+      const r = src.getBoundingClientRect(), fw = Math.max(1, f.clientWidth), fh = Math.max(1, f.clientHeight);
+      g.drawImage(src, r.left / fw * w, r.top / fh * h, r.width / fw * w, r.height / fh * h);
+      const url = out.toDataURL("image/jpeg", 0.7), k = snapKey(sid, b.url);
+      if (!simSnaps.has(k)) fresh = true;
+      simSnaps.set(k, url);
+      if (box) for (const im of box.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
+    } catch {} // a sim from another website can't be copied: its thumbnail keeps the name box
+  }
+  if (fresh && box && box.isConnected) { box._key = null; try { mountPage(box, ed.pages[edPage], thumbOpts(sid)); } catch {} }
+}
+setInterval(snapSims, 3000);
 const thumbsSoon = () => { clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbs, 900); };
 const pgName = (x, i) => x.name || "Page " + (i + 1);
 function renderPages() {
@@ -329,7 +364,7 @@ $("pgDown").onclick = () => moveState(curSid(), 1);
 // ---------------------------------------------------------------- page states
 let edState = "";
 const curSid = () => stateOfPage(ed.pages[edPage], edState);
-function setState(id) { for (const b of ed.pages[edPage].blocks) simOverride.delete(b); edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
+function setState(id) { snapSims(); for (const b of ed.pages[edPage].blocks) simOverride.delete(b); edState = id; edSel = edSel; renderAll(); if (pvOn) pvRender(); }
 // + Page: a blank page. Copy: a page that starts with copies of the elements of the page you were on.
 function addState(copy) {
   const pg = ed.pages[edPage];

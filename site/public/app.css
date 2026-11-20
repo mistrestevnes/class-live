@@ -407,3 +407,6 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 .cl-lightbox { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
 .cl-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; background: #FFFFFF; border-radius: 6px; }
 .cl-lightbox-x { position: absolute; top: 14px; right: 14px; min-height: 48px; padding: 8px 20px; }
+
+/* the builder's thumbnails show a still picture of a sim */
+.cl-simsnap img { display: block; width: 100%; height: 100%; object-fit: fill; background: #FFFFFF; }
