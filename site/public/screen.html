@@ -59,7 +59,7 @@
     <button class="aero-btn-primary" id="tvBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=48"></script>
+<script src="common.js?v=49"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let state = { live: false };
@@ -93,7 +93,7 @@ function apply(s) {
   $("title").textContent = live ? s.title : "Class Live";
   if (live) {
     $("pageNum").textContent = "Page " + (s.pageNum + 1);
-    mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results, stateId: s.stateId, stretch: true });
+    mountPage($("pageBox"), s.page, { preview: false, closed: true, stateId: s.stateId, stretch: true, forPoll: (b, key) => ({ results: s.resultsKey === key || (!s.resultsKey && s.results) ? s.results : null }) });
   }
   // a page whose sim fills the page until a question opens: the question shows in its box beside the sim, as students see it
   const side = live ? sideQuestion(s) : null;

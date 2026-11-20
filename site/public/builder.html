@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=48"></script>
+<script src="common.js?v=49"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -196,7 +196,7 @@ const newPage = newCanvasPage;
 function newBlock(type) {
   const [w, h, x = 0, y = 0] = BLOCK_START[type];
   const base = { type, x, y, w, h };
-  if (type === "poll") return { ...base, question: "", options: ["", ""] };
+  if (type === "poll") return { ...base, id: newId(), question: "", options: ["", ""] };
   if (type === "image") return { ...base, imageId: "", caption: "" };
   if (type === "sim") return { ...base, url: "" };
   if (type === "video") return { ...base, videoId: "", caption: "" };
@@ -351,7 +351,7 @@ function addState(copy) {
     c.states = [st.id];
     if (Array.isArray(b.lock) && b.lock.includes(from)) c.lock = [st.id]; else delete c.lock;
     if (b.simStates && b.simStates[from]) c.simStates = { [st.id]: b.simStates[from] }; else delete c.simStates;
-    if (c.type === "question") { c.id = newId(); }
+    if (c.type === "question" || c.type === "poll") { c.id = newId(); } // a copied poll is a new poll with its own votes
     copies.push(c);
   }
   pg.blocks.push(...copies);
@@ -761,7 +761,7 @@ $("bCanvas").addEventListener("pointerdown", (e) => {
 // ---- adding blocks: drag one from the Tools window onto the page, or click it
 function addBlock(type, cx, cy) {
   const page = ed.pages[edPage], n = page.blocks.length;
-  if (type === "poll" && page.blocks.some((x) => x.type === "poll")) return;
+  if (type === "poll" && pollIn(page, curSid())) return; // one poll on each page of the lesson
   const b = newBlock(type);
   const fixed = BLOCK_START[type].length > 2; // a sim and a question have a place of their own when added with a click
   if (!fixed || cx != null) {
@@ -831,7 +831,7 @@ function renderTools() {
   if (!edSel) {
     $("winToolsTitle").textContent = "Add";
     $("winTools").classList.add("b-adding");
-    const hasPoll = page.blocks.some((b) => b.type === "poll");
+    const hasPoll = !!pollIn(page, curSid()); // a page of the lesson that already shows a poll
     const bgBox = el("div", { hidden: !bgOpen }, colorField("Page background", page.bg, (c) => { page.bg = c; changed(); renderStage(); }, BG_SWATCHES));
     tools.replaceChildren(
       el("div", { class: "b-pal" }, ...PALETTE.map(([type, label]) => {

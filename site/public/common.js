@@ -622,14 +622,28 @@ function mountPage(container, page, opts = {}, decoratePoll) {
   }
   applyStates(container, stateOfPage(page, opts.stateId));
   syncSimStates(container, page, stateOfPage(page, opts.stateId));
-  const old = container.querySelector(".cl-poll");
-  const b = (page.blocks || []).find((x) => x.type === "poll");
-  if (old && b) {
-    const fresh = renderPoll(b, opts);
-    if (decoratePoll) decoratePoll(fresh);
+  // each poll on the page (one per page of the lesson) gets its own votes: opts.forPoll(block, key) gives its choice, results, etc.
+  const doms = [...container.querySelectorAll(".cl-poll")], polls = pollsOf(page);
+  polls.forEach((b, i) => {
+    const old = doms[i];
+    if (!old) return;
+    const o = opts.forPoll ? { ...opts, ...opts.forPoll(b, pollKey(page, b)) } : opts;
+    const fresh = renderPoll(b, o);
+    if (decoratePoll) decoratePoll(fresh, b, o);
     old.replaceWith(fresh);
-  }
+  });
 }
+// Polls: a screen holds the lesson's pages as its states, and each page can have its own poll.
+// A poll's votes are kept under its key: the screen's id for the first poll made before polls had ids (so old votes and
+// results still match), otherwise screen id + ":" + the poll's id.
+function pollsOf(pg) { return ((pg && pg.blocks) || []).filter((b) => b && b.type === "poll"); }
+function pollKey(pg, b) {
+  if (b.id) return pg.id + ":" + b.id;
+  const n = pollsOf(pg).filter((x) => !x.id).indexOf(b);
+  return n <= 0 ? pg.id : pg.id + ":#" + n;
+}
+// the poll showing in a state of the screen
+function pollIn(pg, sid) { return pollsOf(pg).find((b) => blockShowsIn(b, sid)) || null; }
 
 const PSIZE = 31;
 function renderPoll(b, opts) {

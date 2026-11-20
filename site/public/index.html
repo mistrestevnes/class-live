@@ -149,7 +149,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=48"></script>
+<script src="common.js?v=49"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -301,24 +301,25 @@ function render() {
 
   const pg = state.pages[page];
   const box = $("pageBox");
-  const hasPoll = (pg.blocks || []).some((b) => b.type === "poll");
-  const closed = !!state.closed[pg.id];
-  const mine = state.myVotes[pg.id];
+  const hasPoll = pollsOf(pg).length > 0;
+  // each poll (one per page of the lesson) has its own vote and its own "voting closed"
   const opts = {
-    myChoice: mine,
-    closed,
     stateId: (state.stateOf || {})[pg.id],
     stretch: true,
-    onVote: (choice) => {
-      state.myVotes[pg.id] = choice; // show the choice right away
-      render();
-      link.send({ t: "vote", pageId: pg.id, choice });
-    },
+    forPoll: (b, key) => ({
+      myChoice: state.myVotes[key],
+      closed: !!state.closed[key],
+      onVote: (choice) => {
+        state.myVotes[key] = choice; // show the choice right away
+        render();
+        link.send({ t: "vote", pageId: pg.id, key, choice });
+      },
+    }),
   };
-  mountPage(box, pg, opts, hasPoll ? (poll) => poll.append(el("p", {
+  mountPage(box, pg, opts, hasPoll ? (poll, b, o) => poll.append(el("p", {
     class: "cl-note",
-    text: closed ? (mine === undefined ? "Voting is closed." : "Voting is closed. Your answer was " + LETTERS[mine] + ".")
-      : mine === undefined ? "Tap an answer." : "Your answer is saved. You can change it until your teacher closes voting.",
+    text: o.closed ? (o.myChoice === undefined ? "Voting is closed." : "Voting is closed. Your answer was " + LETTERS[o.myChoice] + ".")
+      : o.myChoice === undefined ? "Tap an answer." : "Your answer is saved. You can change it until your teacher closes voting.",
   })) : null);
   fillQBlocks(pg);
   placeAsk();

@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=48"></script>
+<script src="common.js?v=49"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1065,10 +1065,10 @@ function renderLive() {
   const page = lesson.pages[lvSelected];
   if (live.screenPage !== Math.min(lvSelected, live.unlocked) && lvSelected <= live.unlocked) link.send({ t: "screenPage", n: lvSelected });
   const pollSid = stateOfPage(page, (live.states || {})[page.id]);
-  const poll = (page.blocks || []).find((b) => b.type === "poll" && blockShowsIn(b, pollSid));
+  const poll = pollIn(page, pollSid), pkey = poll ? pollKey(page, poll) : "";
   const bar = $("lvPollBar");
-  const revealed = !!live.revealed[page.id];
-  const tally = tallies[page.id] || { counts: [], total: 0 };
+  const revealed = !!live.revealed[pkey];
+  const tally = tallies[pkey] || { counts: [], total: 0 };
   bar.hidden = !poll;
   if (!poll) bar.replaceChildren();
   if (poll) {
@@ -1079,9 +1079,9 @@ function renderLive() {
         return el("span", { class: "t-pollopt" }, el("b", { text: "ABCDEFGH"[i] }), el("span", { class: "t-pollbar" }, el("span", { style: "width:" + pct + "%" })), el("span", { text: String(n) }));
       })),
       el("button", { class: revealed ? "" : "aero-btn-primary", text: revealed ? "Hide results" : "Show results",
-        onclick: () => link.send({ t: "reveal", pageId: page.id, on: !revealed }) }),
+        onclick: () => link.send({ t: "reveal", pageId: page.id, key: pkey, on: !revealed }) }),
       el("button", { text: "Clear votes", disabled: !tally.total,
-        onclick: () => { if (confirm("Clear the votes on this page so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id }); } }));
+        onclick: () => { if (confirm("Clear the votes on this poll so students can vote again?")) link.send({ t: "clearVotes", pageId: page.id, key: pkey }); } }));
   }
   // page states: move the class from one state of this page to the next
   const sts = pageStates(page), curSid = stateOfPage(page, (live.states || {})[page.id]), curIx = sts.findIndex((x) => x.id === curSid);
@@ -1608,7 +1608,7 @@ function lvViewState() {
   const pages = lesson.pages.slice(0, n + 1).map((pg) => ({ ...pg, questions: [] }));
   const a = L.ask, qp = !!(a && a.paused);
   const closed = {};
-  for (const pg of pages) if (L.revealed && L.revealed[pg.id]) closed[pg.id] = true;
+  for (const pg of pages) for (const b of pollsOf(pg)) { const k = pollKey(pg, b); if (L.revealed && L.revealed[k]) closed[k] = true; }
   return { live: true, sessionId: "lv" + L.sessionId + ":" + n, title: lesson.title, unlocked: n, from: Math.min(L.from || 0, n), total: lesson.pages.length, pages,
     myVotes: {}, closed, goto: null, stateOf: L.states || {}, staged: L.staged || null, now: Date.now(), paused: !!L.paused, qpaused: qp,
     ask: a && !qp ? { id: a.id, prompt: a.prompt, endsAt: a.endsAt, part: a.part || 1, parts: a.parts || 1, allowSim: !!a.allowSim, imageId: a.imageId || "", sim: a.sim || "",

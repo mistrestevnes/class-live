@@ -64,6 +64,15 @@ const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this
 const MAX_IMAGE_BYTES = 1_800_000;
 // does a block show in this page state? (no list: every state)
 const showsIn = (b, sid) => !Array.isArray(b.states) || !b.states.length || !sid || b.states.includes(sid);
+// Polls: each page of a lesson (a state of its screen) can have its own poll, and each poll's votes are kept under its key.
+// The first poll made before polls had ids keeps the screen's id as its key, so old votes and results still match.
+const pollsOf = (pg) => ((pg && pg.blocks) || []).filter((b) => b && b.type === "poll");
+function pollKey(pg, b) {
+  if (b.id) return pg.id + ":" + b.id;
+  const n = pollsOf(pg).filter((x) => !x.id).indexOf(b);
+  return n <= 0 ? pg.id : pg.id + ":#" + n;
+}
+const tallyOf = (poll, v) => { const counts = (poll.options || []).map(() => 0); for (const c of Object.values(v || {})) if (c < counts.length) counts[c]++; return { counts, total: Object.keys(v || {}).length }; };
 const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file when it has to live in the database (no video bucket)
 const MAX_SIM_BYTES_R2 = 20_000_000; // sims are kept in the R2 bucket when it is connected
 // Group chat: every student gets a made-up name for each chat, like BlueParrot (hand-picked words, so no pairing is rude)
@@ -835,15 +844,17 @@ export class Classroom extends DurableObject {
       }
       case "reveal": {
         if (!this.live) return;
-        if (msg.on) this.live.revealed[msg.pageId] = true;
-        else delete this.live.revealed[msg.pageId];
+        const rk = String(msg.key || msg.pageId || "").slice(0, 80);
+        if (msg.on) this.live.revealed[rk] = true;
+        else delete this.live.revealed[rk];
         await this.ctx.storage.put("live", this.live);
         break;
       }
       case "clearVotes": {
         if (!this.live) return;
-        delete this.votes[msg.pageId];
-        delete this.live.revealed[msg.pageId];
+        const ck = String(msg.key || msg.pageId || "").slice(0, 80);
+        delete this.votes[ck];
+        delete this.live.revealed[ck];
         await this.ctx.storage.put("live", this.live);
         await this.ctx.storage.put("votes:" + this.live.sessionId, this.votes);
         break;
@@ -1343,12 +1354,15 @@ export class Classroom extends DurableObject {
     if (!L || !this.liveLesson) return;
     const polls = [];
     this.pages().forEach((pg, i) => {
-      const poll = (pg.blocks || []).find((b) => b.type === "poll");
-      if (!poll || i > L.unlocked) return;
-      const counts = (poll.options || []).map(() => 0);
-      const v = this.votes[pg.id] || {};
-      for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
-      polls.push({ page: i + 1, question: poll.question || "", options: poll.options || [], counts, total: Object.keys(v).length });
+      if (i > L.unlocked) return;
+      const all = pollsOf(pg), sts = Array.isArray(pg.states) ? pg.states : [];
+      for (const poll of all) {
+        const t = tallyOf(poll, this.votes[pollKey(pg, poll)]);
+        if (all.length > 1 && !t.total) continue; // a lesson with a poll on several pages: only the ones that got votes
+        // which page of the lesson it was on (a state of the screen), when the screen has several
+        const si = sts.length > 1 && Array.isArray(poll.states) && poll.states.length ? sts.findIndex((x) => x.id === poll.states[0]) : -1;
+        polls.push({ page: si >= 0 ? si + 1 : i + 1, question: poll.question || "", options: poll.options || [], counts: t.counts, total: t.total });
+      }
     });
     const rec = { id: L.sessionId, lessonId: L.lessonId, title: this.liveLesson.title || "", block: L.periodName || "",
       startedAt: L.lessonAt || L.startedAt, endedAt: Date.now(), pages: L.unlocked + 1, polls, sq: this.sq || [], plan: (L.plan || []).map((x) => ({ title: x.title, pageId: x.pageId, questions: (x.questions || []).length })),
@@ -1508,14 +1522,11 @@ export class Classroom extends DurableObject {
     const n = Math.min(this.live.screenPage ?? this.live.unlocked, this.live.unlocked, pages.length - 1);
     const pg = pages[n];
     let results = null;
-    const poll = pg && (pg.blocks || []).find((b) => b.type === "poll");
-    if (poll && this.live.revealed[pg.id]) {
-      const counts = (poll.options || []).map(() => 0);
-      const v = this.votes[pg.id] || {};
-      for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
-      results = { counts, total: Object.keys(v).length };
-    }
-    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results, stateId: (this.live.states || {})[pg && pg.id] || "", staged: this.live.staged || null };
+    // the poll showing in the page's current state
+    const poll = pg && pollsOf(pg).find((b) => showsIn(b, this.stateNow(pg)));
+    const resultsKey = poll ? pollKey(pg, poll) : "";
+    if (poll && this.live.revealed[resultsKey]) results = tallyOf(poll, this.votes[resultsKey]);
+    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results, resultsKey, stateId: (this.live.states || {})[pg && pg.id] || "", staged: this.live.staged || null };
   }
 
   async studentMessage(sid, msg, stu) {
@@ -1557,11 +1568,13 @@ export class Classroom extends DurableObject {
     const pages = this.pages();
     const idx = pages.findIndex((pg) => pg.id === msg.pageId);
     if (idx < 0 || idx > this.live.unlocked) return;
-    if (this.live.revealed[msg.pageId]) return; // voting closed
-    const poll = (pages[idx].blocks || []).find((b) => b.type === "poll");
+    const vpg = pages[idx], want = String(msg.key || msg.pageId);
+    const poll = pollsOf(vpg).find((b) => pollKey(vpg, b) === want);
+    if (!poll) return;
+    if (this.live.revealed[want]) return; // voting closed
     const choice = Number(msg.choice);
-    if (!poll || !Number.isInteger(choice) || choice < 0 || choice >= (poll.options || []).length) return;
-    (this.votes[msg.pageId] ||= {})[sid] = choice;
+    if (!Number.isInteger(choice) || choice < 0 || choice >= (poll.options || []).length) return;
+    (this.votes[want] ||= {})[sid] = choice;
     await this.ctx.storage.put("votes:" + this.live.sessionId, this.votes);
     this.broadcast({ teachersOnly: true });
     this.sendToStudent(sid);
@@ -2043,10 +2056,10 @@ export class Classroom extends DurableObject {
     });
     const myVotes = {};
     const closed = {};
-    for (const pg of pages) {
-      const v = this.votes[pg.id];
-      if (v && sid in v) myVotes[pg.id] = v[sid];
-      if (this.live.revealed[pg.id]) closed[pg.id] = true;
+    for (const pg of pages) for (const poll of pollsOf(pg)) {
+      const k = pollKey(pg, poll), v = this.votes[k];
+      if (v && sid in v) myVotes[k] = v[sid];
+      if (this.live.revealed[k]) closed[k] = true;
     }
     return {
       live: true,
@@ -2114,12 +2127,7 @@ export class Classroom extends DurableObject {
     const tallies = {};
     if (this.live) {
       for (const pg of this.pages()) {
-        const poll = (pg.blocks || []).find((b) => b.type === "poll");
-        if (!poll) continue;
-        const counts = (poll.options || []).map(() => 0);
-        const v = this.votes[pg.id] || {};
-        for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
-        tallies[pg.id] = { counts, total: Object.keys(v).length };
+        for (const poll of pollsOf(pg)) { const k = pollKey(pg, poll); tallies[k] = tallyOf(poll, this.votes[k]); }
       }
     }
     return {
