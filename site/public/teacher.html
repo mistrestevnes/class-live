@@ -403,7 +403,7 @@ async function showHome() {
     el("button", { class: "t-small", text: "Edit", onclick: () => (location.href = "/builder?id=" + l.id) }),
     el("button", { class: "t-small", text: "Copy", onclick: () => copyLesson(l.id) }),
     el("button", { class: "t-small", text: "Delete", onclick: () => deleteLesson(l) }),
-    el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => { openInPreview = true; openForBlock = null; location.hash = "#/edit/" + l.id; } }),
+    el("button", { class: "t-small aero-btn-primary", text: "Open", onclick: () => (location.href = "/builder?id=" + l.id) }), // straight to the builder (the old lesson screen listed screens, not pages)
   )));
 }
 
