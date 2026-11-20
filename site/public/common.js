@@ -631,8 +631,10 @@ function mountPage(container, page, opts = {}, decoratePoll) {
   }
 }
 
+const PSIZE = 31;
 function renderPoll(b, opts) {
   const box = el("div", { class: "cl-poll" });
+  if (b.psize) box.style.fontSize = Math.max(MIN_FONT, Number(b.psize) || PSIZE) + "px"; // the teacher's chosen text size for the poll
   if (b.question) box.append(el("div", { class: "cl-question" }, formatText(b.question)));
   const options = b.options || [];
   const res = opts.results;

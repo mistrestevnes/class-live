@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=47"></script>
+<script src="common.js?v=48"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -637,7 +637,7 @@ function blockBody(b, sel) {
   }
   if (b.type === "poll" && sel) {
     b.options ||= ["", ""];
-    return [el("div", { class: "cl-poll t-poll" }, area(b, "question", "cl-question", "Poll question"), choiceList(b))];
+    return [el("div", { class: "cl-poll t-poll", style: b.psize ? "font-size:" + Math.max(MIN_FONT, Number(b.psize) || PSIZE) + "px" : null }, area(b, "question", "cl-question", "Poll question"), choiceList(b))];
   }
   if (b.type === "question" && sel) {
     b.options ||= ["", ""];
@@ -868,7 +868,14 @@ function renderTools() {
           el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setSize(b, size + 4) }))),
       colorField("Text color", b.color || autoInk(page.bg), (c) => { b.color = c; changed(); renderStage(); if (!c) renderTools(); }, INK_SWATCHES, b.color ? "Automatic" : null),
       el("p", { class: "t-hint", text: "Type any size you like. Type right on the page. Blank line = new paragraph · start a line with - for a bullet · **bold** · v_f for subscript · m/s^2 for superscript" }));
-  } else if (b.type === "poll") parts.push(el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
+  } else if (b.type === "poll") parts.push((() => {
+    const cur = Math.max(MIN_FONT, Number(b.psize) || PSIZE), setP = (v) => { b.psize = Math.max(MIN_FONT, Math.round(v) || PSIZE); changed(); renderStage(); renderTools(); };
+    return el("div", { class: "cl-field" }, el("span", { text: "Poll text size" }),
+      el("div", { class: "t-sizerow" },
+        el("button", { class: "t-small", text: "A−", "aria-label": "Smaller", disabled: cur <= MIN_FONT, onclick: () => setP(cur - 4) }),
+        el("input", { type: "number", min: MIN_FONT, step: 2, value: cur, "aria-label": "Poll text size", onchange: (e) => setP(+e.target.value) }),
+        el("button", { class: "t-small", text: "A+", "aria-label": "Larger", onclick: () => setP(cur + 4) })));
+  })(), el("p", { class: "t-hint", text: "Type the question and the choices right on the page. Results stay hidden until you show them. Showing results also closes voting." }));
   else if (b.type === "question") {
     const qsOn = page.blocks.filter((x) => x.type === "question"), at = qsOn.indexOf(b);
     const swapQ = (d) => {
