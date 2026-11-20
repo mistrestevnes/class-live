@@ -411,3 +411,7 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 /* the builder's thumbnails show a still picture of a sim */
 .cl-simsnap img { display: block; width: 100%; height: 100%; object-fit: fill; background: #FFFFFF; }
 .cl-simsnap img[data-saved] { object-fit: cover; }
+
+/* under a page thumbnail: the sim state that page shows */
+.cl-simlabel { display: block; margin-top: 3px; font: 600 12px Helvetica, Arial, sans-serif; color: #1F5F4A; white-space: normal; overflow-wrap: anywhere; }
+.cl-simlabel[hidden] { display: none; }

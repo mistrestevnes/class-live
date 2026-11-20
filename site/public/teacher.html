@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=55">
+<link rel="stylesheet" href="app.css?v=56">
 <link rel="stylesheet" href="teacher.css?v=42">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=54"></script>
+<script src="common.js?v=55"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -1889,6 +1889,7 @@ function renderNav(lesson, live) {
       const th = el("div", { class: "t-spage-p", inert: "" });
       const btn = el("button", { class: "t-nvbtn" + (isState ? " t-nvstate" : ""), "data-page": i, "data-state": sid, onclick: () => navGo(i, sid, isState) },
         el("span", { class: "t-spage-l", text: label }), th,
+        ((txt) => txt ? el("span", { class: "cl-simlabel", text: txt }) : null)(pageSimLabel(pg, sid, tSimName, () => { navKey = ""; renderLive(); })),
         // the questions of this state, in small type (the first state is shown under its own state preview)
         ...((pg.blocks || []).filter((b) => b.type === "question" && blockShowsIn(b, sid) && (b.prompt || "").trim())
           .map((b) => el("span", { class: "t-nvq" }, formatText(b.prompt)))));

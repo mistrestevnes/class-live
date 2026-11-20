@@ -665,17 +665,51 @@ function snapSimCanvas(f) {
 const simIdOf = (url) => (/^\/sim\/([a-z0-9]+)$/.exec(url || "") || [])[1] || "";
 const snapKeyOf = (msg) => !msg ? "_" : msg.n != null ? "n" + msg.n : "w" + String(msg.state).toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 40);
 // the sim state a sim shows on a page: that page's setting, or the last one set on an earlier page (the sim keeps what it shows)
-function pageSimMsg(page, b, sid) {
-  let msg = null;
+function pageSimWord(page, b, sid) {
+  let word = "";
   for (const x of pageStates(page)) {
-    if (blockShowsIn(b, x.id)) {
-      const word = b.simStates && String(b.simStates[x.id] || "").trim();
-      if (/^\d+$/.test(word || "")) msg = { classlive: "state", n: +word };
-      else if (word) msg = { classlive: "state", state: word };
-    }
+    if (blockShowsIn(b, x.id)) { const w = b.simStates && String(b.simStates[x.id] || "").trim(); if (w) word = w; }
     if (x.id === sid) break;
   }
-  return msg;
+  return word;
+}
+function pageSimMsg(page, b, sid) {
+  const word = pageSimWord(page, b, sid);
+  return /^\d+$/.test(word) ? { classlive: "state", n: +word } : word ? { classlive: "state", state: word } : null;
+}
+// the states a sim lists in its head: <meta name="classlive-states" content="ball,both,closeup">
+const declaredStates = new Map(); // url -> [names] (empty when the sim lists none or can't be read)
+function loadDeclared(url, then) {
+  if (!url || declaredStates.has(url)) return;
+  declaredStates.set(url, []);
+  fetch(url, { cache: "no-cache" }).then((r) => (r.ok ? r.text() : "")).then((html) => {
+    const m = /<meta[^>]+name=["']classlive-states["'][^>]*>/i.exec(html) || [""];
+    const c = /content=["']([^"']*)["']/i.exec(m[0]);
+    const list = c ? c[1].split(",").map((w) => w.trim()).filter(Boolean) : [];
+    declaredStates.set(url, list);
+    if (list.length && then) then();
+  }).catch(() => {});
+}
+// a sim block's states: the list typed in the builder, or the one the sim gives
+function simList(b) {
+  const t = String(b.simList || "").trim() || (declaredStates.get(b.url) || []).join(",");
+  if (/^\d+$/.test(t)) return Array.from({ length: Math.min(+t, 30) }, (_, i) => ({ label: String(i + 1), msg: { classlive: "state", n: i + 1 } }));
+  return t.split(",").map((w) => w.trim()).filter(Boolean).map((w) => ({ label: w, msg: /^\d+$/.test(w) ? { classlive: "state", n: +w } : { classlive: "state", state: w } }));
+}
+// under a page thumbnail: the sim state each sim shows on that page ("2. closeup"), carried over from an earlier page
+// when the page sets none; then() runs when a sim's own list of states has been read
+function pageSimLabel(page, sid, simName, then) {
+  const sims = (page.blocks || []).filter((b) => b && b.type === "sim" && b.url && blockShowsIn(b, sid));
+  const parts = [];
+  for (const b of sims) {
+    if (!String(b.simList || "").trim()) loadDeclared(b.url, then);
+    const word = pageSimWord(page, b, sid);
+    if (!word) continue;
+    const list = simList(b), i = list.findIndex((x) => x.label === word);
+    const text = i >= 0 ? (i + 1) + ". " + word : word;
+    parts.push(sims.length > 1 && simName ? simName(b.url) + ": " + text : text);
+  }
+  return parts.join(" · ");
 }
 function savedSnap(list, url, key) {
   const id = simIdOf(url), e = id && (list || []).find((x) => x.id === id), t = e && e.snaps && e.snaps[key || "_"];

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Lesson builder</title>
-<link rel="stylesheet" href="app.css?v=55">
+<link rel="stylesheet" href="app.css?v=56">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=54"></script>
+<script src="common.js?v=55"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -283,9 +283,15 @@ function ensureStates(pg) { if (!Array.isArray(pg.states) || !pg.states.length) 
 const simSnaps = new Map(); // screen id | page id | sim address -> picture (data URL)
 const snapKey = (sid, url) => ed.pages[edPage].id + "|" + sid + "|" + url;
 function thumbOpts(sid) { return { stateId: sid, preview: true, edit: { simName, simSnap: (b) => simSnaps.get(snapKey(sid, b.url)) || pageSnap(simsCache, ed.pages[edPage], b, sid) } }; }
+// under each thumbnail: the sim state the page shows
+function simLabels() {
+  const pg = ed.pages[edPage];
+  for (const n of document.querySelectorAll("#bPages .cl-simlabel")) { const t = pageSimLabel(pg, n.dataset.sid, simName, simLabels); n.textContent = t; n.hidden = !t; }
+}
 function drawThumbs() {
   clearTimeout(thumbTimer); thumbTimer = null;
   const pg = ed.pages[edPage];
+  simLabels();
   for (const x of pageStates(pg)) {
     const box = thumbBoxes.get(x.id);
     if (box && box.isConnected) { try { mountPage(box, statePage(pg, x.id), thumbOpts(x.id)); } catch {} } // each redraws only when its own page changed
@@ -330,7 +336,8 @@ function renderPages() {
     if (!box) { box = el("div", { class: "b-thumb", inert: "" }); thumbBoxes.set(x.id, box); }
     return el("li", {},
       el("button", { "aria-pressed": x.id === cur ? "true" : "false", onclick: () => setState(x.id) },
-        el("span", { class: "b-tlabel t-label", text: (i + 1) + ". " + pgName(x, i) }), box));
+        el("span", { class: "b-tlabel t-label", text: (i + 1) + ". " + pgName(x, i) }), box,
+        el("span", { class: "cl-simlabel", "data-sid": x.id })));
   }));
   $("pgUp").disabled = ci === 0;
   $("pgDown").disabled = ci === sts.length - 1;
@@ -340,6 +347,7 @@ function renderPages() {
   if (document.activeElement !== pn) pn.value = (sts[ci] && sts[ci].name && !AUTO_NAME.test(sts[ci].name)) ? sts[ci].name : "";
   pn.placeholder = "Page " + (ci + 1);
   // thumbnails not drawn yet are drawn right away; after an edit they wait a moment, so typing isn't slowed down
+  simLabels();
   if (sts.some((x) => { const b = thumbBoxes.get(x.id); return b && !b.firstChild; })) drawThumbs(); else thumbsSoon();
   const li = $("bPages").children[ci];
   if (li) li.scrollIntoView({ block: "nearest" });
@@ -1041,24 +1049,6 @@ function renderTools() {
   tools.replaceChildren(...parts);
 }
 // "Sim states" list and the buttons that send one of them to the sim in the editor, whatever the page state is
-// the states a sim lists in its head: <meta name="classlive-states" content="ball,both,closeup">
-const declaredStates = new Map(); // url -> [names] (empty when the sim lists none or can't be read)
-function loadDeclared(url, then) {
-  if (!url || declaredStates.has(url)) return;
-  declaredStates.set(url, []);
-  fetch(url, { cache: "no-cache" }).then((r) => (r.ok ? r.text() : "")).then((html) => {
-    const m = /<meta[^>]+name=["']classlive-states["'][^>]*>/i.exec(html) || [""];
-    const c = /content=["']([^"']*)["']/i.exec(m[0]);
-    const list = c ? c[1].split(",").map((w) => w.trim()).filter(Boolean) : [];
-    declaredStates.set(url, list);
-    if (list.length && then) then();
-  }).catch(() => {});
-}
-function simList(b) {
-  const t = String(b.simList || "").trim() || (declaredStates.get(b.url) || []).join(",");
-  if (/^\d+$/.test(t)) return Array.from({ length: Math.min(+t, 30) }, (_, i) => ({ label: String(i + 1), msg: { classlive: "state", n: i + 1 } }));
-  return t.split(",").map((w) => w.trim()).filter(Boolean).map((w) => ({ label: w, msg: /^\d+$/.test(w) ? { classlive: "state", n: +w } : { classlive: "state", state: w } }));
-}
 function simShowsField(b) {
   const row = el("div", { class: "t-row", style: "flex-wrap:wrap;gap:6px" });
   const input = el("input", { type: "text", value: b.simList || "", placeholder: "arrows, closeup   or   2", autocapitalize: "off", spellcheck: false,
