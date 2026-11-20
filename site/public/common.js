@@ -485,7 +485,21 @@ function renderBlock(b, opts = {}) {
   if (b.type === "question" && (b.kind === "gc" || !opts.preview)) return el("div", { class: "cl-cblock cl-qblock" + qLow(b), "data-id": b.id || "", ...stateAttrs(b), "data-g": geo(b), hidden: true, style: box });
   const inner = b.type === "question" ? [questionCard(b, opts.qn)] : blockInner(b, opts.preview ? { ...opts, edit: opts.edit || {} } : opts);
   if (!inner) return null;
-  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" + qLow(b) : ""), ...stateAttrs(b), "data-g": geo(b), style: box }, inner);
+  // a sim set to fill the page until a question opens: wider than it is drawn while no question is open (see fqWidth)
+  const fq = b.type === "sim" && b.fullUntilQ && !opts.preview && !opts.edit;
+  return el("div", { class: "cl-cblock " + (BLOCK_CLASS[b.type] || "") + (b.type === "question" ? " cl-qblock" + qLow(b) : "") + (fq ? " cl-fq" : ""), ...stateAttrs(b), "data-g": geo(b), style: box }, inner);
+}
+
+// A sim that fills the page until a question opens: its drawn width while a question is open, otherwise from its left edge
+// to the right edge of the page. fit.dataset.fqfull is "0" while a question is open; anything else means no question is open.
+const fqIsFull = (fit) => fit.dataset.fqfull !== "0";
+function setFullSim(container, full) {
+  const fit = container.querySelector(".cl-canvas-fit");
+  if (!fit || !fit.querySelector(".cl-fq")) return;
+  const v = full ? "1" : "0";
+  if (fit.dataset.fqfull === v) return;
+  fit.dataset.fqfull = v;
+  if (fit._fit) fit._fit();
 }
 
 // opts: { myChoice, closed, onVote(choice), results: {counts,total}, preview }
@@ -521,7 +535,7 @@ function fitCanvasBox(fit, parent) {
       if (cv) { cv.style.width = cw + "px"; cv.style.height = (ch + extra) + "px"; }
       for (const n of fit.querySelectorAll(".cl-cblock[data-g]")) {
         const [x, y, bw, bh] = n.dataset.g.split(",").map(Number);
-        n.style.left = x * kx + "px"; n.style.top = y * ky + "px"; n.style.width = bw * kx + "px";
+        n.style.left = x * kx + "px"; n.style.top = y * ky + "px"; n.style.width = (n.classList.contains("cl-fq") && fqIsFull(fit) ? Math.max(bw, CANVAS_W - x) : bw) * kx + "px";
         const h0 = bh * ky;
         if (n.classList.contains("cl-qblock")) { n.dataset.h0 = String(h0); n.style.height = Math.max(parseFloat(n.style.height) || 0, h0) + "px"; }
         else n.style.height = h0 + "px";
@@ -534,6 +548,10 @@ function fitCanvasBox(fit, parent) {
     fit.style.height = Math.floor((CANVAS_H + extra) * s) + "px";
     const cv = fit.querySelector(".cl-canvas");
     if (cv) cv.style.height = extra ? (CANVAS_H + extra) + "px" : "";
+    for (const n of fit.querySelectorAll(".cl-fq[data-g]")) {
+      const [x, , bw] = n.dataset.g.split(",").map(Number);
+      n.style.width = (fqIsFull(fit) ? Math.max(bw, CANVAS_W - x) : bw) + "px";
+    }
     fit.style.setProperty("--s", String(s));
     fit.style.setProperty("--is", String(1 / s));
   };

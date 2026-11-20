@@ -149,7 +149,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=45"></script>
+<script src="common.js?v=46"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -322,6 +322,7 @@ function render() {
   })) : null);
   fillQBlocks(pg);
   placeAsk();
+  syncFullSim();
   growQ();
   requestAnimationFrame(placeNav);
 
@@ -471,8 +472,19 @@ function growQ(typing) {
 }
 window.addEventListener("resize", () => growQ());
 // closed question blocks show the student's own answers, read only; blocks never opened stay hidden
+// a sim set to fill the page until a question opens: full width when no question box is showing, its drawn width while one is
+function syncFullSim() {
+  const open = [...$("pageBox").querySelectorAll(".cl-qblock")].some((n) => !n.hidden && !n.classList.contains("cl-nostate"));
+  setFullSim($("pageBox"), !open);
+}
+// does this page (in the state the class is on) have a sim that fills the page until a question opens?
+function pageHasFullSim(pg) {
+  const sid = stateOfPage(pg, (state.stateOf || {})[pg.id]);
+  return (pg.blocks || []).some((x) => x.type === "sim" && x.fullUntilQ && blockShowsIn(x, sid));
+}
 function fillQBlocks(pg) {
   const bi = blockAskInfo();
+  const fq = pageHasFullSim(pg);
   // only one question shows at a time: the one running, otherwise the latest one that was opened
   const qids = (pg.blocks || []).filter((x) => x.type === "question").map((x) => x.id);
   const runId = bi && bi.reachable && page === bi.idx ? bi.a.blockId : null;
@@ -483,6 +495,9 @@ function fillQBlocks(pg) {
   for (const slot of $("pageBox").querySelectorAll(".cl-qblock")) {
     const id = slot.dataset.id;
     if (runId === id) { slot._sk = null; slot.style.opacity = ""; continue; } // running: placeAsk fills it
+    // the page's sim fills the page until a question opens: only a question that is open or waiting to start shows;
+    // one that has ended (or not opened yet) goes away so the sim has the whole page
+    if (fq && stagedId !== id) { slot._sk = null; slot.style.opacity = ""; slot.hidden = true; slot.replaceChildren(); continue; }
     if (PREVIEW && Array.isArray(state.fade) && state.fade.includes(id)) {
       // the teacher's preview: a question not opened yet, shown faded where students will see it
       const b = (pg.blocks || []).find((x) => x.id === id);
@@ -544,6 +559,7 @@ function applyCover() {
   $("showBox").hidden = !sh;
   $("askBox").hidden = !askUp || !!sh; // answers on display take the middle; the question comes back after
   placeAsk();
+  syncFullSim();
   growQ();
   $("askBack").hidden = !(a && askMin && !frozen);
   updateStage();

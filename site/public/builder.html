@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=45"></script>
+<script src="common.js?v=46"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -973,6 +973,10 @@ function renderTools() {
             } }))),
         el("p", { class: "t-hint", text: "Pages and sim states are separate. Type the sim state to show on each page: a name the sim understands (for example closeup) or a number. Left blank, the sim is told nothing and keeps what it is showing." })),
       simShowsField(b),
+      el("div", { class: "cl-field b-checks" }, el("span", { text: "Full screen until a question opens" }),
+        el("label", {}, el("input", { type: "checkbox", checked: !!b.fullUntilQ, onchange: (e) => { if (e.target.checked) b.fullUntilQ = true; else delete b.fullUntilQ; changed(); renderTools(); } }),
+          el("span", { style: "display:inline;margin:0", text: "Sim fills the page until a question opens" })),
+        b.fullUntilQ ? el("p", { class: "t-hint", text: "Draw the sim at the size you want while a question is open, and put the question box beside it (for example on the right). With no question open, students and the TV see the sim across the whole page. When a question ends, its box goes away and the sim fills the page again." }) : null),
       el("datalist", { id: "simWords" }, ...(declaredStates.get(b.url) || []).map((w) => el("option", { value: w }))),
       el("label", { class: "cl-field" }, el("span", { text: "Or a sim's web address" }),
         el("input", { type: "text", value: b.url || "", placeholder: "https://…", inputmode: "url", autocapitalize: "off", oninput: (e) => { b.url = e.target.value; changed(); }, onchange: () => renderStage() })),

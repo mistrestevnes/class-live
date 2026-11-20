@@ -1496,7 +1496,7 @@ export class Classroom extends DurableObject {
       for (const c of Object.values(v)) if (c < counts.length) counts[c]++;
       results = { counts, total: Object.keys(v).length };
     }
-    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results, stateId: (this.live.states || {})[pg && pg.id] || "" };
+    return { ...base, live: true, title: this.liveLesson.title, page: pg, pageNum: n, results, stateId: (this.live.states || {})[pg && pg.id] || "", staged: this.live.staged || null };
   }
 
   async studentMessage(sid, msg, stu) {

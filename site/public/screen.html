@@ -59,7 +59,7 @@
     <button class="aero-btn-primary" id="tvBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=45"></script>
+<script src="common.js?v=46"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let state = { live: false };
@@ -95,6 +95,9 @@ function apply(s) {
     $("pageNum").textContent = "Page " + (s.pageNum + 1);
     mountPage($("pageBox"), s.page, { preview: false, closed: true, results: s.results, stateId: s.stateId, stretch: true });
   }
+  // a page whose sim fills the page until a question opens: the question shows in its box beside the sim, as students see it
+  const side = live ? sideQuestion(s) : null;
+  if (live) fillSide(s, side);
   $("main").classList.toggle("paged", !!live);
   // the middle window: answers on display, else the running question, else paused
   const a = live ? s.ask : null, sh = live ? s.show : null, paused = live && s.paused;
@@ -106,11 +109,12 @@ function apply(s) {
   else if (!st.firstChild || st.firstChild.dataset.url !== anim) { const f = anim.startsWith("/video/") ? el("video", { src: anim, controls: true, playsinline: true, title: "Video" }) : el("iframe", { src: anim, title: "Animation", allow: "autoplay; fullscreen" }); f.dataset.url = anim; st.replaceChildren(f); st.hidden = false; }
   else st.hidden = false;
   $("tvToSim").textContent = anim ? (anim.startsWith("/video/") ? "Watch the video" : "Watch the animation") : "Show the sim";
-  $("tvBack").hidden = !(a && tvMin && !sh && !paused);
-  $("cover").hidden = !(a || sh || paused) || (!!a && tvMin && !sh && !paused);
+  const aCover = a && !(side && side.running); // a question shown in the sim's side box is not also shown in the middle
+  $("tvBack").hidden = !(aCover && tvMin && !sh && !paused);
+  $("cover").hidden = !(aCover || sh || paused) || (!!aCover && tvMin && !sh && !paused);
   $("showBox").hidden = !sh;
-  $("askBox").hidden = !a || !!sh;
-  $("pausedBox").hidden = !paused || !!a || !!sh;
+  $("askBox").hidden = !aCover || !!sh;
+  $("pausedBox").hidden = !paused || !!aCover || !!sh;
   if (sh) {
     $("showPrompt").replaceChildren(formatText(sh.prompt));
     $("showCards").replaceChildren(...sh.answers.map((t) => el("div", { class: "cl-card", text: t })));
@@ -134,7 +138,45 @@ function tick() {
   if (!a) return;
   const left = a.endsAt - (Date.now() + skew);
   const t = Math.max(0, Math.ceil(left / 1000));
-  $("askTime").textContent = $("tvBackTime").textContent = left > 0 ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "Time's up";
+  const txt = left > 0 ? Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0") : "Time's up";
+  $("askTime").textContent = $("tvBackTime").textContent = txt;
+  const st = document.getElementById("tvSideTime");
+  if (st) st.textContent = txt;
+}
+
+// ---- sims that fill the page until a question opens (the same rule as on the students' pages)
+// Which question box the TV shows beside the sim: the running question, else one waiting for its timer; none: the sim fills the page.
+function sideQuestion(s) {
+  const pg = s.page, sid = stateOfPage(pg, s.stateId), blocks = pg.blocks || [];
+  if (!blocks.some((x) => x.type === "sim" && x.fullUntilQ && blockShowsIn(x, sid))) return null;
+  const find = (id) => blocks.find((x) => x.type === "question" && x.id === id && blockShowsIn(x, sid));
+  const a = s.ask;
+  if (a && a.blockId && a.pageId === pg.id && find(a.blockId)) return { block: find(a.blockId), running: true, ask: a };
+  const st = s.staged;
+  if (st && st.pageId === pg.id && find(st.blockId)) return { block: find(st.blockId), running: false, ask: null };
+  return { block: null, running: false, ask: null };
+}
+function fillSide(s, side) {
+  const box = $("pageBox");
+  for (const slot of box.querySelectorAll(".cl-qblock")) {
+    if (side && side.block && slot.dataset.id === side.block.id) {
+      const b = side.block, a = side.ask;
+      const label = a && a.parts > 1 ? "Question · part " + a.part + " of " + a.parts : "Question";
+      const mc = a ? (a.options || []) : (b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : []);
+      const key = JSON.stringify([label, a ? a.prompt : b.prompt, mc, b.qsize, b.qbold, b.qital, !!a]);
+      if (slot._tvk !== key || !slot.firstChild) {
+        slot._tvk = key;
+        const card = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard" },
+          el("div", { class: "cl-ask-top" }, el("span", { class: "cl-ask-label", text: label }), a ? el("span", { class: "cl-ask-time", id: "tvSideTime" }) : null),
+          el("div", { class: "cl-ask-prompt" }, formatText(a ? a.prompt : (b.prompt || ""))),
+          mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o))))) : null);
+        applyQFormat(card, b);
+        slot.replaceChildren(card);
+      }
+      slot.hidden = false;
+    } else { slot._tvk = null; slot.hidden = true; slot.replaceChildren(); }
+  }
+  if (side) setFullSim(box, !side.block);
 }
 $("tvToSim").onclick = () => { tvMin = true; apply(state); };
 $("tvBackBtn").onclick = () => { tvMin = false; apply(state); };
