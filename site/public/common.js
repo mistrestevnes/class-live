@@ -652,6 +652,11 @@ function snapSimCanvas(f) {
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, w, h);
     const r = src.getBoundingClientRect();
     g.drawImage(src, r.left / fw * w, r.top / fh * h, r.width / fw * w, r.height / fh * h);
+    // a sim that hasn't drawn anything yet gives an empty picture: no picture then
+    const d = g.getImageData(0, 0, w, h).data;
+    let diff = 0;
+    for (let i = 4; i < d.length; i += 4) if (Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]) > 30) diff++;
+    if (diff < (w * h) / 500) return "";
     return out.toDataURL("image/jpeg", 0.7);
   } catch { return ""; } // a sim from another website can't be copied
 }
@@ -659,17 +664,17 @@ function snapSimCanvas(f) {
 // show the sim at once, with nothing running. savedSnap gives the picture's address for a sim block's address, or "".
 function savedSnap(list, url) {
   const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
-  return e && e.snap ? "/sim/" + e.id + ".jpg?v=" + e.snap : "";
+  return e && e.snap && e.snapv === 2 ? "/sim/" + e.id + ".jpg?v=" + e.snap : "";
 }
 // saves a picture (data URL) for an uploaded sim that has none yet; callback when saved
 async function saveSnap(tapi, list, url, dataUrl) {
   const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
-  if (!e || e.snap || !dataUrl || e._snapBusy) return false;
+  if (!e || (e.snap && e.snapv === 2) || !dataUrl || e._snapBusy) return false;
   e._snapBusy = true;
   try {
     const blob = await (await fetch(dataUrl)).blob();
-    const r = await tapi("/api/sims/" + e.id + "/snap", { method: "PUT", headers: { "content-type": "image/jpeg" }, body: blob });
-    if (r && r.snap) { e.snap = r.snap; return true; }
+    const r = await tapi("/api/sims/" + e.id + "/snap", { method: "PUT", headers: { "content-type": "image/jpeg", "x-snapv": "2" }, body: blob });
+    if (r && r.snap) { e.snap = r.snap; e.snapv = 2; return true; }
   } catch {} finally { e._snapBusy = false; }
   return false;
 }
@@ -677,28 +682,42 @@ async function saveSnap(tapi, list, url, dataUrl) {
 // done() runs after each picture is saved. A sim with no canvas to copy is skipped (and remembered, so it is not tried again).
 const snapTried = new Set();
 let snapMaking = false;
+async function snapOne(tapi, list, e) {
+  const url = "/sim/" + e.id;
+  const f = document.createElement("iframe");
+  f.src = url; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
+  // inside the window (a browser stops animating a frame that is outside it) but invisible and behind everything
+  f.style.cssText = "position:fixed;left:0;top:0;width:1366px;height:599px;border:0;opacity:0.01;pointer-events:none;z-index:-1";
+  document.body.appendChild(f);
+  await new Promise((ok) => { f.addEventListener("load", ok, { once: true }); setTimeout(ok, 10000); });
+  let pic = "";
+  for (let i = 0; i < 6 && !pic; i++) { await new Promise((ok) => setTimeout(ok, 700)); pic = snapSimCanvas(f); }
+  f.remove();
+  if (pic) return saveSnap(tapi, list, url, pic);
+  return false;
+}
+// makes pictures for uploaded sims that have none: the ones in urls first, then the rest, two hidden copies at a time.
+// done() runs after each picture is saved. A sim with nothing to copy (no canvas) is not tried again.
 async function makeSnaps(tapi, list, urls, done) {
-  if (snapMaking) return;
+  if (snapMaking || !list) return;
   snapMaking = true;
   try {
-    for (const url of [...new Set(urls)]) {
-      const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
-      if (!e || e.snap) continue;
+    const ids = [...urls.map((u) => (/^\/sim\/([a-z0-9]+)$/.exec(u || "") || [])[1]).filter(Boolean), ...list.map((x) => x.id)];
+    const todo = [...new Set(ids)].map((id) => list.find((x) => x.id === id)).filter((e) => {
+      if (!e || (e.snap && e.snapv === 2)) return false;
       const tk = e.id + ":" + (e.updated || 0);
-      let skip = snapTried.has(tk); try { if (localStorage.getItem("cl-nosnap:" + tk)) skip = true; } catch {}
-      if (skip) continue;
-      snapTried.add(tk);
-      const f = document.createElement("iframe");
-      f.src = url; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
-      f.style.cssText = "position:fixed;left:-10000px;top:0;width:1366px;height:599px;border:0;opacity:0;pointer-events:none";
-      document.body.appendChild(f);
-      await new Promise((ok) => { f.addEventListener("load", ok, { once: true }); setTimeout(ok, 8000); });
-      let pic = "";
-      for (let i = 0; i < 3 && !pic; i++) { await new Promise((ok) => setTimeout(ok, i ? 1500 : 2000)); pic = snapSimCanvas(f); }
-      f.remove();
-      if (pic && await saveSnap(tapi, list, url, pic)) { if (done) done(); }
-      else if (!pic) { try { localStorage.setItem("cl-nosnap:" + tk, "1"); } catch {} }
-    }
+      try { if (localStorage.getItem("cl-nosnap2:" + tk)) return false; } catch {}
+      return !snapTried.has(tk);
+    });
+    const work = async () => {
+      for (let e; (e = todo.shift()); ) {
+        const tk = e.id + ":" + (e.updated || 0);
+        snapTried.add(tk);
+        if (await snapOne(tapi, list, e)) { if (done) done(); }
+        else { try { localStorage.setItem("cl-nosnap2:" + tk, "1"); } catch {} }
+      }
+    };
+    await Promise.all([work(), work()]);
   } finally { snapMaking = false; }
 }
 // Polls: a screen holds the lesson's pages as its states, and each page can have its own poll.

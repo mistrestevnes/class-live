@@ -671,8 +671,9 @@ export class Classroom extends DurableObject {
     if (buf.length < 100 || buf.length > 100000 || buf[0] !== 0xff || buf[1] !== 0xd8) return json({ error: "That isn't a small JPEG picture." }, 400);
     await this.ctx.storage.put("snap:" + id, buf);
     e.snap = Date.now();
+    e.snapv = Number(request.headers.get("x-snapv")) || 1; // 2: checked not to be blank before saving
     await this.ctx.storage.put("sims", index);
-    return json({ ok: true, snap: e.snap });
+    return json({ ok: true, snap: e.snap, snapv: e.snapv });
   }
   async serveSimSnap(id) {
     const buf = await this.ctx.storage.get("snap:" + id);
