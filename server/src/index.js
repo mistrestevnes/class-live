@@ -64,7 +64,8 @@ const POLL_PRESENT_MS = 12000; // a polling student counts as connected for this
 const MAX_IMAGE_BYTES = 1_800_000;
 // does a block show in this page state? (no list: every state)
 const showsIn = (b, sid) => !Array.isArray(b.states) || !b.states.length || !sid || b.states.includes(sid);
-const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file
+const MAX_SIM_BYTES = 1_900_000; // one uploaded sim file when it has to live in the database (no video bucket)
+const MAX_SIM_BYTES_R2 = 20_000_000; // sims are kept in the R2 bucket when it is connected
 // Group chat: every student gets a made-up name for each chat, like BlueParrot (hand-picked words, so no pairing is rude)
 const GC_ADJ = ["Blue","Cubic","Red","Green","Swift","Quiet","Bright","Lucky","Brave","Calm","Gentle","Happy","Jolly","Mighty","Noble","Sunny","Witty","Clever","Cosmic","Golden","Silver","Amber","Coral","Misty","Rapid","Sleepy","Snowy","Stormy","Velvet","Wild","Round","Tiny","Proud","Cozy","Dusty","Fuzzy","Zesty","Hidden","Polar","Lunar"];
 const GC_ANI = ["Parrot","Lion","Otter","Falcon","Panda","Tiger","Koala","Dolphin","Fox","Heron","Lynx","Moose","Newt","Owl","Penguin","Rabbit","Seal","Turtle","Walrus","Zebra","Badger","Crane","Gecko","Hedgehog","Ibis","Jaguar","Lemur","Narwhal","Quokka","Raven","Beaver","Camel","Eagle","Ferret","Goat","Hippo","Iguana","Koi","Llama","Mole"];
@@ -567,7 +568,8 @@ export class Classroom extends DurableObject {
   // and keeps the name unless a new one is sent, so lessons that use the sim pick up the new version.
   async saveSim(request, id) {
     const html = await request.text();
-    if (new TextEncoder().encode(html).length > MAX_SIM_BYTES) return json({ error: "That file is too large (the limit is about 1.8 MB)." }, 400);
+    const bytes = new TextEncoder().encode(html).length;
+    if (this.env.VIDEOS ? bytes > MAX_SIM_BYTES_R2 : bytes > MAX_SIM_BYTES) return json({ error: this.env.VIDEOS ? "That file is too large (the limit is 20 MB)." : "That file is too large (the limit is about 1.8 MB)." }, 400);
     if (!/<(html|head|body|script|canvas|div)\b/i.test(html)) return json({ error: "That doesn't look like a web page (.html file)." }, 400);
     const index = (await this.ctx.storage.get("sims")) || [];
     const old = id ? index.find((x) => x.id === id) : null;
@@ -578,7 +580,7 @@ export class Classroom extends DurableObject {
     if (old && !request.headers.get("x-name")) name = old.name;
     const sid = id || rid(12);
     const updated = Date.now();
-    await this.ctx.storage.put("sim:" + sid, { html, updated });
+    await this.putSimHtml(sid, html, updated);
     const entry = { id: sid, name, size: html.length, updated, ...simManifest(html) };
     await this.ctx.storage.put("sims", [entry, ...index.filter((x) => x.id !== sid)]);
     return json(entry);
@@ -590,7 +592,7 @@ export class Classroom extends DurableObject {
     let changed = false;
     for (const e of index) {
       if (e.events) continue;
-      const rec = await this.ctx.storage.get("sim:" + e.id);
+      const rec = await this.getSimHtml(e.id);
       Object.assign(e, rec ? simManifest(rec.html) : { events: [], commands: [] });
       changed = true;
     }
@@ -630,8 +632,25 @@ export class Classroom extends DurableObject {
     return json({ ok: true });
   }
 
+  // sims live in the R2 bucket (any size up to 20 MB); older ones are still in the database. Reading checks both.
+  async getSimHtml(id) {
+    id = String(id).replace(/[^a-z0-9]/g, "");
+    const rec = await this.ctx.storage.get("sim:" + id);
+    if (rec) return rec;
+    if (!this.env.VIDEOS) return null;
+    const obj = await this.env.VIDEOS.get("s/" + id);
+    return obj ? { html: await obj.text(), updated: obj.uploaded ? obj.uploaded.getTime() : 0 } : null;
+  }
+  async putSimHtml(id, html, updated) {
+    if (this.env.VIDEOS) {
+      await this.env.VIDEOS.put("s/" + id, html, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+      await this.ctx.storage.delete("sim:" + id); // a replaced older sim no longer sits in the database
+    } else await this.ctx.storage.put("sim:" + id, { html, updated });
+  }
+
   async deleteSim(id) {
     await this.ctx.storage.delete("sim:" + id);
+    if (this.env.VIDEOS) await this.env.VIDEOS.delete("s/" + id);
     await this.ctx.storage.put("sims", ((await this.ctx.storage.get("sims")) || []).filter((x) => x.id !== id));
     return json({ ok: true });
   }
@@ -639,7 +658,7 @@ export class Classroom extends DurableObject {
   // Serves the page with the Class Live freeze script added at the top, so Pause and
   // pushed questions freeze it (skipped only when the sim already has the freeze script pasted in).
   async serveSim(id) {
-    const sim = await this.ctx.storage.get("sim:" + id.replace(/[^a-z0-9]/g, ""));
+    const sim = await this.getSimHtml(id);
     if (!sim) return new Response("That sim was not found.", { status: 404 });
     let html = sim.html;
     // older school Chromebooks (Chrome before 99) have no canvas roundRect; without it a sim that uses it stops drawing
