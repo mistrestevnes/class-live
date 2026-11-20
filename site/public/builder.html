@@ -1035,7 +1035,7 @@ function simShowsField(b) {
     // clicking one saves it for the page you're editing (click it again to clear: the sim is then told nothing on this page)
     const sid = curSid(), cur = String((b.simStates && b.simStates[sid]) || "").trim();
     row.replaceChildren(...(list.length ? [el("span", { style: "font-weight:700", text: "On this page the sim shows:" })] : []), ...list.map((x) => el("button", {
-      class: "t-small", "aria-pressed": String(cur === x.label), text: x.label,
+      class: "t-small", "aria-pressed": String(cur === x.label), text: (list.indexOf(x) + 1) + ". " + x.label,
       onclick: () => {
         if (cur === x.label) { if (b.simStates) { delete b.simStates[sid]; if (!Object.keys(b.simStates).length) delete b.simStates; } }
         else (b.simStates ||= {})[sid] = x.label;
