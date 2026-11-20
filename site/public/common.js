@@ -660,65 +660,89 @@ function snapSimCanvas(f) {
     return out.toDataURL("image/jpeg", 0.7);
   } catch { return ""; } // a sim from another website can't be copied
 }
-// Saved sim pictures: the server keeps one small picture for each uploaded sim (sims list entry .snap), so page thumbnails
-// show the sim at once, with nothing running. savedSnap gives the picture's address for a sim block's address, or "".
-function savedSnap(list, url) {
-  const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
-  return e && e.snap && e.snapv === 2 ? "/sim/" + e.id + ".jpg?v=" + e.snap : "";
+// Saved sim pictures: the server keeps small pictures of each uploaded sim, one for each sim state a page puts it in
+// (sims list entry .snaps = {key: time}), so page thumbnails show the sim at once, as it looks on that page, with nothing running.
+const simIdOf = (url) => (/^\/sim\/([a-z0-9]+)$/.exec(url || "") || [])[1] || "";
+const snapKeyOf = (msg) => !msg ? "_" : msg.n != null ? "n" + msg.n : "w" + String(msg.state).toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 40);
+// the sim state a sim shows on a page: that page's setting, or the last one set on an earlier page (the sim keeps what it shows)
+function pageSimMsg(page, b, sid) {
+  let msg = null;
+  for (const x of pageStates(page)) {
+    if (blockShowsIn(b, x.id)) {
+      const word = b.simStates && String(b.simStates[x.id] || "").trim();
+      if (/^\d+$/.test(word || "")) msg = { classlive: "state", n: +word };
+      else if (word) msg = { classlive: "state", state: word };
+    }
+    if (x.id === sid) break;
+  }
+  return msg;
 }
-// saves a picture (data URL) for an uploaded sim that has none yet; callback when saved
-async function saveSnap(tapi, list, url, dataUrl) {
-  const m = /^\/sim\/([a-z0-9]+)$/.exec(url || ""), e = m && (list || []).find((x) => x.id === m[1]);
-  if (!e || (e.snap && e.snapv === 2) || !dataUrl || e._snapBusy) return false;
-  e._snapBusy = true;
+function savedSnap(list, url, key) {
+  const id = simIdOf(url), e = id && (list || []).find((x) => x.id === id), t = e && e.snaps && e.snaps[key || "_"];
+  return t ? "/sim/" + id + ".jpg?s=" + encodeURIComponent(key || "_") + "&v=" + t : "";
+}
+// the saved picture for a sim block on a page (as it looks on that page)
+const pageSnap = (list, page, b, sid) => savedSnap(list, b.url, snapKeyOf(pageSimMsg(page, b, sid)));
+async function saveSnap(tapi, e, key, dataUrl) {
   try {
     const blob = await (await fetch(dataUrl)).blob();
-    const r = await tapi("/api/sims/" + e.id + "/snap", { method: "PUT", headers: { "content-type": "image/jpeg", "x-snapv": "2" }, body: blob });
-    if (r && r.snap) { e.snap = r.snap; e.snapv = 2; return true; }
-  } catch {} finally { e._snapBusy = false; }
+    const r = await tapi("/api/sims/" + e.id + "/snap?s=" + encodeURIComponent(key), { method: "PUT", headers: { "content-type": "image/jpeg" }, body: blob });
+    if (r && r.snap) { (e.snaps ||= {})[key] = r.snap; return true; }
+  } catch {}
   return false;
 }
-// makes pictures for the uploaded sims in urls that have none: one hidden copy of the sim at a time, a few seconds each.
-// done() runs after each picture is saved. A sim with no canvas to copy is skipped (and remembered, so it is not tried again).
 const snapTried = new Set();
 let snapMaking = false;
-async function snapOne(tapi, list, e) {
-  const url = "/sim/" + e.id;
+// a hidden copy of the sim, put in the page's sim state, copied once it has drawn
+async function snapOne(tapi, e, key, msg) {
   const f = document.createElement("iframe");
-  f.src = url; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
+  f.src = "/sim/" + e.id; f.tabIndex = -1; f.setAttribute("aria-hidden", "true");
   // inside the window (a browser stops animating a frame that is outside it) but invisible and behind everything
   f.style.cssText = "position:fixed;left:0;top:0;width:1366px;height:599px;border:0;opacity:0.01;pointer-events:none;z-index:-1";
+  f._clMsg = msg; // a sim that asks for its state ({classlive:"getState"}) is told it too
   document.body.appendChild(f);
   await new Promise((ok) => { f.addEventListener("load", ok, { once: true }); setTimeout(ok, 10000); });
+  f._clLoaded = true;
+  if (msg) postSimState(f);
   let pic = "";
-  for (let i = 0; i < 6 && !pic; i++) { await new Promise((ok) => setTimeout(ok, 700)); pic = snapSimCanvas(f); }
+  for (let i = 0; i < 6 && !pic; i++) { await new Promise((ok) => setTimeout(ok, msg ? 900 : 700)); if (msg && i === 0) postSimState(f); pic = i || !msg ? snapSimCanvas(f) : ""; }
   f.remove();
-  if (pic) return saveSnap(tapi, list, url, pic);
-  return false;
+  return pic ? saveSnap(tapi, e, key, pic) : false;
 }
-// makes pictures for uploaded sims that have none: the ones in urls first, then the rest, two hidden copies at a time.
-// done() runs after each picture is saved. A sim with nothing to copy (no canvas) is not tried again.
-async function makeSnaps(tapi, list, urls, done) {
+// makes the missing pictures: the sims on the lesson's pages, each in the sim state of every page it is on
+// (items: [{url, msg}]), then a plain picture of every other uploaded sim. Two hidden copies at a time;
+// done() runs after each picture is saved. A picture that can't be made (no canvas) is not tried again.
+async function makeSnaps(tapi, list, items, done) {
   if (snapMaking || !list) return;
   snapMaking = true;
   try {
-    const ids = [...urls.map((u) => (/^\/sim\/([a-z0-9]+)$/.exec(u || "") || [])[1]).filter(Boolean), ...list.map((x) => x.id)];
-    const todo = [...new Set(ids)].map((id) => list.find((x) => x.id === id)).filter((e) => {
-      if (!e || (e.snap && e.snapv === 2)) return false;
-      const tk = e.id + ":" + (e.updated || 0);
-      try { if (localStorage.getItem("cl-nosnap2:" + tk)) return false; } catch {}
-      return !snapTried.has(tk);
-    });
+    const all = [...items, ...list.map((x) => ({ url: "/sim/" + x.id, msg: null }))], seen = new Set(), todo = [];
+    for (const it of all) {
+      const id = simIdOf(it.url), e = id && list.find((x) => x.id === id);
+      if (!e) continue;
+      const key = snapKeyOf(it.msg), tk = id + ":" + (e.updated || 0) + ":" + key;
+      if (seen.has(tk)) continue;
+      seen.add(tk);
+      if ((e.snaps && e.snaps[key]) || snapTried.has(tk)) continue;
+      try { if (localStorage.getItem("cl-nosnap3:" + tk)) continue; } catch {}
+      todo.push({ e, key, msg: it.msg, tk });
+    }
     const work = async () => {
-      for (let e; (e = todo.shift()); ) {
-        const tk = e.id + ":" + (e.updated || 0);
-        snapTried.add(tk);
-        if (await snapOne(tapi, list, e)) { if (done) done(); }
-        else { try { localStorage.setItem("cl-nosnap2:" + tk, "1"); } catch {} }
+      for (let t; (t = todo.shift()); ) {
+        snapTried.add(t.tk);
+        if (await snapOne(tapi, t.e, t.key, t.msg)) { if (done) done(); }
+        else { try { localStorage.setItem("cl-nosnap3:" + t.tk, "1"); } catch {} }
       }
     };
     await Promise.all([work(), work()]);
   } finally { snapMaking = false; }
+}
+// every sim on every page of a lesson, with the sim state it shows there
+function lessonSnapItems(pages, firstPage) {
+  const out = [];
+  for (const pg of [firstPage, ...pages].filter(Boolean)) for (const x of pageStates(pg)) for (const b of pg.blocks || [])
+    if (b && b.type === "sim" && simIdOf(b.url) && blockShowsIn(b, x.id)) out.push({ url: b.url, msg: pageSimMsg(pg, b, x.id) });
+  return out;
 }
 // Polls: a screen holds the lesson's pages as its states, and each page can have its own poll.
 // A poll's votes are kept under its key: the screen's id for the first poll made before polls had ids (so old votes and

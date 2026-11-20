@@ -22,6 +22,8 @@ const ROUNDRECT_JS = `/* Class Live roundRect */(function () {
   }
 })();`;
 
+const snapKey = (k) => String(k || "_").replace(/[^a-z0-9_-]/gi, "_").slice(0, 42) || "_";
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -302,7 +304,7 @@ export class Classroom extends DurableObject {
       if (p === "/ws") return this.openSocket(request, url);
       if (p.startsWith("/img/") && m === "GET") return this.getImage(p.slice(5));
       const snapGet = p.match(/^\/sim\/([a-z0-9]+)\.jpg$/);
-      if (snapGet && m === "GET") return this.serveSimSnap(snapGet[1]);
+      if (snapGet && m === "GET") return this.serveSimSnap(snapGet[1], url.searchParams.get("s"));
       if (p.startsWith("/sim/") && m === "GET") return this.serveSim(p.slice(5));
 
       // students (no login)
@@ -401,7 +403,7 @@ export class Classroom extends DurableObject {
       const sm = p.match(/^\/api\/sims\/([a-z0-9]+)$/);
       if (sm && m === "PUT") return this.saveSim(request, sm[1]);
       const sn = p.match(/^\/api\/sims\/([a-z0-9]+)\/snap$/);
-      if (sn && m === "PUT") return this.saveSimSnap(request, sn[1]);
+      if (sn && m === "PUT") return this.saveSimSnap(request, sn[1], url.searchParams.get("s"));
       if (sm && m === "DELETE") return this.deleteSim(sm[1]);
 
       // waiting-room questions
@@ -594,7 +596,7 @@ export class Classroom extends DurableObject {
     const sid = id || rid(12);
     const updated = Date.now();
     await this.putSimHtml(sid, html, updated);
-    if (old) await this.ctx.storage.delete("snap:" + sid); // a replaced sim gets a new picture
+    if (old) await this.deleteSnaps(sid); // a replaced sim gets new pictures
     const entry = { id: sid, name, size: html.length, updated, ...simManifest(html) };
     await this.ctx.storage.put("sims", [entry, ...index.filter((x) => x.id !== sid)]);
     return json(entry);
@@ -662,27 +664,34 @@ export class Classroom extends DurableObject {
     } else await this.ctx.storage.put("sim:" + id, { html, updated });
   }
 
-  // the small still picture of a sim shown in page thumbnails (a JPEG under 100 KB), made by the builder / Control room
-  async saveSimSnap(request, id) {
+  // small still pictures of a sim, one for each sim state a page puts it in (key: "_" none, "n3" state 3, "wcloseup" a named state),
+  // shown in page thumbnails; JPEGs under 100 KB made by the builder / Control room
+  async saveSimSnap(request, id, key) {
+    key = snapKey(key);
     const index = (await this.ctx.storage.get("sims")) || [];
     const e = index.find((x) => x.id === id);
     if (!e) return json({ error: "That sim isn't there any more." }, 404);
     const buf = new Uint8Array(await request.arrayBuffer());
     if (buf.length < 100 || buf.length > 100000 || buf[0] !== 0xff || buf[1] !== 0xd8) return json({ error: "That isn't a small JPEG picture." }, 400);
-    await this.ctx.storage.put("snap:" + id, buf);
-    e.snap = Date.now();
-    e.snapv = Number(request.headers.get("x-snapv")) || 1; // 2: checked not to be blank before saving
+    await this.ctx.storage.put("snap:" + id + ":" + key, buf);
+    const t = Date.now();
+    e.snaps = { ...(e.snaps || {}), [key]: t };
+    delete e.snap; delete e.snapv;
     await this.ctx.storage.put("sims", index);
-    return json({ ok: true, snap: e.snap, snapv: e.snapv });
+    return json({ ok: true, snap: t });
   }
-  async serveSimSnap(id) {
-    const buf = await this.ctx.storage.get("snap:" + id);
+  async serveSimSnap(id, key) {
+    const buf = await this.ctx.storage.get("snap:" + id + ":" + snapKey(key));
     if (!buf) return new Response("not found", { status: 404 });
     return new Response(buf, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=31536000, immutable" } });
   }
+  async deleteSnaps(id) {
+    const keys = [...(await this.ctx.storage.list({ prefix: "snap:" + id + ":" })).keys(), "snap:" + id];
+    for (let i = 0; i < keys.length; i += 128) await this.ctx.storage.delete(keys.slice(i, i + 128));
+  }
 
   async deleteSim(id) {
-    await this.ctx.storage.delete("snap:" + id);
+    await this.deleteSnaps(id);
     await this.ctx.storage.delete("sim:" + id);
     if (this.env.VIDEOS) await this.env.VIDEOS.delete("s/" + id);
     await this.ctx.storage.put("sims", ((await this.ctx.storage.get("sims")) || []).filter((x) => x.id !== id));

@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=53"></script>
+<script src="common.js?v=54"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -282,7 +282,7 @@ function ensureStates(pg) { if (!Array.isArray(pg.states) || !pg.states.length) 
 // taken from the big editing area while that page is open; a page not opened yet shows a box with the sim's name.
 const simSnaps = new Map(); // screen id | page id | sim address -> picture (data URL)
 const snapKey = (sid, url) => ed.pages[edPage].id + "|" + sid + "|" + url;
-function thumbOpts(sid) { return { stateId: sid, preview: true, edit: { simName, simSnap: (b) => simSnaps.get(snapKey(sid, b.url)) || savedSnap(simsCache, b.url) } }; }
+function thumbOpts(sid) { return { stateId: sid, preview: true, edit: { simName, simSnap: (b) => simSnaps.get(snapKey(sid, b.url)) || pageSnap(simsCache, ed.pages[edPage], b, sid) } }; }
 function drawThumbs() {
   clearTimeout(thumbTimer); thumbTimer = null;
   const pg = ed.pages[edPage];
@@ -305,7 +305,6 @@ function snapSims() {
     if (!simSnaps.has(k)) fresh = true;
     simSnaps.set(k, url);
     if (box) for (const im of box.querySelectorAll("img[data-snap]")) if (im.dataset.snap === b.url) im.src = url;
-    if (simsCache) saveSnap(tapi, simsCache, b.url, url).then((ok) => { if (ok) redrawThumbs(); }); // kept on the server, so thumbnails show it next time at once
   }
   if (fresh && box && box.isConnected) { box._key = null; try { mountPage(box, statePage(ed.pages[edPage], sid), thumbOpts(sid)); } catch {} }
 }
@@ -316,8 +315,7 @@ function ensureSnaps() {
   if (!ed || document.hidden) return;
   loadSims().then((list) => {
     if (!list || !list.length || !ed) return;
-    const cur = (ed.pages[edPage].blocks || []), rest = ed.pages.flatMap((pg) => pg.blocks || []);
-    makeSnaps(tapi, list, [...cur, ...rest].filter((b) => b && b.type === "sim").map((b) => b.url), redrawThumbs);
+    makeSnaps(tapi, list, lessonSnapItems(ed.pages, ed.pages[edPage]), redrawThumbs);
   });
 }
 setInterval(ensureSnaps, 4000);
