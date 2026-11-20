@@ -208,6 +208,44 @@ function store(key, val) {
 //   *words*     -> italics
 //   v_f, v_i    -> subscript after an underscore (letters/numbers)
 //   x^2         -> superscript after a caret
+
+// ---- choices with pictures: a choice is its text, then (if it has a picture) an invisible separator and the picture's id.
+// Kept as one string so every place that stores or passes choices along (pages, polls, live questions) needs no other change.
+const OPT_SEP = "\u2063";
+function optText(o) { return String(o == null ? "" : o).split(OPT_SEP)[0]; }
+function optImg(o) { const i = String(o == null ? "" : o).split(OPT_SEP)[1] || ""; return /^[A-Za-z0-9_-]{4,64}$/.test(i) ? i : ""; }
+function optPack(text, img) { return img ? String(text || "") + OPT_SEP + img : String(text || ""); }
+function optAnswer(o, i) { return LETTERS[i] + ". " + (optText(o).trim() || "(picture)"); }
+function anyPics(list) { return (list || []).some((o) => optImg(o)); }
+// click a picture to see it large; click anywhere or press Esc to close
+function enlargeImage(src) {
+  const close = () => { ov.remove(); document.removeEventListener("keydown", onKey, true); };
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+  const ov = el("div", { class: "cl-lightbox", role: "dialog", "aria-label": "Picture", onclick: close },
+    el("img", { src, alt: "" }), el("button", { class: "cl-lightbox-x", type: "button", text: "Close", onclick: close }));
+  document.body.append(ov);
+  document.addEventListener("keydown", onKey, true);
+}
+// wide pictures go one per row; square or tall ones sit side by side
+function layoutPics(list) {
+  const imgs = [...list.querySelectorAll("img.cl-optimg")];
+  if (!imgs.length) return;
+  const done = imgs.filter((i) => i.naturalWidth);
+  if (!done.length) return;
+  const ratio = done.reduce((t, i) => t + i.naturalWidth / i.naturalHeight, 0) / done.length;
+  list.classList.toggle("cl-pics-wide", ratio > 1.45);
+}
+// what goes inside a choice: its picture (clickable to enlarge) above its text
+function optBody(o, plain) {
+  const t = optText(o), im = optImg(o);
+  const txt = t.trim() ? el("span", { class: "cl-option-text" }, inline(t)) : null;
+  if (!im) return txt || el("span", { class: "cl-option-text" });
+  const pic = el("img", { class: "cl-optimg", src: "/img/" + im, alt: "", title: plain ? "" : "Click to enlarge", loading: "lazy",
+    onclick: plain ? null : (e) => { e.stopPropagation(); e.preventDefault(); enlargeImage("/img/" + im); },
+    onload: (e) => { const l = e.target.closest(".cl-options"); if (l) layoutPics(l); } });
+  return el("span", { class: "cl-optbody" }, pic, txt);
+}
+function markPics(list, options) { if (anyPics(options)) list.classList.add("cl-haspics"); return list; }
 function inline(text) {
   const frag = document.createDocumentFragment();
   const parts = text.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*\s][^*]*\*|[A-Za-zΔ]_[A-Za-z0-9]+|\^-?[0-9A-Za-z]+)/g);
@@ -387,7 +425,7 @@ function questionCard(b, qn) {
   const mc = b.kind === "mc" ? (b.options || []).filter((o) => String(o).trim()) : [];
   const box = el("section", { class: "aero-panel cl-cover-box cl-inline cl-qcard" },
         el("div", { class: "cl-ask-prompt" }, formatText(b.prompt || "(No question typed yet)")),
-    mc.length ? el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o)))))
+    mc.length ? markPics(el("div", { class: "cl-options" }, ...mc.map((o, i) => el("div", { class: "cl-option" }, el("span", { class: "cl-letter", text: LETTERS[i] }), optBody(o)))), mc)
       : el("textarea", { rows: 6, "aria-label": "Your answer", disabled: true }),
     el("div", { class: "cl-ask-foot" }, el("span", { class: "aero-muted" }), mc.length ? null : el("button", { class: "aero-btn-primary", text: "Submit", disabled: true })));
   applyQFormat(box, b);
@@ -611,7 +649,7 @@ function renderPoll(b, opts) {
           el(
             "div",
             { class: "cl-result-main" },
-            el("div", { class: "cl-result-text" }, inline(text)),
+            el("div", { class: "cl-result-text" }, optBody(text)),
             el("div", { class: "cl-bar-track" }, el("div", { class: "cl-bar", style: "width:" + pct + "%" }))
           ),
           el("span", { class: "cl-result-num aero-data", text: n + " · " + pct + "%" })
@@ -628,11 +666,12 @@ function renderPoll(b, opts) {
             onclick: () => opts.onVote && opts.onVote(i),
           },
           el("span", { class: "cl-letter", text: LETTERS[i] }),
-          el("span", { class: "cl-option-text" }, inline(text))
+          optBody(text)
         )
       );
     }
   });
+  markPics(list, options);
   box.append(list);
   return box;
 }

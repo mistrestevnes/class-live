@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Teacher</title>
-<link rel="stylesheet" href="app.css?v=48">
+<link rel="stylesheet" href="app.css?v=53">
 <link rel="stylesheet" href="teacher.css?v=42">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
@@ -240,7 +240,7 @@
 </section>
 
 <div class="aero-panel t-gcov" id="gcOv" hidden></div>
-<script src="common.js?v=46"></script>
+<script src="common.js?v=47"></script>
 <script src="trivia-starter.js?v=1"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -2356,7 +2356,7 @@ async function showPast(id) {
       parts.push(el("div", { class: "aero-panel", style: "margin-bottom:12px" },
         el("h3", { style: "margin:0 0 6px", text: "Poll on page " + p.page + " · " + p.total + " votes" }),
         p.question ? el("div", { class: "t-ask-prompt" }, formatText(p.question)) : null,
-        ...p.options.map((o, i) => el("div", { style: "font-size:inherit;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), o))));
+        ...p.options.map((o, i) => el("div", { style: "font-size:inherit;padding:3px 0" }, el("strong", { text: (p.counts[i] || 0) + "  " }), optText(o) + (optImg(o) ? " (picture)" : "")))));
     }
     for (const g of r.gc || []) {
       const gs = [...new Set(Object.values(g.groups || {}))].sort((x, y) => x - y);

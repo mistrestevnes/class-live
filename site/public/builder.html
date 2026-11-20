@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live · Lesson builder</title>
-<link rel="stylesheet" href="app.css?v=48">
+<link rel="stylesheet" href="app.css?v=53">
 <link rel="stylesheet" href="teacher.css?v=15">
 <link rel="stylesheet" href="aerolab.css?v=6">
 <style>
@@ -173,7 +173,7 @@
   <div id="bPreviewHold"></div>
 </div>
 
-<script src="common.js?v=46"></script>
+<script src="common.js?v=47"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 let token = store("cl_token");
@@ -603,13 +603,28 @@ function richStyle(cmd, box) {
 }
 function choiceList(b) {
   const list = el("div", { class: "cl-options t-choices" });
-  const draw = () => list.replaceChildren(...b.options.map((o, j) => el("div", { class: "cl-option t-choice" },
-    el("span", { class: "cl-letter", text: LETTERS[j] }),
-    el("input", { class: "t-in", type: "text", value: o, placeholder: "Choice " + LETTERS[j], oninput: (e) => { b.options[j] = e.target.value; changed(); } }),
-    el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
-      onclick: (e) => { e.stopPropagation(); b.options.splice(j, 1); changed(); draw(); } }))),
+  const draw = () => list.replaceChildren(...b.options.map((o, j) => {
+    const im = optImg(o);
+    const file = el("input", { type: "file", accept: "image/*", style: "display:none" });
+    const status = el("span", { class: "aero-muted", style: "font-size:.85em" });
+    file.onchange = async () => {
+      const f = file.files[0]; if (!f) return;
+      status.textContent = "Uploading…";
+      try { b.options[j] = optPack(optText(b.options[j]), await uploadImage(f)); changed(); draw(); }
+      catch (err) { status.textContent = err.message || "Upload failed."; }
+    };
+    return el("div", { class: "cl-option t-choice", style: "flex-wrap:wrap" },
+      el("span", { class: "cl-letter", text: LETTERS[j] }),
+      el("input", { class: "t-in", type: "text", value: optText(o), placeholder: "Choice " + LETTERS[j], oninput: (e) => { b.options[j] = optPack(e.target.value, optImg(b.options[j])); changed(); } }),
+      el("button", { class: "t-small", text: im ? "Replace picture" : "+ Picture", onclick: (e) => { e.stopPropagation(); file.click(); } }),
+      im ? el("button", { class: "t-small", text: "Remove picture", onclick: (e) => { e.stopPropagation(); b.options[j] = optText(b.options[j]); changed(); draw(); } }) : null,
+      el("button", { class: "t-small", text: "✕", "aria-label": "Remove choice", disabled: b.options.length <= 2,
+        onclick: (e) => { e.stopPropagation(); b.options.splice(j, 1); changed(); draw(); } }),
+      file, status,
+      im ? el("img", { class: "cl-optimg", src: "/img/" + im, alt: "", style: "flex-basis:100%;max-height:110px;width:auto;max-width:100%;margin:4px 0 0 60px", onclick: (e) => { e.stopPropagation(); enlargeImage("/img/" + im); } }) : null);
+  }),
     el("button", { class: "t-small", text: "+ Add choice", disabled: b.options.length >= 8,
-      onclick: (e) => { e.stopPropagation(); b.options.push(""); changed(); draw(); const ins = list.querySelectorAll("input"); ins[ins.length - 1].focus(); } }));
+      onclick: (e) => { e.stopPropagation(); b.options.push(""); changed(); draw(); const ins = list.querySelectorAll("input[type=text]"); ins[ins.length - 1].focus(); } }));
   draw();
   return list;
 }

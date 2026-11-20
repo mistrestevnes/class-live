@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Live</title>
-<link rel="stylesheet" href="app.css?v=52">
+<link rel="stylesheet" href="app.css?v=57">
 <link rel="stylesheet" href="aerolab.css?v=6">
 </head>
 <body>
@@ -149,7 +149,7 @@
     <button class="aero-btn-primary" id="askBackBtn">Back to the question</button>
   </div>
 
-<script src="common.js?v=46"></script>
+<script src="common.js?v=47"></script>
 <script>
 let sid = store("cl_sid");
 if (!sid) { sid = randomId(12); store("cl_sid", sid); }
@@ -591,8 +591,11 @@ function applyCover() {
     const opts = a.options || [];
     $("askOpts").hidden = !opts.length;
     $("askText").hidden = !!opts.length;
-    $("askOpts").replaceChildren(...opts.map((o, i) => el("button", { class: "cl-option", "data-v": LETTERS[i] + ". " + o, onclick: () => pickAskOption(LETTERS[i] + ". " + o) },
-      el("span", { class: "cl-letter", text: LETTERS[i] }), el("span", {}, inline(o)))));
+    // choices with pictures: pick a letter, then press Submit (the picture itself only enlarges); text-only choices submit when tapped
+    $("askOpts").replaceChildren(...opts.map((o, i) => el("button", { class: "cl-option", "data-v": optAnswer(o, i), onclick: () => pickAskOption(optAnswer(o, i)) },
+      el("span", { class: "cl-letter", text: LETTERS[i] }), optBody(o))));
+    markPics($("askOpts"), opts);
+    $("askOpts").classList.remove("cl-pics-wide");
     $("askText").value = a.mine || "";
     $("askText").disabled = false;
     $("askNote").textContent = "";
@@ -627,7 +630,7 @@ function tickAsk() {
   }
   const done = !!a.done && !askEditing;
   for (const b of $("askOpts").children) { b.disabled = over; b.setAttribute("aria-pressed", String(b.dataset.v === $("askText").value)); }
-  if ((a.options || []).length) $("askSubmit").hidden = true; else $("askSubmit").hidden = false;
+  $("askSubmit").hidden = !!(a.options || []).length && !anyPics(a.options);
   $("askText").disabled = false;
   $("askText").readOnly = done;
   $("askSubmit").disabled = false;
@@ -638,6 +641,11 @@ function pickAskOption(v) {
   const a = state.ask;
   if (!a || !askId || a.endsAt <= serverNow()) return;
   $("askText").value = v;
+  if (anyPics(a.options)) { // pictures: choosing only marks the letter; Submit sends it
+    if (a.done) askEditing = true;
+    tickAsk();
+    return;
+  }
   link.send({ t: "askSubmit", qid: askId, text: v });
   a.done = true; askEditing = false;
   tickAsk();
@@ -657,6 +665,7 @@ $("askSubmit").onclick = () => {
   const a = state.ask;
   if (!a || !askId) return;
   if (a.done && !askEditing) { askEditing = true; tickAsk(); $("askText").focus(); return; } // change a submitted answer
+  if ((a.options || []).length && !$("askText").value) { showToast("Choose a letter first", 2500); return; }
   askDirty = false; clearTimeout(askSaveTimer);
   link.send({ t: "askSubmit", qid: askId, text: $("askText").value });
   a.done = true; askEditing = false;

@@ -388,3 +388,22 @@ body.cl-paged .cl-qbtn { position: fixed; left: 50%; right: auto; bottom: 14px; 
 .cl-gc-write .cl-ask-foot { flex: none; margin-top: 8px; gap: 10px; }
 .cl-gcwin.min #gcConfBtn, .cl-gcwin.min .cl-grow { display: none; }
 .cl-gcwin.min { min-width: 0; }
+
+/* choices with pictures */
+.cl-options.cl-haspics { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: stretch; }
+.cl-options.cl-haspics.cl-pics-wide { grid-template-columns: 1fr; }
+.cl-haspics .cl-option { flex-direction: column; align-items: stretch; gap: 10px; }
+.cl-haspics .cl-letter { align-self: flex-start; }
+.cl-pics-wide .cl-option { flex-direction: row; align-items: center; }
+.cl-pics-wide .cl-optbody { flex-direction: row; align-items: center; }
+.cl-pics-wide .cl-optimg { width: 40%; max-height: 130px; }
+.cl-optbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.cl-optimg { display: block; width: 100%; max-height: 260px; object-fit: contain; border-radius: 6px; background: #FFFFFF; cursor: zoom-in; }
+.cl-canvas .cl-qblock .cl-options.cl-haspics { grid-template-columns: 1fr; }
+.cl-canvas .cl-qblock .cl-haspics .cl-option, .cl-canvas .cl-qcard .cl-haspics .cl-option { flex-direction: row; align-items: center; padding: 5px 12px; min-height: 0; }
+.cl-canvas .cl-qblock .cl-optbody, .cl-canvas .cl-qcard .cl-optbody { flex-direction: row; align-items: center; gap: 10px; }
+.cl-canvas .cl-qblock .cl-optimg, .cl-canvas .cl-qcard .cl-optimg { width: 84px; height: 54px; max-height: 54px; flex: none; }
+.cl-result .cl-optimg { max-height: 120px; max-width: 260px; }
+.cl-lightbox { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+.cl-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; background: #FFFFFF; border-radius: 6px; }
+.cl-lightbox-x { position: absolute; top: 14px; right: 14px; min-height: 48px; padding: 8px 20px; }
