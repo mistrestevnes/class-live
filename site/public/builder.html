@@ -410,7 +410,7 @@ function stateChecks(label, list, onSet, atLeastOne) {
       let next = sts.map((y) => y.id).filter((id) => (id === x.id ? e.target.checked : on(id)));
       if (atLeastOne && !next.length) { e.target.checked = true; return; }
       onSet(next); changed(); renderStage(); renderTools();
-    } }), el("span", { style: "display:inline;margin:0", text: pgName(x, i) }))));
+    } }), el("span", { style: "display:inline;margin:0", text: (i + 1) + ". " + pgName(x, i) }))));
 }
 
 // ---------------------------------------------------------------- the page: a 16:9 canvas with blocks you drag, resize and type into
@@ -979,7 +979,7 @@ function renderTools() {
       }, true) : null,
       el("div", { class: "cl-field" }, el("span", { text: "What to tell the sim on each page" }),
         ...pageStates(page).filter((x) => !Array.isArray(b.states) || !b.states.length || b.states.includes(x.id)).map((x) => [x, pageStates(page).indexOf(x)]).map(([x, i]) => el("label", { class: "b-staterow" },
-          el("span", { style: "display:inline;margin:0;min-width:70px", text: pgName(x, i) }),
+          el("span", { style: "display:inline;margin:0;min-width:70px", text: (i + 1) + ". " + pgName(x, i) }),
           el("input", { type: "text", value: (b.simStates && b.simStates[x.id]) || "", list: "simWords", placeholder: "nothing", autocapitalize: "off", spellcheck: false,
             oninput: (e) => {
               const v = e.target.value.trim();

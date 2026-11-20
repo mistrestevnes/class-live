@@ -1092,7 +1092,7 @@ function renderLive() {
   else {
     const goState = (id) => link.send({ t: "state", pageId: page.id, to: id });
     const why = qOpen ? "Close the question first" : "";
-    sbar.replaceChildren(...sts.map((x, i) => el("button", { class: "t-stbtn", text: (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", disabled: qOpen && i !== curIx, title: i !== curIx ? why : "", onclick: () => goState(x.id) })));
+    sbar.replaceChildren(...sts.map((x, i) => el("button", { class: "t-stbtn", text: (i + 1) + ". " + (x.name || "State " + (i + 1)), "aria-pressed": i === curIx ? "true" : "false", disabled: qOpen && i !== curIx, title: i !== curIx ? why : "", onclick: () => goState(x.id) })));
     nbar.replaceChildren(
       el("button", { text: "◀ Back", disabled: curIx <= 0 || qOpen, title: why, onclick: () => goState(sts[curIx - 1].id) }),
       el("button", { class: "aero-btn-primary", text: "Next ▶", disabled: curIx >= sts.length - 1 || qOpen, title: why, onclick: () => goState(sts[curIx + 1].id) }));
