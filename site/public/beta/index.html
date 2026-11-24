@@ -11,13 +11,13 @@
 :root{
   --ink:#1D1D1F; --mut:#4A4A50; --line:#D2D2D7; --line2:#B8B8C0; --bg:#F5F5F7; --bar1:#E1E1E6; --bar2:#F5F5F7; --card:#FFFFFF;
   --rail:#FFFFFF; --railText:#1D1D1F; --railOn:#E3EEFF; --acc:#0A5BD8; --onacc:#FFFFFF; --lnk:#0A5BD8; --pill:#E3EEFF; --pillT:#14253F;
-  --tint:#E3EEFF; --tintink:#14253F; --danger:#8C1D18;
+  --tint:#E3EEFF; --tintink:#14253F; --danger:#8C1D18; --bgg:none; --bar1g:none; --railg:none;
   --font:'Inter AeroLab',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
   color-scheme:light;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{font-family:var(--font);font-size:18px;line-height:1.5;color:var(--ink);background:var(--bg)}
+body{font-family:var(--font);font-size:18px;line-height:1.5;color:var(--ink);background-color:var(--bg);background-image:var(--bgg);background-attachment:fixed}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--lnk);outline-offset:2px}
@@ -34,7 +34,7 @@ h1{margin:0;font-size:34px;line-height:1.2}
 
 .app{display:flex;align-items:stretch;flex:1}
 #root{display:flex;flex-direction:column;min-height:100vh}
-.rail{width:140px;flex:none;background:var(--rail);color:var(--railText);border-right:1px solid var(--line2);padding:12px 8px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto}
+.rail{width:140px;flex:none;background-color:var(--rail);background-image:var(--railg);color:var(--railText);border-right:1px solid var(--line2);padding:12px 8px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto}
 .rail .brand{font-size:20px;font-weight:700;text-align:center;margin-bottom:8px}
 .ri{min-height:64px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:transparent;text-align:center;line-height:1.25;padding:4px}
 .ri:hover{background:color-mix(in srgb,var(--railOn) 55%,transparent)}
@@ -57,7 +57,7 @@ h1{margin:0;font-size:34px;line-height:1.2}
 .sechead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .sechead h2{margin:0;font-size:28px;line-height:1.2}
 .node{margin-bottom:12px}
-.bar{display:flex;align-items:center;gap:8px;min-height:46px;padding-right:8px;border:1px solid var(--line2);border-radius:10px;background:var(--bar1)}
+.bar{display:flex;align-items:center;gap:8px;min-height:46px;padding-right:8px;border:1px solid var(--line2);border-radius:10px;background-color:var(--bar1);background-image:var(--bar1g)}
 .bar.o{border-radius:10px 10px 0 0}
 .tog{display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:44px;padding:0 20px;background:none;border:0;border-radius:10px;text-align:left;font-size:24px;font-weight:700}
 .nm{flex:1;min-width:0}
@@ -218,6 +218,16 @@ var THEMES=TH_ROWS.map(function(r){var o={};TH_KEYS.forEach(function(k,i){o[k]=r
 function lum(h){var c=[1,3,5].map(function(i){var v=parseInt(h.substr(i,2),16)/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2];}
 function contrast(a,b){var x=lum(a),y=lum(b);if(x<y){var t=x;x=y;y=t;}return (x+0.05)/(y+0.05);}
 var THEME_EDITS={};
+function gradEnd(c,toward,t,texts){
+  for(;t>0.005;t-=0.02){var e=mixHex(c,toward,t),ok=texts.every(function(x){return contrast(x,e)>=4.5;});if(ok)return e;}
+  return c;
+}
+function grads(t){
+  var bgE=gradEnd(t.bg,t.acc,0.09,[t.text,t.muted]);
+  var tpE=gradEnd(t.topic,t.acc,0.16,[t.text,t.muted]);
+  var rlE=gradEnd(t.rail,t.acc,0.28,[t.railText]);
+  return {bg:'linear-gradient(165deg,'+t.bg+' 0%,'+bgE+' 100%)',topic:'linear-gradient(90deg,'+t.topic+' 0%,'+tpE+' 100%)',rail:'linear-gradient(180deg,'+t.rail+' 0%,'+rlE+' 100%)'};
+}
 var ROLES=[['bg','Page background'],['rail','Sidebar'],['topic','Topic bars'],['card','Item rows'],['acc','Buttons'],['text','Text']];
 function mixHex(a,b,t){var o='#';for(var i=1;i<7;i+=2){var x=parseInt(a.substr(i,2),16),y=parseInt(b.substr(i,2),16),v=Math.round(x+(y-x)*t);o+=('0'+v.toString(16)).slice(-2);}return o.toUpperCase();}
 function derive(base,e){
@@ -254,6 +264,7 @@ function applyTheme(id){
   var dark=lum(t.bg)<0.25;
   var v={ink:t.text,mut:t.muted,line:t.line,line2:t.tline,bg:t.bg,bar1:t.topic,bar2:t.sub,card:t.card,rail:t.rail,railText:t.railText,railOn:t.railOn,acc:t.acc,onacc:t.onacc,lnk:lnk,pill:t.pill,pillT:t.pillT,tint:t.pill,tintink:t.pillT,danger:dark?'#FF9C94':'#8C1D18'};
   Object.keys(v).forEach(function(k){st.setProperty('--'+k,v[k]);});
+  var g=grads(t);st.setProperty('--bgg',g.bg);st.setProperty('--bar1g',g.topic);st.setProperty('--railg',g.rail);
   st.colorScheme=dark?'dark':'light';
   return t.id;
 }
@@ -344,7 +355,8 @@ function rail(){
   return h+'</nav>';
 }
 function previewHtml(t,big){
-  return '<span class="tprev"'+(big?' style="height:120px"':'')+'><span class="tr" style="background:'+t.rail+'"></span><span class="tm" style="background:'+t.bg+'"><span class="tb1" style="background:'+t.topic+';border-color:'+t.tline+';color:'+t.text+';font-weight:700;font-size:16px;line-height:18px;padding:0 6px">'+(big?'Topic name':'')+'</span><span class="tb2" style="background:'+t.card+';border-color:'+t.line+';color:'+t.text+';font-size:16px;line-height:18px;gap:8px">'+(big?'Item title<span style="flex:1"></span><span style="background:'+t.acc+';color:'+t.onacc+';border-radius:6px;padding:0 8px;font-weight:700">Notes</span>':'<i style="background:'+t.acc+'"></i>')+'</span></span></span>';
+  var g=grads(t);
+  return '<span class="tprev"'+(big?' style="height:120px"':'')+'><span class="tr" style="background:'+g.rail+'"></span><span class="tm" style="background:'+g.bg+'"><span class="tb1" style="background:'+g.topic+';border-color:'+t.tline+';color:'+t.text+';font-weight:700;font-size:16px;line-height:18px;padding:0 6px">'+(big?'Topic name':'')+'</span><span class="tb2" style="background:'+t.card+';border-color:'+t.line+';color:'+t.text+';font-size:16px;line-height:18px;gap:8px">'+(big?'Item title<span style="flex:1"></span><span style="background:'+t.acc+';color:'+t.onacc+';border-radius:6px;padding:0 8px;font-weight:700">Notes</span>':'<i style="background:'+t.acc+'"></i>')+'</span></span></span>';
 }
 function checks(t){
   return [['Text on the page background',t.text,t.bg],['Text on topic bars',t.text,t.topic],['Text on item rows',t.text,t.card]].map(function(c){var k=contrast(c[1],c[2]);return {label:c[0],ratio:k,ok:k>=4.5};});
