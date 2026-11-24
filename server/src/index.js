@@ -24,6 +24,50 @@ const ROUNDRECT_JS = `/* Class Live roundRect */(function () {
 
 const snapKey = (k) => String(k || "_").replace(/[^a-z0-9_-]/gi, "_").slice(0, 42) || "_";
 
+
+// ---- The feed students open when no class is live (/beta): sections > topics > subtopics > items.
+// An item points at something that already exists: a sim (/sim/<id>) or a video (/video/<id>).
+const FEED_TYPES = ["sim", "video", "lesson", "practice", "exit"];
+const FEED_ID = /^[a-z0-9]{1,16}$/;
+function cleanFeed(raw) {
+  let count = 0;
+  const bad = () => { throw new Error("The feed is too big or malformed."); };
+  const base = (n, kidsKey) => {
+    if (!n || typeof n !== "object" || !FEED_ID.test(String(n.id || "")) || ++count > 1500) bad();
+    const o = { id: String(n.id), name: String(n.name || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: n.visible !== false };
+    if (!o.name) bad();
+    if (kidsKey) o[kidsKey] = [];
+    return o;
+  };
+  const arr = (a) => (Array.isArray(a) ? a : []);
+  const tree = arr(raw && raw.tree).map((s0) => {
+    const sec = base(s0, "topics");
+    sec.topics = arr(s0.topics).map((t0) => {
+      const top = base(t0, "subs");
+      top.subs = arr(t0.subs).map((u0) => {
+        const sub = base(u0, "items");
+        sub.items = arr(u0.items).map((i0) => {
+          if (!i0 || typeof i0 !== "object" || !FEED_ID.test(String(i0.id || "")) || !FEED_TYPES.includes(i0.type) || ++count > 1500) bad();
+          const title = String(i0.title || "").replace(/\s+/g, " ").trim().slice(0, 120);
+          if (!title) bad();
+          const it = { id: String(i0.id), type: i0.type, title, detail: String(i0.detail || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: i0.visible !== false };
+          if (i0.ref && /^[a-z0-9]{4,24}$/.test(String(i0.ref))) it.ref = String(i0.ref);
+          return it;
+        });
+        return sub;
+      });
+      return top;
+    });
+    return sec;
+  });
+  return tree;
+}
+// What students are allowed to see: nothing marked hidden, at any level.
+function feedForStudents(tree) {
+  const vis = (n) => n.visible !== false;
+  return tree.filter(vis).map((s0) => ({ ...s0, topics: s0.topics.filter(vis).map((t0) => ({ ...t0, subs: t0.subs.filter(vis).map((u0) => ({ ...u0, items: u0.items.filter(vis) })) })) }));
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -326,6 +370,39 @@ export class Classroom extends DurableObject {
         return json(this.studentState(sid, stu));
       }
 
+      // the feed (/beta): students get it without anything marked hidden; the teacher's token gets everything
+      if (p === "/api/feed" && m === "GET") {
+        const saved = (await this.ctx.storage.get("feed")) || { tree: [], rev: 0 };
+        const teacher = this.checkToken(request.headers.get("x-token"));
+        return json({ tree: teacher ? saved.tree : feedForStudents(saved.tree), rev: saved.rev, teacher });
+      }
+      // each student's own notes on feed items, kept under their own login
+      if (p === "/api/mynotes" && (m === "GET" || m === "POST")) {
+        const body = m === "POST" ? await request.json() : {};
+        const stu = this.studentFrom(m === "POST" ? body.stoken : url.searchParams.get("stoken"));
+        if (!stu) return json({ error: "Sign in first." }, 401);
+        const key = "mynotes:" + stu.id;
+        const notes = (await this.ctx.storage.get(key)) || {};
+        if (m === "POST") {
+          const item = String(body.item || "");
+          if (!FEED_ID.test(item)) return json({ error: "bad item" }, 400);
+          const list = notes[item] || [];
+          if (body.op === "add") {
+            const text = String(body.text || "").trim().slice(0, 2000);
+            if (!text) return json({ error: "Write something first." }, 400);
+            if (list.length >= 30) return json({ error: "That is the most notes for one item. Delete one first." }, 400);
+            if (!notes[item] && Object.keys(notes).length >= 300) return json({ error: "Too many items have notes." }, 400);
+            list.push({ id: rid(6), t: text, at: Date.now() });
+            notes[item] = list;
+          } else if (body.op === "del") {
+            notes[item] = list.filter((n) => n.id !== String(body.id || ""));
+            if (!notes[item].length) delete notes[item];
+          } else return json({ error: "bad request" }, 400);
+          await this.ctx.storage.put(key, notes);
+        }
+        return json({ notes });
+      }
+
       // the TV page, for networks that block websockets
       if (p === "/api/screen" && m === "GET") return json(this.screenState());
 
@@ -444,6 +521,15 @@ export class Classroom extends DurableObject {
         }
         await this.ctx.storage.put("plans:" + wk[1], { cells, updated: Date.now() });
         return json({ ok: true });
+      }
+      if (p === "/api/feed" && m === "PUT") {
+        const b = await request.json();
+        let tree;
+        try { tree = cleanFeed(b); } catch (e) { return json({ error: String(e.message) }, 400); }
+        const old = (await this.ctx.storage.get("feed")) || { tree: [], rev: 0 };
+        const saved = { tree, rev: (old.rev || 0) + 1, updated: Date.now() };
+        await this.ctx.storage.put("feed", saved);
+        return json({ tree, rev: saved.rev, teacher: true });
       }
       if (p === "/api/notes" && m === "GET") {
         const n = await this.ctx.storage.get(this.notesKey(url.searchParams.get("lesson"), url.searchParams.get("period")));
