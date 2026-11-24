@@ -60,7 +60,7 @@ h1{margin:0;font-size:34px;line-height:1.2}
 .tog{display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:56px;padding:0 20px;background:none;border:0;border-radius:10px;text-align:left;font-size:24px;font-weight:700}
 .nm{flex:1;min-width:0}
 .ct{font-size:18px;font-weight:400;color:var(--mut)}
-.b1b{padding:0 0 0 28px;display:flex;flex-direction:column;gap:6px}
+.b1b{padding:0 0 0 28px;display:flex;flex-direction:column;gap:14px}
 .b1b>.node{margin-bottom:0}
 .n1>.bar{position:relative;z-index:60}
 .n2>.bar{position:relative;z-index:50}
@@ -216,17 +216,15 @@ function setSaveMsg(m){S.saveMsg=m;var e=document.getElementById('savemsg');if(e
 
 /* ---------- tree helpers ---------- */
 function locate(id){
-  for(var i=0;i<S.tree.length;i++){var s=S.tree[i];
-    if(s.id===id)return {node:s,kind:'section',arr:S.tree,idx:i};
-    for(var j=0;j<s.topics.length;j++){var t=s.topics[j];
-      if(t.id===id)return {node:t,kind:'topic',arr:s.topics,idx:j};
-      for(var k=0;k<t.subs.length;k++){var u=t.subs[k];
-        if(u.id===id)return {node:u,kind:'sub',arr:t.subs,idx:k};
-        for(var m=0;m<u.items.length;m++){var x=u.items[m];
-          if(x.id===id)return {node:x,kind:'item',arr:u.items,idx:m};}}}}
+  for(var j=0;j<S.tree.length;j++){var t=S.tree[j];
+    if(t.id===id)return {node:t,kind:'topic',arr:S.tree,idx:j};
+    for(var k=0;k<t.subs.length;k++){var u=t.subs[k];
+      if(u.id===id)return {node:u,kind:'sub',arr:t.subs,idx:k};
+      for(var m=0;m<u.items.length;m++){var x=u.items[m];
+        if(x.id===id)return {node:x,kind:'item',arr:u.items,idx:m};}}}
   return null;
 }
-function childArr(l){return l.kind==='section'?l.node.topics:l.kind==='topic'?l.node.subs:l.node.items;}
+function childArr(l){return l.kind==='topic'?l.node.subs:l.node.items;}
 
 /* ---------- pieces ---------- */
 function bar(){
@@ -291,7 +289,7 @@ function editorFor(node,kind){
 function firstOf(type){var l=S.lib[type]||[];return l.length?l[0]:null;}
 function addForm(parent,pk){
   var E=S.editor,v=E.v||{};
-  var kind={root:'section',section:'topic',topic:'subtopic',sub:'item'}[pk];
+  var kind={root:'topic',topic:'subtopic',sub:'item'}[pk];
   var h='<div class="ed"><div class="b">Add '+(kind==='item'?'an item':'a '+kind)+'</div>';
   if(kind==='item'){
     var ty=v.type||'sim',f=firstOf(ty);
@@ -303,7 +301,7 @@ function addForm(parent,pk){
 function addArea(parent,pk){
   var E=S.editor;
   if(E&&E.mode==='add'&&E.parent===parent)return addForm(parent,pk);
-  var label={root:'Add section',section:'Add topic',topic:'Add subtopic',sub:'Add item'}[pk];
+  var label={root:'Add topic',topic:'Add subtopic',sub:'Add item'}[pk];
   return '<div class="btnrow addrow"><button class="btn" data-a="add" data-id="'+parent+'" data-x="'+pk+'">'+label+'</button></div>';
 }
 
@@ -323,17 +321,14 @@ function itemHtml(it,t){
 }
 function subHtml(u,t){
   if(!t&&u.visible===false)return '';
-  var open=!!S.open[u.id];
   var items=u.items.filter(function(x){return t||x.visible!==false;});
-  var h='<div class="node n2'+(u.visible===false?' dim':'')+'"><div class="bar'+(open?' o':'')+'"><button class="tog" id="tog-'+u.id+'" data-a="tog" data-id="'+u.id+'" aria-expanded="'+open+'">'+tri(open)+'<span class="nm">'+esc(u.name)+'</span>'+(t?hiddenBadge(u):'')+'<span class="ct">'+plural(items.length,'item')+'</span></button>'+(t?editBtn(u.id):'')+'</div>';
+  var h='<div class="node n2'+(u.visible===false?' dim':'')+'"><div class="bar o"><div class="tog subhead"><span class="nm">'+esc(u.name)+'</span>'+(t?hiddenBadge(u):'')+'<span class="ct">'+plural(items.length,'item')+'</span></div>'+(t?editBtn(u.id):'')+'</div>';
   if(t)h+=editorFor(u,'sub');
-  if(open){
-    h+='<div class="rows" data-panel="'+u.id+'">';
-    items.forEach(function(x){h+=itemHtml(x,t);});
-    if(!items.length)h+='<div class="row"><span class="det">Nothing here yet.</span></div>';
-    h+='</div>';
-    if(t)h+=addArea(u.id,'sub');
-  }
+  h+='<div class="rows">';
+  items.forEach(function(x){h+=itemHtml(x,t);});
+  if(!items.length)h+='<div class="row"><span class="det">Nothing here yet.</span></div>';
+  h+='</div>';
+  if(t)h+=addArea(u.id,'sub');
   return h+'</div>';
 }
 function topicHtml(p,t){
@@ -350,19 +345,11 @@ function topicHtml(p,t){
   }
   return h+'</div>';
 }
-function secHtml(s,t){
-  if(!t&&s.visible===false)return '';
-  var h='<section class="sec'+(s.visible===false?' dim':'')+'"><div class="sechead"><h2>'+esc(s.name)+'</h2>'+(t?hiddenBadge(s)+editBtn(s.id):'')+'</div>';
-  if(t)h+=editorFor(s,'section');
-  s.topics.forEach(function(p){h+=topicHtml(p,t);});
-  if(t)h+=addArea(s.id,'section');
-  return h+'</section>';
-}
 function feedPage(t){
   var h='<div class="wrap">';
-  if(t)h+='<div class="callout"><div>You are editing the feed. Every change is saved right away and students see it the next time they open this page. Hidden items are grayed out here and not shown to students at all.</div></div>';
-  var any=S.tree.some(function(s){return t||s.visible!==false;});
-  S.tree.forEach(function(s){h+=secHtml(s,t);});
+  if(t)h+='<div class="callout"><div>You are editing the feed. Every change is saved right away and students see it the next time they open this page. Hidden topics, subtopics and items are grayed out here and not shown to students at all.</div></div>';
+  var any=S.tree.some(function(p){return t||p.visible!==false;});
+  S.tree.forEach(function(p){h+=topicHtml(p,t);});
   if(!any&&!t)h+='<div class="empty"><h1>Nothing here yet</h1><div>Your teacher is still setting up this page. Check back soon.</div></div>';
   if(t)h+='<div class="sec">'+addArea('root','root')+'</div>';
   return h+'</div>';
@@ -490,11 +477,11 @@ function act(a,id,x){
       }else{
         if(!v2.name.trim()){E.v=v2;E.err='Give it a name.';S.focus='f-name';break;}
         node={id:nid,name:v2.name.trim(),visible:true};
-        if(E.pk==='root')node.topics=[];else if(E.pk==='section')node.subs=[];else node.items=[];
+        if(E.pk==='root')node.subs=[];else node.items=[];
       }
       if(E.pk==='root')arr=S.tree;else{l=locate(E.parent);arr=childArr(l);S.open[E.parent]=true;}
       arr.push(node);
-      if(E.pk==='section'||E.pk==='topic')S.open[nid]=true;
+      if(E.pk==='root')S.open[nid]=true;
       changed=true;S.editor=null;break;}
     case 'up':case 'down':{
       l=locate(id);var j=l.idx+(a==='up'?-1:1);

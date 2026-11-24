@@ -29,6 +29,8 @@ const snapKey = (k) => String(k || "_").replace(/[^a-z0-9_-]/gi, "_").slice(0, 4
 // An item points at something that already exists: a sim (/sim/<id>) or a video (/video/<id>).
 const FEED_TYPES = ["sim", "video", "lesson", "practice", "exit"];
 const FEED_ID = /^[a-z0-9]{1,16}$/;
+// Topics are the top level. A feed saved earlier with sections above the topics is flattened (the sections are dropped, their topics kept).
+const flatFeed = (tree) => (Array.isArray(tree) ? tree : []).flatMap((n) => (n && Array.isArray(n.topics) ? n.topics : [n]));
 function cleanFeed(raw) {
   let count = 0;
   const bad = () => { throw new Error("The feed is too big or malformed."); };
@@ -40,32 +42,27 @@ function cleanFeed(raw) {
     return o;
   };
   const arr = (a) => (Array.isArray(a) ? a : []);
-  const tree = arr(raw && raw.tree).map((s0) => {
-    const sec = base(s0, "topics");
-    sec.topics = arr(s0.topics).map((t0) => {
-      const top = base(t0, "subs");
-      top.subs = arr(t0.subs).map((u0) => {
-        const sub = base(u0, "items");
-        sub.items = arr(u0.items).map((i0) => {
-          if (!i0 || typeof i0 !== "object" || !FEED_ID.test(String(i0.id || "")) || !FEED_TYPES.includes(i0.type) || ++count > 1500) bad();
-          const title = String(i0.title || "").replace(/\s+/g, " ").trim().slice(0, 120);
-          if (!title) bad();
-          const it = { id: String(i0.id), type: i0.type, title, detail: String(i0.detail || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: i0.visible !== false };
-          if (i0.ref && /^[a-z0-9]{4,24}$/.test(String(i0.ref))) it.ref = String(i0.ref);
-          return it;
-        });
-        return sub;
+  return flatFeed(raw && raw.tree).map((t0) => {
+    const top = base(t0, "subs");
+    top.subs = arr(t0.subs).map((u0) => {
+      const sub = base(u0, "items");
+      sub.items = arr(u0.items).map((i0) => {
+        if (!i0 || typeof i0 !== "object" || !FEED_ID.test(String(i0.id || "")) || !FEED_TYPES.includes(i0.type) || ++count > 1500) bad();
+        const title = String(i0.title || "").replace(/\s+/g, " ").trim().slice(0, 120);
+        if (!title) bad();
+        const it = { id: String(i0.id), type: i0.type, title, detail: String(i0.detail || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: i0.visible !== false };
+        if (i0.ref && /^[a-z0-9]{4,24}$/.test(String(i0.ref))) it.ref = String(i0.ref);
+        return it;
       });
-      return top;
+      return sub;
     });
-    return sec;
+    return top;
   });
-  return tree;
 }
 // What students are allowed to see: nothing marked hidden, at any level.
 function feedForStudents(tree) {
   const vis = (n) => n.visible !== false;
-  return tree.filter(vis).map((s0) => ({ ...s0, topics: s0.topics.filter(vis).map((t0) => ({ ...t0, subs: t0.subs.filter(vis).map((u0) => ({ ...u0, items: u0.items.filter(vis) })) })) }));
+  return flatFeed(tree).filter(vis).map((t0) => ({ ...t0, subs: t0.subs.filter(vis).map((u0) => ({ ...u0, items: u0.items.filter(vis) })) }));
 }
 
 export default {
@@ -374,7 +371,7 @@ export class Classroom extends DurableObject {
       if (p === "/api/feed" && m === "GET") {
         const saved = (await this.ctx.storage.get("feed")) || { tree: [], rev: 0 };
         const teacher = this.checkToken(request.headers.get("x-token"));
-        return json({ tree: teacher ? saved.tree : feedForStudents(saved.tree), rev: saved.rev, teacher });
+        return json({ tree: teacher ? flatFeed(saved.tree) : feedForStudents(saved.tree), rev: saved.rev, teacher });
       }
       // each student's own notes on feed items, kept under their own login
       if (p === "/api/mynotes" && (m === "GET" || m === "POST")) {
