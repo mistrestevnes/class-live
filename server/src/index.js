@@ -401,6 +401,19 @@ export class Classroom extends DurableObject {
         return json({ tree: teacher ? flatFeed(saved.tree) : feedForStudents(saved.tree), rev: saved.rev, teacher });
       }
       // each student's own notes on feed items, kept under their own login
+      // each student's chosen theme, kept under their own login so it follows them to any Chromebook
+      if (p === "/api/mytheme" && (m === "GET" || m === "POST")) {
+        const body = m === "POST" ? await request.json() : {};
+        const stu = this.studentFrom(m === "POST" ? body.stoken : url.searchParams.get("stoken"));
+        if (!stu) return json({ error: "Sign in first." }, 401);
+        if (m === "POST") {
+          const theme = String(body.theme || "");
+          if (!/^[a-z0-9-]{1,40}$/.test(theme)) return json({ error: "bad theme" }, 400);
+          await this.ctx.storage.put("theme:" + stu.id, theme);
+          return json({ theme });
+        }
+        return json({ theme: (await this.ctx.storage.get("theme:" + stu.id)) || null });
+      }
       if (p === "/api/mynotes" && (m === "GET" || m === "POST")) {
         const body = m === "POST" ? await request.json() : {};
         const stu = this.studentFrom(m === "POST" ? body.stoken : url.searchParams.get("stoken"));
