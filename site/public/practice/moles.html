@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moles · Class Live</title>
+<style>
+  :root{
+    --bg:#f4f2ec; --panel:#ffffff; --line:#12120f; --soft:#c9c5ba;
+    --text:#101010; --muted:#454239;
+    --mark:#c2410c; --faint:#8a857a; --soft2:#e9e5da;
+    --badbg:#ffecef; --badln:#f2a6a0; --goodbg:#e8f5ec; --warnbg:#fff3e8; --warnln:#fbd9bf;
+    --bluebg:#e3edfb; --blueln:#bfe0f0; --blue:#0b4fa8;
+    --good:#0a6b34; --bad:#b00018; --note:#7a4c00; 
+    --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);
+    padding:0 16px 28px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto}
+  sub{font-size:.6em;line-height:0}
+  .build{position:fixed;right:10px;bottom:6px;font-size:12px;color:var(--muted)}
+  #whoami .dot{color:var(--bad)}
+
+  .molgrid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:22px;align-items:start;margin-top:18px}
+  @media (max-width:760px){ .molgrid{grid-template-columns:minmax(0,1fr)} }
+  .card{background:var(--panel);border:3px solid var(--line);border-radius:18px;padding:22px 20px;text-align:center}
+  .cwpath .cwstep+.cwstep{margin-left:12px}
+  /* questions in Courier (29 Sept) */
+  .ask{font:700 23px/1.45 var(--mono);margin:0 0 16px}
+  .given{font:700 20px var(--mono);color:var(--muted);margin:-6px 0 14px}
+
+  table.mt{border-collapse:collapse;margin:0 auto;font-size:17px}
+  .mtwrap{overflow-x:auto;max-width:100%}
+  .mt th{font-size:15px;color:var(--muted);font-weight:800;padding:4px 8px;vertical-align:bottom}
+  .mt td{padding:5px 6px}
+  .mt td.lab{font-weight:800;text-align:right;padding-right:10px}
+  .mt tr.tot td{border-top:3px solid var(--line);padding-top:10px}
+  /* taller boxes, larger text (29 Sept) */
+  input.box{font:700 24px var(--mono);width:5.6em;height:54px;text-align:center;border:2.5px solid var(--line);
+    border-radius:10px;padding:6px 4px;background:var(--panel);color:var(--text)}
+  input.box.sym{width:4.6em}
+  input.box.sm{width:3.6em}
+  input.box.bad,select.bad{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad)}
+  input.box.right{border-color:var(--good)}
+  input.box:focus,select:focus{outline:3px solid var(--note);outline-offset:1px}
+
+  .btnrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+  .check{background:var(--line);color:var(--panel);border:3px solid var(--line);border-radius:12px;
+    font:800 18px var(--font);padding:10px 26px;cursor:pointer}
+  .check:disabled{background:var(--soft);border-color:var(--soft);cursor:default}
+  .check.ghost{background:transparent;color:var(--text)}
+  .msg{margin:14px auto 0;font-size:17px;font-weight:700;line-height:1.45;max-width:46ch;min-height:1.2em}
+  .msg.no{color:var(--bad)} .msg.ok{color:var(--good)}
+  .counter{margin-top:14px;font-size:14px;color:var(--muted);font-weight:700}
+
+  /* factor labeling */
+  .l3 .ask{font-size:27px}
+  .l3 .given{font-size:23px}
+  .fl{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;font:700 28px var(--mono);margin:10px 0}
+  .frac{display:inline-flex;flex-direction:column;align-items:center}
+  .frac .bar{align-self:stretch;border-top:3px solid var(--line);margin:6px 0}
+  .fpart{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .l3 input.box{font-size:28px;height:62px}
+  .fl select{font:700 24px var(--mono);height:62px;border:2.5px solid var(--line);border-radius:10px;padding:5px 6px;background:var(--panel);color:var(--text)}
+  .unit{border:2px solid transparent;border-radius:7px;padding:1px 4px;white-space:nowrap}
+  .cancel .unit{cursor:pointer;border-color:var(--soft)}
+  .cancel .unit:hover{border-color:var(--line)}
+  .unit.pick{border-color:var(--blue);background:var(--bluebg)}
+  .unit.gone{text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:var(--bad)}
+  .times{font-size:32px}
+  .l3 .msg{font-size:20px}
+  .ans{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;font:700 28px var(--mono)}
+
+  /* calculator */
+  .side{display:flex;flex-direction:column;gap:12px}
+  .ptlink{display:block;text-align:center;font:800 17px var(--font);color:var(--blue);background:var(--panel);
+    border:3px solid var(--line);border-radius:14px;padding:10px;text-decoration:none}
+  .calc{background:var(--panel);border:3px solid var(--line);border-radius:18px;padding:12px}
+  .cdisp{font:700 22px var(--mono);text-align:right;background:var(--soft2);border-radius:9px;padding:8px 10px;
+    min-height:2.9em;overflow-wrap:anywhere}
+  .cdisp .ex{font-size:14px;color:var(--muted);min-height:1.1em}
+  .ckeys{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}
+  .ckeys button{font:800 19px var(--font);padding:10px 0;border:2.5px solid var(--line);border-radius:10px;
+    background:var(--panel);color:var(--text);cursor:pointer}
+  .ckeys button.op{background:var(--soft2)}
+  .ckeys button.eq{background:var(--line);color:var(--panel)}
+  .build,.gatebuild{display:none!important}
+</style>
+<script src="/practice/theme.js"></script>
+</head>
+<body class="cw">
+<div id="cwtop"></div>
+<div class="wrap" id="app">
+  <div class="build">moles 1.2</div>
+  <div class="molgrid" id="molgrid" hidden>
+    <div id="sec"></div>
+    <div class="side">
+      <a class="ptlink" href="periodic-table.pdf" target="_blank" rel="noopener">Periodic table ↗</a>
+      <div class="calc" id="calc"></div>
+    </div>
+  </div>
+</div>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CHEMISTRY WORKSHOP NAVIGATION (27 Sept)
+   One copy, built into /beta/, index.html and balance.html by
+   build.py (the *.use parts). The top bar, the topic list, and the
+   "you are here" row with its drop-down steps. Each page says what its
+   steps are and what a pick does; this file only draws and listens.
+   ═══════════════════════════════════════════════════════════════ */
+var CW=(function(){
+  /* the topics, in order. A new topic: add a line; built:true makes it live */
+  var TOPICS=[
+    {id:"pt",    label:"Periodic Table",  href:"periodic.html", built:true},
+    {id:"atom",  label:"Atomic Structure"},
+    {id:"cov",   label:"Covalent bonding"},
+    {id:"ionic", label:"Ionic compounds", href:"index.html",   built:true},
+    {id:"bal",   label:"Balancing",       href:"balance.html", built:true},
+    {id:"mol",   label:"Moles",           href:"moles.html",   built:true},
+    {id:"stoich",label:"Stoichiometry"}
+  ];
+  /* true: unbuilt topics show as "Coming soon" tiles. false: they are hidden */
+  var SHOW_SOON=true;
+
+  var CSS=
+  "body.cw{padding-top:0!important}"+
+  "#gate:not([hidden])~#cwtop{display:none}"+
+  ".cwbar{height:60px;display:flex;align-items:center;gap:12px;margin:0 -16px 0;padding:0 16px;"+
+    "background:var(--panel);border-bottom:3px solid var(--line);text-align:left}"+
+  ".cwhome{font:800 21px var(--font);color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;min-height:44px}"+
+  ".cwme{margin-left:auto;font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;"+
+    "padding:0 14px;min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);text-decoration:none;white-space:nowrap}"+
+  "a.cwme:hover{background:var(--line);color:var(--panel)}"+
+  ".cwme.cur{background:var(--line);color:var(--panel)}"+
+  ".cwme .dot{color:var(--mark)}"+
+  ".cwpath{display:flex;align-items:center;flex-wrap:wrap;gap:8px 6px;padding:10px 0;text-align:left}"+
+  ".cwttl{font:800 24px var(--font);margin:0 10px 0 0}"+
+  ".cwsep{font:800 22px var(--font);color:var(--faint)}"+
+  ".cwstep{position:relative}"+
+  ".cwbtn{font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;padding:0 14px;"+
+    "min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);cursor:pointer}"+
+  ".cwbtn.open,.cwbtn:hover{background:var(--line);color:var(--panel)}"+
+  /* the chosen one of two side-by-side choices (Binary / Polyatomic) */
+  ".cwbtn.sel{box-shadow:inset 0 0 0 3px var(--line);background:var(--soft2)}"+
+  ".cwbtn.sel:hover,.cwbtn.sel.open{background:var(--line);color:var(--panel)}"+
+  ".cwmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:50;width:280px;background:var(--panel);"+
+    "border:3px solid var(--line);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;"+
+    "box-shadow:0 8px 0 rgba(18,18,15,.15)}"+
+  ".cwmi{font:800 19px var(--font);text-align:left;background:var(--panel);border:3px solid var(--soft);border-radius:10px;"+
+    "min-height:48px;padding:0 14px;color:var(--text);display:flex;align-items:center;justify-content:space-between;cursor:pointer}"+
+  ".cwmi:hover{border-color:var(--line)}.cwmi.cur{border-color:var(--line)}"+
+  ".cwmi:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwseg{display:inline-flex;border:3px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);margin-left:6px}"+
+  ".cwseg.right{margin-left:auto}"+
+  ".cwseg button{font:800 17px var(--font);border:0;background:transparent;color:var(--text);padding:0 16px;min-height:44px;cursor:pointer}"+
+  ".cwseg button+button{border-left:2px solid var(--soft)}"+
+  ".cwseg button.on{background:var(--line);color:var(--panel)}"+
+  ".cwseg button:disabled{color:var(--faint);cursor:default}"+
+  ".cwfirst{text-align:center;margin:18px 0 8px}"+
+  ".cwfirst p{font:700 20px var(--font);color:var(--muted);margin:0 0 14px}"+
+  ".cwbig{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}"+
+  ".cwbig button{background:var(--panel);border:3px solid var(--line);border-radius:14px;color:var(--text);cursor:pointer;"+
+    "padding:12px 26px;font:800 24px var(--font);min-height:56px}"+
+  ".cwbig button:hover{background:var(--line);color:var(--panel)}"+
+  ".cwbig button:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwbig button:disabled:hover{background:var(--panel);color:var(--text)}"+
+  ".cwnavrow.fresh button{animation:cwin .3s ease-out both}"+
+  "@keyframes cwin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}"+
+  "@media (prefers-reduced-motion:reduce){.cwnavrow.fresh button{animation:none}}"+
+  /* the topic tiles on the dashboard */
+  ".cwtopics{display:flex;gap:10px}"+
+  ".cwtile{flex:1;min-height:112px;border-radius:16px;padding:12px;display:flex;flex-direction:column;"+
+    "justify-content:space-between;gap:6px;text-decoration:none;text-align:left}"+
+  ".cwtile.live{background:var(--panel);border:3px solid var(--line);color:var(--text)}"+
+  ".cwtile.live:hover{background:var(--line);color:var(--panel)}"+
+  ".cwtile.soon{background:transparent;border:3px dashed var(--faint);color:var(--muted)}"+
+  ".cwtile .num{font-size:14px;font-weight:800;opacity:.8}"+
+  ".cwtile .tname{font-size:20px;font-weight:800;line-height:1.15}"+
+  ".cwtile .pill{align-self:flex-start;font-size:13px;font-weight:800;border:2px solid var(--faint);border-radius:999px;padding:2px 10px}"+
+  ".cwtile .go{align-self:flex-start;font-size:15px;font-weight:800;background:var(--line);color:var(--panel);border-radius:999px;padding:3px 12px}"+
+  ".cwtile.live:hover .go{background:var(--panel);color:var(--line)}"+
+  ".cwtopics.big .cwtile{min-height:150px}.cwtopics.big .tname{font-size:28px}"+
+  "@media (max-width:1100px){.cwtopics{flex-wrap:wrap}.cwtile{flex:1 1 150px}}"+
+  "@media (max-width:600px){.cwtile{flex:1 1 40%;min-height:96px}.cwtile.soon{min-height:0}}"+
+  /* phone: icon-only home, the row becomes a card of full-width buttons */
+  "@media (max-width:600px){"+
+    
+    ".cwpath{flex-direction:column;align-items:stretch;background:var(--panel);border:3px solid var(--line);"+
+      "border-radius:16px;padding:12px;margin-top:12px;gap:8px}"+
+    ".cwttl{font-size:21px}.cwsep{display:none}"+
+    ".cwbtn{width:100%;justify-content:space-between}"+
+    ".cwmenu{width:100%}"+
+    ".cwseg,.cwseg.right{margin:0;display:flex;min-width:0}"+
+    ".cwseg button{flex:1 1 0;min-width:0;padding:0 4px;font-size:16px;line-height:1.1}"+
+  "}";
+  var st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
+  if(document.body) document.body.classList.add("cw");
+  /* a topic page has an empty #cwtop: the bar and the row go in it */
+  var top=document.getElementById("cwtop");
+
+  var FLASK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>';
+  var PERSON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
+  var CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+
+  /* practice mode is remembered for the tab, so moving between topics
+     does not ask for a class number again */
+  var PKEY="cwPractice";
+  function practicing(){ try{ return sessionStorage.getItem(PKEY)==="1"; }catch(e){ return false; } }
+  function setPractice(on){ try{ on?sessionStorage.setItem(PKEY,"1"):sessionStorage.removeItem(PKEY); }catch(e){} }
+
+  /* the bar on a topic page: home on the left, "← name" on the right,
+     both back to the dashboard. The name itself goes in #whoami. */
+  function barHTML(){
+    return '<header class="cwbar"><a class="cwhome" href="/beta/" aria-label="Back to Class Live">\u2190 <span class="cwht">Class Live</span></a><span id="whoami" hidden></span></header>';
+  }
+  if(top) top.innerHTML=barHTML()+'<div id="cwpath"></div>';
+  /* the bar on the dashboard: the name is the page they are on */
+  function homeBarHTML(name){
+    return '<header class="cwbar"><span class="cwhome">'+FLASK+'<span class="cwht">Class Live</span></span>'+
+      '<span class="cwme cur" aria-current="page">'+PERSON+esc(name)+'</span></header>';
+  }
+
+  /* the topic tiles on the dashboard */
+  function topicsHTML(){
+    var list=TOPICS.filter(function(t){ return t.built || SHOW_SOON; });
+    return '<nav class="cwtopics'+(SHOW_SOON?"":" big")+'" aria-label="Topics">'+list.map(function(t,i){
+      return t.built
+        ? '<a class="cwtile live" href="'+t.href+'"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="go">Open \u2192</span></a>'
+        : '<div class="cwtile soon" aria-disabled="true"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="pill">Coming soon</span></div>';
+    }).join("")+'</nav>';
+  }
+
+  /* the "you are here" row.
+     o.title   the topic
+     o.steps   [{id, opts:[[key,label,soon?]], cur}] — buttons with ▾
+     o.segs    [{id, opts, cur, right?}] — joined controls, the last choice
+     o.next    {id, ask, opts} — the next unchosen step, as big buttons */
+  var OPEN=null, H=null, freshRow=false;
+  function labelOf(opts,k){ for(var i=0;i<opts.length;i++) if(opts[i][0]===k) return opts[i][1]; return ""; }
+  function pathHTML(o){
+    var h='<nav class="cwpath" aria-label="You are here"><h1 class="cwttl">'+esc(o.title)+'</h1>';
+    o.steps.forEach(function(s,i){
+      if(i && !s.nosep) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      /* a plain choice beside a drop-down, the same shape (Polyatomic) */
+      if(s.btn){
+        h+='<div class="cwstep"><button class="cwbtn'+(s.sel?" sel":"")+'" data-cwpick="'+s.id+'" data-cwval="'+esc(s.val)+'"'+
+          (s.sel?' aria-pressed="true"':'')+'>'+esc(s.label)+'</button></div>';
+        return;
+      }
+      var open=OPEN===s.id;
+      h+='<div class="cwstep"><button class="cwbtn'+(open?" open":"")+(s.sel?" sel":"")+'" data-cwopen="'+s.id+'" aria-expanded="'+open+
+        '" aria-haspopup="true">'+esc(s.label||labelOf(s.opts,s.cur))+CHEV+'</button>';
+      if(open) h+='<div class="cwmenu" role="menu">'+s.opts.map(function(x){
+        var cur=x[0]===s.cur;
+        return '<button class="cwmi'+(cur?" cur":"")+'" role="menuitem" data-cwpick="'+s.id+'" data-cwval="'+esc(x[0])+'"'+
+          (cur?' aria-current="true"':"")+(x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+
+          (cur?'<span aria-hidden="true">\u2713</span>':"")+'</button>';
+      }).join("")+'</div>';
+      h+='</div>';
+    });
+    (o.segs||[]).forEach(function(g,i){
+      if(!i && o.steps.length && !g.right) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      h+='<div class="cwseg'+(g.right?" right":"")+'" role="group">'+g.opts.map(function(x){
+        var on=x[0]===g.cur;
+        return '<button data-cwpick="'+g.id+'" data-cwval="'+esc(x[0])+'"'+(on?' class="on" aria-pressed="true"':"")+
+          (x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div>';
+    });
+    h+='</nav>';
+    if(o.next) h+='<div class="cwfirst">'+(o.next.ask?'<p>'+esc(o.next.ask)+'</p>':'')+'<div class="cwbig cwnavrow'+(freshRow?" fresh":"")+'">'+
+      o.next.opts.map(function(x){
+        return '<button data-cwpick="'+o.next.id+'" data-cwval="'+esc(x[0])+'"'+(x[2]?" disabled":"")+'>'+
+          esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div></div>';
+    freshRow=false;
+    return h;
+  }
+  /* h = {draw(), pick(step, value)} from the page */
+  function init(h){ H=h; }
+  function draw(){ if(H) H.draw(); }
+  document.addEventListener("click",function(ev){
+    var t=ev.target.closest("[data-cwopen],[data-cwpick]");
+    if(t && t.dataset.cwopen){
+      OPEN = OPEN===t.dataset.cwopen ? null : t.dataset.cwopen; draw(); return;
+    }
+    if(t && t.dataset.cwpick && !t.disabled){
+      var wasBig=!!t.closest(".cwbig");
+      OPEN=null; freshRow=wasBig;
+      if(H) H.pick(t.dataset.cwpick, t.dataset.cwval);
+      return;
+    }
+    if(OPEN && !ev.target.closest(".cwmenu")){ OPEN=null; draw(); }
+  });
+  document.addEventListener("keydown",function(ev){
+    if(ev.key==="Escape" && OPEN){ OPEN=null; draw(); }
+  });
+
+  /* where a student was in a topic, so coming back reopens it */
+  function save(k,v){ try{ localStorage.setItem("cw_"+k, JSON.stringify(v)); }catch(e){} }
+  function load(k){ try{ return JSON.parse(localStorage.getItem("cw_"+k)||"null"); }catch(e){ return null; } }
+
+  /* 29 Sept: while working on an assigned section, the whole assignment's
+     progress in one line under the top bar — "Naming review: 5/20 complete".
+     list = the page's ASG rows (one per section, id "<assignment>:<i>").
+     1 Oct: an assignment runs as one. Once the section on screen is done, a
+     "Next: <section>" link opens the next unfinished one (any page); when
+     every section is done the line reads "Assignment complete". The student
+     follows it themselves — nothing jumps on its own. */
+  var BAL_T={syn:["Synthesis",3], sr:["Single replacement",3], dr:["Double replacement",3],
+    pp:["From formulas \u00b7 Single replacement",2], pdr:["From formulas \u00b7 Double replacement",2],
+    pn:["From names \u00b7 Single replacement",2], pdn:["From names \u00b7 Double replacement",2]};
+  var ION_T={charges:"Single-charge ions", nf_id:"Polyatomic ions", build:"Building \u00b7 binary",
+    sc_f2n:"Naming \u00b7 binary \u00b7 single-charge \u00b7 formula \u2192 name",
+    sc_n2f:"Naming \u00b7 binary \u00b7 single-charge \u00b7 name \u2192 formula",
+    mv_f2n:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 formula \u2192 name",
+    mv_n2f:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 name \u2192 formula",
+    poly_f2n:"Naming \u00b7 polyatomic \u00b7 formula \u2192 name",
+    poly_n2f:"Naming \u00b7 polyatomic \u00b7 name \u2192 formula"};
+  var MOL_T={mol_1b:"Counting Atoms \u00b7 Beginner", mol_1a:"Counting Atoms \u00b7 Advanced",
+    mol_2:"Molar Mass", mol_3:"Moles \u2194 Grams"};
+  var DRILL_D={n2s:"Name \u2192 symbol", s2n:"Symbol \u2192 name", mix:"Mixed"};
+  function partAct(r){ return r.act||r.a; }
+  function partName(r){
+    var a=partAct(r), m=/^bal_([a-z]+)(\d)$/.exec(a);
+    if(r.o) return "Element symbols \u00b7 "+(DRILL_D[r.o.dir]||"")+" \u00b7 "+(r.o.sec/60)+" min";
+    if(m && BAL_T[m[1]]) return BAL_T[m[1]][0]+" \u00b7 "+
+      (BAL_T[m[1]][1]===2?["Beginner","Advanced"]:["Beginner","Intermediate","Advanced"])[+m[2]-1];
+    return ION_T[a]||MOL_T[a]||a;
+  }
+  function partHref(r){
+    var a=partAct(r);
+    if(r.o) return "periodic.html#dir="+r.o.dir+"&g="+r.o.g+"&sec="+r.o.sec+"&asg="+encodeURIComponent(r.id);
+    if(ION_T[a]) return "index.html#go="+a;
+    if(MOL_T[a]) return "moles.html#go="+a;
+    return "balance.html#go="+a;
+  }
+  function asgNow(list, cur){
+    var box=document.getElementById("cwasg");
+    if(!box){
+      var top=document.getElementById("cwtop"); if(!top) return;
+      box=document.createElement("div"); box.id="cwasg"; box.setAttribute("role","status");
+      top.parentNode.insertBefore(box, top.nextSibling);
+      var st=document.createElement("style");
+      st.textContent="#cwasg{text-align:center;font:800 19px var(--font,system-ui);margin:10px 0 0}"+
+        "#cwasg .aline{display:inline-block;border:3px solid var(--line);border-radius:12px;padding:6px 16px;margin:0 6px 6px;background:var(--panel)}"+
+        "#cwasg .aline.full{border-color:var(--good);color:var(--good)}"+
+        "#cwasg .anext{display:inline-block;margin:0 6px 6px;padding:8px 18px;border-radius:12px;background:var(--line);color:var(--panel);"+
+          "text-decoration:none;font:800 19px var(--font,system-ui);min-height:44px;box-sizing:border-box}"+
+        "#cwasg .anext:hover{background:var(--good)}";
+      document.head.appendChild(st);
+    }
+    var groups={}, order=[];
+    (list||[]).forEach(function(x){
+      var g=String(x.id).split(":")[0];
+      if(!groups[g]){ groups[g]={t:x.t, k:0, n:0, cur:null, rows:[]}; order.push(g); }
+      groups[g].k+=Math.min(x.k,x.n); groups[g].n+=x.n; groups[g].rows.push(x);
+      if(cur && x.a===cur && !groups[g].cur) groups[g].cur=x;
+    });
+    var esc=function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); };
+    box.innerHTML=order.filter(function(g){ return groups[g].cur; }).map(function(g){
+      var o=groups[g], name=esc(o.t||"Assignment");
+      if(o.k>=o.n) return '<span class="aline full">'+name+": Assignment complete</span>";
+      var h='<span class="aline">'+name+": "+o.k+"/"+o.n+" complete</span>";
+      if(o.cur.k<o.cur.n) return h;
+      var rows=o.rows.slice().sort(function(x,y){ return +String(x.id).split(":")[1]-String(y.id).split(":")[1]; });
+      var at=rows.indexOf(o.cur), next=null;
+      for(var i=1;i<=rows.length && !next;i++){ var r=rows[(at+i)%rows.length]; if(r.k<r.n) next=r; }
+      return h+(next?'<a class="anext" href="'+partHref(next)+'">Next: '+esc(partName(next))+"</a>":"");
+    }).join("");
+  }
+
+  return {TOPICS:TOPICS, barHTML:barHTML, homeBarHTML:homeBarHTML, topicsHTML:topicsHTML,
+    pathHTML:pathHTML, init:init, asgNow:asgNow, partName:partName, partHref:partHref, save:save, load:load, practicing:practicing, setPractice:setPractice};
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   MOLES (29 Sept) — four levels:
+   0 Level 1 Beginner, 1 Level 1 Advanced (moles of atoms),
+   2 Level 2 (molar mass table), 3 Level 3 (grams <-> moles).
+   Every mass is from his periodic table, and his polyatomic ion table.
+   Answers within 2% pass; significant figures are not checked.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── sign-in: this page has no gate; index.html is the gate ── */
+var TRACKING=false, API=(window.ION_API||"/api").replace(/\/+$/,"");
+var ST={n:null,name:null};
+try{ var sv=JSON.parse(sessionStorage.getItem("ionStudent")||"null"); if(sv&&sv.n){ ST.n=sv.n; ST.name=sv.name; } }catch(e){}
+
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+
+/* ── the same queues the other two pages use (/beta/ posts them too) ── */
+var QKEY="ionq", LKEY="ballog", FLUSH_MS=120000, POST_MAX=200;
+function rd(k){ try{ return JSON.parse(localStorage.getItem(k)||"[]"); }catch(e){ return []; } }
+function wr(k,q,cap){ try{ localStorage.setItem(k,JSON.stringify(q.slice(-cap))); }catch(e){} }
+var LEVEL_IDS=["mol_1b","mol_1a","mol_2","mol_3"];
+function actId(){ return LEVEL_IDS[M.level]; }
+function track(clean){
+  if(!ST.n) return;
+  var q=rd(QKEY); q.push({n:ST.n, a:actId(), c:clean?1:0, t:Date.now()}); wr(QKEY,q,400);
+  ASG.forEach(function(x){ if(x.a===actId()) x.k++; }); asgNow();
+}
+/* assignments (1 Oct): this student's open sections, for the line under the bar */
+var ASG=[];
+function asgNow(){ CW.asgNow(ASG, M.level!==null ? actId() : null); }
+function loadAssigned(){
+  var q=rd(QKEY);
+  fetch(API+"/assigned?n="+encodeURIComponent(ST.n)).then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(d){
+      ASG=(d.list||[]).map(function(x){
+        var ts=x.ts||[]; x.k=ts.length;
+        q.forEach(function(e){ if(e.n===ST.n && e.a===x.a && e.t>=x.c && ts.indexOf(e.t)<0) x.k++; });
+        delete x.ts; return x;
+      });
+      asgNow();
+    }).catch(function(){});
+}
+function logAttempt(step, asked, typed, ok, fault, tryNo){
+  if(!ST.n) return;
+  var q=rd(LKEY);
+  q.push({n:ST.n, a:actId(), s:step, p:String(asked).slice(0,60), y:String(typed).slice(0,40),
+          k:ok?1:0, f:fault||"", r:tryNo||1, t:Date.now()});
+  wr(LKEY,q,1500);
+}
+var busy={};
+function flushQ(key, route, field, cap, leaving){
+  if(busy[key]) return;
+  var q=rd(key).slice(0,POST_MAX);
+  if(!q.length){ if(key===QKEY) markSynced(true); return; }
+  busy[key]=true;
+  var body={}; body[field]=q;
+  fetch(API+route,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),keepalive:!!leaving})
+    .then(function(r){ return r.ok?r.json():Promise.reject(r); })
+    .then(function(){ wr(key,rd(key).slice(q.length),cap); busy[key]=false;
+      if(key===QKEY) markSynced(true); if(rd(key).length) flushQ(key,route,field,cap,leaving); })
+    .catch(function(){ busy[key]=false; if(key===QKEY) markSynced(false); });
+}
+function flushAll(leaving){
+  if(!ST.n) return;
+  flushQ(QKEY,"/event","events",400,leaving); flushQ(LKEY,"/attempt","items",1500,leaving);
+}
+function markSynced(ok){
+  var w=document.getElementById("whoami"); if(!w) return;
+  if(!ST.n){ w.textContent="practice · nothing recorded"; return; }
+  w.innerHTML=esc(ST.name)+(ok?"":' <span class="dot" title="not saved yet">•</span>');
+}
+window.addEventListener("online",function(){ flushAll(); });
+document.addEventListener("visibilitychange",function(){ flushAll(document.visibilityState==="hidden"); });
+window.addEventListener("pagehide",function(){ flushAll(true); });
+setInterval(function(){ flushAll(); },FLUSH_MS);
+
+/* ── masses: his periodic table and his polyatomic ion table ── */
+var MASS={H:1.01,Li:6.94,C:12.01,N:14.01,O:16.00,Na:22.99,Mg:24.30,Al:26.98,P:30.97,S:32.06,Cl:35.45,
+  K:39.10,Ca:40.08,Fe:55.84,Cu:63.55,Zn:65.38,Ba:137.33,Pb:207.20};
+var ION={NH4:18.1,CO3:60.0,ClO3:83.5,HCO3:61.0,OH:17.0,NO3:62.0,PO4:95.0,SO4:96.1,ClO4:99.5};
+var MOLECULAR=["CO2","C6H12O6","NH3","C3H8","SO3","H2O","CH4"];
+
+var LISTS=[
+  ["K2SO4","CO2","Mg3N2","C6H12O6","Al2O3","NaHCO3","NH3","Fe2O3","C3H8","Na3PO4","MgCl2","SO3","CaCO3","H2O","Li2S","KNO3","CH4","AlCl3"],
+  ["Al2(SO4)3","Mg(OH)2","Ca3(PO4)2","Fe(NO3)3","(NH4)2SO4","Ba(ClO3)2","Cu(NO3)2","Al(OH)3","(NH4)3PO4","Ca(HCO3)2","Mg3(PO4)2","Pb(NO3)2","Fe2(CO3)3","Zn(ClO4)2","Ca(NO3)2"],
+  ["Ca(NO3)2","CO2","Fe2(SO4)3","Li2O","(NH4)3PO4","C6H12O6","K2CO3","MgCl2","Al(NO3)3","NH3","Na2SO4","Ba(ClO3)2","Al2O3","Mg(OH)2","H2O","Na3PO4","C3H8","Ca(HCO3)2"]
+];
+LISTS[3]=LISTS[0].concat(LISTS[1],LISTS[2]).filter(function(f,i,a){ return a.indexOf(f)===i; });
+/* three separate boxes (29 Sept): Counting Atoms drops down its two levels */
+var CA_LEVELS=[["0","Beginner"],["1","Advanced"]];
+
+/* atoms in a formula, parentheses and all: {Al:2,S:3,O:12}, in written order */
+function atoms(f){
+  var i=0;
+  function num(){ var m=/^\d+/.exec(f.slice(i)); if(!m) return 1; i+=m[0].length; return +m[0]; }
+  function group(){
+    var out={}, order=[];
+    function add(el,n){ if(!(el in out)){ out[el]=0; order.push(el); } out[el]+=n; }
+    while(i<f.length && f[i]!==")"){
+      if(f[i]==="("){ i++; var g=group(); i++; var k=num(); g.order.forEach(function(e){ add(e,g.out[e]*k); }); }
+      else { var m=/^[A-Z][a-z]?/.exec(f.slice(i)); i+=m[0].length; add(m[0],num()); }
+    }
+    return {out:out, order:order};
+  }
+  return group();
+}
+/* the rows of the molar mass table: [[piece, count], ...].
+   Ionic: one row per ion, a polyatomic ion as one row. Molecular: one per element. */
+function parts(f){
+  if(MOLECULAR.indexOf(f)>=0){ var a=atoms(f); return a.order.map(function(e){ return [e,a.out[e]]; }); }
+  var cat, rest, m;
+  if((m=/^\(NH4\)(\d*)/.exec(f))||(m=/^NH4()/.exec(f))){ cat="NH4"; rest=f.slice(m[0].length); }
+  else { m=/^([A-Z][a-z]?)(\d*)/.exec(f); cat=m[1]; rest=f.slice(m[0].length); }
+  var cn=+(m[m.length-1]||1), an, ac;
+  if((m=/^\(([A-Za-z0-9]+)\)(\d+)$/.exec(rest))){ an=m[1]; ac=+m[2]; }
+  else if((m=/^([A-Z][a-z]?)(\d*)$/.exec(rest))){ an=m[1]; ac=+(m[2]||1); }
+  else { an=rest; ac=1; }
+  return [[cat,cn],[an,ac]];
+}
+function massOf(p){ return p in ION ? ION[p] : MASS[p]; }
+function molarMass(f){ return parts(f).reduce(function(s,p){ return s+p[1]*massOf(p[0]); },0); }
+/* every piece must have a mass, or the page says so loudly */
+LISTS[3].forEach(function(f){ parts(f).forEach(function(p){ if(massOf(p[0])==null) throw new Error("no mass for "+p[0]+" in "+f); });
+  atoms(f).order.forEach(function(e){ if(MASS[e]==null) throw new Error("no mass for "+e); }); });
+
+/* ── small helpers ── */
+var SUBS="₀₁₂₃₄₅₆₇₈₉";
+function toSubs(s){ return s.replace(/\d/g,function(d){ return SUBS.charAt(+d); }); }
+function plainDigits(s){ return s.replace(/[\u2080-\u2089]/g,function(c){ return ""+SUBS.indexOf(c); }); }
+function fH(f){ return esc(f).replace(/\d+/g,function(m){ return "<sub>"+m+"</sub>"; }); }
+function numOf(s){ s=String(s).replace(/,/g,"").trim(); return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(s) ? +s : NaN; }
+function near(got, want){ return isFinite(got) && Math.abs(got-want) <= 0.02*Math.abs(want); }
+function round(x,d){ var p=Math.pow(10,d); return Math.round(x*p)/p; }
+function fmt3(x){ return x>=1000 ? String(Math.round(x/10)*10) : x.toPrecision(3); }
+function mmText(f){ var hasIon=parts(f).some(function(p){ return p[0] in ION; }); return round(molarMass(f),hasIon?1:2).toFixed(hasIon?1:2); }
+var CAPS="Check the capitals. A symbol starts with a capital letter, and a second letter is always lowercase.";
+
+/* ── state ── */
+var M={level:null, recent:[], f:null, misses:0, tries:0, done:false, msg:"", msgOk:false};
+
+function pick(){
+  var list=LISTS[M.level===1?1:M.level===2?2:M.level===3?3:0], tries=0, f;
+  do{ f=list[Math.floor(Math.random()*list.length)]; } while(M.recent.indexOf(f)>=0 && ++tries<40);
+  M.recent.push(f); if(M.recent.length>6) M.recent.shift();
+  return f;
+}
+function newItem(){
+  M.f=pick(); M.misses=0; M.tries=0; M.done=false; M.msg=""; M.msgOk=false; M.bad={};
+  if(M.level<3){
+    var n = M.level<2 ? atoms(M.f).order.length : parts(M.f).length;
+    M.rows=[]; for(var i=0;i<n;i++) M.rows.push({sym:"",mol:"",mm:"",g:""});
+    M.total="";
+  } else {
+    var mol, r=Math.random();
+    /* any amount from 0.100 to 10.0 mol, three figures */
+    if(r<0.35) mol=(100+Math.floor(Math.random()*900))/1000;
+    else if(r<0.97) mol=(100+Math.floor(Math.random()*900))/100;
+    else mol=10.0;
+    M.mm=round(molarMass(M.f), 2);
+    M.dir=Math.random()<0.5?"g2m":"m2g";
+    if(M.dir==="m2g"){ M.gv=mol.toPrecision(3); M.gu="mol"; M.want="g"; M.answer=mol*M.mm; }
+    else { M.gv=fmt3(mol*M.mm); M.gu="g"; M.want="mol"; M.answer=numOf(M.gv)/M.mm; }
+    M.phase="setup"; M.top={n:"",u:""}; M.bot={n:"",u:""}; M.pairs=[]; M.pend=null; M.ans="";
+  }
+  render();
+}
+
+/* ── the "you are here" row ── */
+function molPath(){
+  var ca=M.level===0||M.level===1;
+  return {title:"Moles", segs:[], next:null, steps:[
+    {id:"level", opts:CA_LEVELS, cur:ca?String(M.level):null, sel:ca, nosep:true,
+     label:"Counting Atoms"+(ca?" \u00b7 "+CA_LEVELS[M.level][1]:"")},
+    {id:"level", btn:true, val:"2", label:"Molar Mass", sel:M.level===2, nosep:true},
+    {id:"level", btn:true, val:"3", label:"Moles \u2194 Grams", sel:M.level===3, nosep:true}]};
+}
+function drawPath(){ var el=document.getElementById("cwpath"); if(el) el.innerHTML=CW.pathHTML(molPath()); }
+function goLevel(lv){
+  M.level=lv; M.recent=[]; CW.save("mol",{level:lv});
+  document.getElementById("molgrid").hidden=false;
+  /* no calculator on Counting Atoms (29 Sept) */
+  document.getElementById("calc").hidden=lv<2;
+  drawPath(); newItem(); asgNow();
+}
+CW.init({draw:drawPath, pick:function(id,v){ if(id==="level"){ if(+v!==M.level) goLevel(+v); else drawPath(); } }});
+
+/* ── drawing ── */
+function inp(id,val,cls,label){
+  return '<input class="box '+(cls||"")+(M.bad[id]?" bad":"")+'" id="'+id+'" value="'+esc(val)+'" autocomplete="off" spellcheck="false"'+
+    (cls&&cls.indexOf("sym")>=0?'':' inputmode="decimal"')+' aria-label="'+esc(label)+'"'+(M.done?" disabled":"")+'>';
+}
+function msgHTML(){ return '<p class="msg '+(M.msgOk?"ok":"no")+'" role="status">'+M.msg+'</p>'; }
+function counterHTML(){ return '<div class="counter">'+(M.good||0)+' right first time this visit</div>'; }
+function render(){
+  var h='<div class="card'+(M.level===3?" l3":"")+'">';
+  if(M.level<2) h+=level1HTML(); else if(M.level===2) h+=level2HTML(); else h+=level3HTML();
+  h+=msgHTML();
+  h+='<div class="btnrow">'+buttonsHTML()+'</div>'+counterHTML()+'</div>';
+  document.getElementById("sec").innerHTML=h;
+  refreshButtons();
+}
+function level1HTML(){
+  var h='<p class="ask">How many moles of atoms of each element are in one mole of '+fH(M.f)+'?</p>';
+  h+='<div class="mtwrap"><table class="mt"><tr><th>Element</th><th>Moles of atoms</th></tr>';
+  M.rows.forEach(function(r,i){
+    h+='<tr><td>'+inp("s"+i,r.sym,"sym","element, row "+(i+1))+'</td><td>'+inp("m"+i,r.mol,"sm","moles, row "+(i+1))+'</td></tr>';
+  });
+  return h+'</table></div>';
+}
+function level2HTML(){
+  var h='<p class="ask">Find the molar mass of '+fH(M.f)+'.</p>';
+  h+='<div class="mtwrap"><table class="mt"><tr><th>Symbol</th><th>Moles in 1 mol<br>of '+fH(M.f)+'</th><th>Molar mass<br>(g/mol)</th><th>Grams</th></tr>';
+  M.rows.forEach(function(r,i){
+    h+='<tr><td>'+inp("s"+i,r.sym,"sym","symbol, row "+(i+1))+'</td><td>'+inp("m"+i,r.mol,"sm","moles, row "+(i+1))+
+       '</td><td>'+inp("k"+i,r.mm,"","molar mass, row "+(i+1))+'</td><td>'+inp("g"+i,r.g,"","grams, row "+(i+1))+'</td></tr>';
+  });
+  h+='<tr class="tot"><td class="lab" colspan="3">Total (g/mol)</td><td>'+inp("tot",M.total,"","total")+'</td></tr>';
+  return h+'</table></div>';
+}
+function unitWord(u){ return u==="g"?"grams":"moles"; }
+function unitHTML(where,u){
+  var gone=M.pairs.some(function(p){ return p.indexOf(where)>=0; });
+  var cls="unit"+(gone?" gone":"")+(M.pend===where?" pick":"");
+  var tag=M.phase==="cancel"?"button":"span";
+  return '<'+tag+' class="'+cls+'" data-u="'+where+'"'+(tag==="button"?' type="button"':'')+'>'+esc(u)+' '+fH(M.f)+'</'+tag+'>';
+}
+function unitSel(id,v){
+  return '<select id="'+id+'" aria-label="unit"'+(M.bad[id]?' class="bad"':'')+'><option value=""'+(v?"":" selected")+'>unit</option>'+
+    '<option value="g"'+(v==="g"?" selected":"")+'>g '+esc(toSubs(M.f))+'</option>'+
+    '<option value="mol"'+(v==="mol"?" selected":"")+'>mol '+esc(toSubs(M.f))+'</option></select>';
+}
+function level3HTML(){
+  var h='<p class="ask">How many '+unitWord(M.want)+' are in '+M.gv+' '+M.gu+' '+fH(M.f)+'?</p>';
+  h+='<p class="given">Molar mass of '+fH(M.f)+': '+mmText(M.f)+' g/mol</p>';
+  var lock=M.phase!=="setup";
+  function half(which,idn,ids){
+    var s=M[which];
+    if(lock) return '<span class="fpart"><span'+(M.bad[idn]?' style="color:var(--bad)"':'')+'>'+esc(s.n)+'</span> '+unitHTML(which,s.u)+'</span>';
+    return '<span class="fpart">'+inp(idn,s.n,"sm","number, "+(which==="top"?"top":"bottom"))+unitSel(ids,s.u)+'</span>';
+  }
+  h+='<div class="fl'+(M.phase==="cancel"?" cancel":"")+'"><span class="fpart">'+esc(M.gv)+' '+unitHTML("given",M.gu)+'</span>'+
+     '<span class="times">×</span><span class="frac">'+half("top","tn","tu")+'<span class="bar"></span>'+half("bot","bn","bu")+'</span></div>';
+  if(M.phase==="cancel") h+='<p class="ask" style="margin:14px 0 0;font-size:18px">Click the units that cancel.</p>';
+  if(M.phase==="answer"||M.phase==="done")
+    h+='<div class="ans">= '+(M.done?'<span>'+esc(M.ans)+'</span>':inp("ans",M.ans,"","answer"))+' <span>'+esc(M.want)+' '+fH(M.f)+'</span></div>';
+  return h;
+}
+function buttonsHTML(){
+  if(M.done) return '<button class="check" data-b="next">New problem</button>';
+  if(M.level===3){
+    if(M.phase==="setup") return '<button class="check" data-b="done">Done</button>';
+    if(M.phase==="cancel") return '<button class="check" data-b="check">Check</button><button class="check ghost" data-b="edit">Edit</button>';
+  }
+  return '<button class="check" data-b="check">Check</button>';
+}
+/* Done stays gray until all four are filled; Check until every box has something */
+function refreshButtons(){
+  var b=document.querySelector('[data-b="done"]');
+  if(b) b.disabled=!(M.top.n.trim()&&M.top.u&&M.bot.n.trim()&&M.bot.u);
+  var c=document.querySelector('[data-b="check"]');
+  if(c && M.level<3) c.disabled=!filled();
+  if(c && M.level===3 && M.phase==="answer") c.disabled=!M.ans.trim();
+}
+function filled(){
+  return M.rows.every(function(r){ return r.sym.trim()&&r.mol.trim()&&(M.level<2||(r.mm.trim()&&r.g.trim())); })&&(M.level<2||M.total.trim());
+}
+
+/* ── typing ── */
+document.addEventListener("input",function(ev){
+  var t=ev.target, id=t.id; if(!id || M.level===null) return;
+  var v=t.value;
+  if(/^s\d+$/.test(id)){ var pos=t.selectionStart; v=toSubs(v); t.value=v; try{ t.setSelectionRange(pos,pos); }catch(e){} }
+  var m=/^([smkg])(\d+)$/.exec(id);
+  if(m){ M.rows[+m[2]][{s:"sym",m:"mol",k:"mm",g:"g"}[m[1]]]=v; }
+  else if(id==="tot") M.total=v;
+  else if(id==="tn") M.top.n=v; else if(id==="bn") M.bot.n=v;
+  else if(id==="tu") M.top.u=v; else if(id==="bu") M.bot.u=v;
+  else if(id==="ans") M.ans=v;
+  if(M.bad[id]){ delete M.bad[id]; t.classList.remove("bad"); }
+  refreshButtons();
+});
+document.addEventListener("change",function(ev){ if(ev.target.tagName==="SELECT") ev.target.dispatchEvent(new Event("input",{bubbles:true})); });
+/* Enter: the next empty box, then the button */
+document.addEventListener("keydown",function(ev){
+  if(ev.key!=="Enter" || !/^(INPUT|SELECT)$/.test(ev.target.tagName) || !ev.target.closest("#sec")) return;
+  ev.preventDefault();
+  var boxes=[].slice.call(document.querySelectorAll("#sec input.box, #sec select"));
+  var empty=boxes.filter(function(b){ return !b.value.trim(); });
+  if(empty.length){ empty[0].focus(); return; }
+  var b=document.querySelector("#sec .btnrow .check:not(.ghost)"); if(b && !b.disabled) b.click();
+});
+document.addEventListener("click",function(ev){
+  var b=ev.target.closest("#sec [data-b]");
+  if(b && !b.disabled){ ({next:newItem, check:doCheck, done:setupDone, edit:editSetup})[b.dataset.b](); return; }
+  var u=ev.target.closest("#sec .cancel [data-u]");
+  if(u) clickUnit(u.dataset.u);
+});
+
+/* ── Levels 1 and 2: check the table ── */
+function checkRows(){
+  var need = M.level<2 ? atoms(M.f).order.map(function(e){ return [e,atoms(M.f).out[e]]; }) : parts(M.f);
+  var left=need.slice(), bad={}, notes=[], allOk=true, typed=[];
+  M.rows.forEach(function(r,i){
+    var s=plainDigits(r.sym.trim()); typed.push(s+":"+r.mol);
+    var hit=null;
+    for(var j=0;j<left.length;j++) if(left[j][0]===s){ hit=left.splice(j,1)[0]; break; }
+    if(!hit){
+      bad["s"+i]=1; allOk=false;
+      if(left.some(function(p){ return p[0].toLowerCase()===s.toLowerCase(); })) notes.push(CAPS);
+      else if(/[+\-]/.test(s)) notes.push("Leave the charge off the ion.");
+      else if(M.level===2 && MOLECULAR.indexOf(M.f)<0 && parts(M.f).some(function(p){ return p[0] in ION && atoms(p[0]).order.indexOf(s)>=0; }))
+        notes.push("In an ionic compound, each ion gets one row.");
+      return;
+    }
+    var mol=numOf(r.mol);
+    if(mol!==hit[1]){ bad["m"+i]=1; allOk=false; }
+    if(M.level===2){
+      if(!near(numOf(r.mm), massOf(hit[0]))){ bad["k"+i]=1; allOk=false; }
+      if(!near(numOf(r.g), hit[1]*massOf(hit[0]))){ bad["g"+i]=1; allOk=false; }
+    }
+  });
+  if(M.level===2 && !near(numOf(M.total), molarMass(M.f))){ bad.tot=1; allOk=false; }
+  return {ok:allOk, bad:bad, note:notes[0]||"", typed:typed.join(" ")+(M.level===2?" | "+M.total:"")};
+}
+function doCheck(){
+  if(M.level===3) return M.phase==="cancel" ? checkSetup() : checkAnswer();
+  if(!filled()) return;
+  M.tries++;
+  var r=checkRows();
+  logAttempt(M.level<2?"atoms":"table", M.f, r.typed, r.ok, r.ok?"":(r.note?"note":"value"), M.tries);
+  if(r.ok) return finish();
+  M.misses++; M.bad=r.bad;
+  M.msg=r.note || "Not quite. Check the boxed answers."; M.msgOk=false;
+  render();
+}
+function finish(){
+  M.done=true; M.bad={}; M.msgOk=true;
+  M.msg=M.misses?"Correct!":"Correct! Right, first time.";
+  if(!M.misses) M.good=(M.good||0)+1;
+  track(M.misses===0);
+  render();
+}
+
+/* ── Level 3: set up, cancel, check, answer ── */
+var SIDE={given:"top", top:"top", bot:"bot"};
+function unitAt(w){ return w==="given" ? M.gu : M[w].u; }
+function setupDone(){
+  if(!(M.top.n.trim()&&M.top.u&&M.bot.n.trim()&&M.bot.u)) return;
+  /* pairs from before Edit stay only if they still cancel */
+  M.pairs=M.pairs.filter(function(p){ return unitAt(p[0])===unitAt(p[1]); });
+  M.phase="cancel"; M.pend=null; M.msg=""; M.bad={};
+  render();
+}
+function editSetup(){ M.phase="setup"; M.pend=null; M.msg=""; render(); }
+function clickUnit(w){
+  var pi=-1;
+  M.pairs.forEach(function(p,i){ if(p.indexOf(w)>=0) pi=i; });
+  if(pi>=0){ M.pairs.splice(pi,1); M.pend=null; M.msg=""; return render(); }
+  if(M.pend===null || M.pend===w){ M.pend = M.pend===w ? null : w; M.msg=""; return render(); }
+  var a=M.pend, b=w; M.pend=null;
+  if(unitAt(a)!==unitAt(b)) M.msg="Grams and moles are different units. Only like units can cancel.";
+  else if(SIDE[a]===SIDE[b]) M.msg="Units cancel only when one is on top and the other is on the bottom.";
+  else { M.pairs.push([a,b]); M.msg=""; }
+  M.msgOk=false; render();
+}
+function leftover(){
+  var tops=[M.gu, M.top.u], bots=[M.bot.u];
+  bots.forEach(function(u){ var i=tops.indexOf(u); if(i>=0){ tops.splice(i,1); bots=[]; } });
+  return bots.length===0 && tops.length===1 ? tops[0] : null;
+}
+function checkSetup(){
+  var lo=leftover(), typed=M.gv+" "+M.gu+" x "+M.top.n+" "+M.top.u+" / "+M.bot.n+" "+M.bot.u;
+  if(lo===M.want && !M.pairs.length){ M.msg="Click the units that cancel."; M.msgOk=false; return render(); }
+  M.tries++;
+  if(lo!==M.want){
+    M.misses++;
+    M.msg = lo ? "Your answer would be in "+unitWord(lo)+". The question asks for "+unitWord(M.want)+"."
+               : "Those units do not cancel down to one unit. Check which unit goes on the bottom.";
+    logAttempt("setup", M.f+" "+M.gu+">"+M.want, typed, false, "unit", M.tries);
+    M.msgOk=false; return render();
+  }
+  var want=function(u){ return u==="g" ? M.mm : 1; }, bad={};
+  if(!near(numOf(M.top.n), want(M.top.u))) bad.tn=1;
+  if(!near(numOf(M.bot.n), want(M.bot.u))) bad.bn=1;
+  var ok=!bad.tn && !bad.bn;
+  logAttempt("setup", M.f+" "+M.gu+">"+M.want, typed, ok, ok?"":"number", M.tries);
+  if(!ok){
+    M.misses++; M.bad=bad; M.phase="setup";
+    M.msg="Not quite. Check the boxed "+(bad.tn&&bad.bn?"numbers":"number")+"."; M.msgOk=false;
+    return render();
+  }
+  M.phase="answer"; M.msg=""; M.bad={}; M.aTries=0; render();
+  var a=document.getElementById("ans"); if(a) a.focus();
+}
+function checkAnswer(){
+  if(!M.ans.trim()) return;
+  M.aTries=(M.aTries||0)+1;
+  var ok=near(numOf(M.ans), M.answer);
+  logAttempt("answer", M.f+" "+M.gv+" "+M.gu, M.ans, ok, ok?"":"value", M.aTries);
+  if(ok){ M.phase="done"; return finish(); }
+  M.misses++; M.bad={ans:1}; M.msg="Not quite."; M.msgOk=false; render();
+}
+
+/* ── the calculator: taps and the keyboard ── */
+var C={ex:"", last:""};
+var KEYS=[["C","clear"],["(","("],[")",")"],["⌫","back"],["7"],["8"],["9"],["÷","/"],["4"],["5"],["6"],["×","*"],
+          ["1"],["2"],["3"],["−","-"],["0"],["."],["=","eq"],["+","+"]];
+function calcHTML(){
+  return '<div class="cdisp" aria-live="polite"><div class="ex">'+esc(C.last)+'</div><div id="cshow">'+
+    esc(C.ex.replace(/\*/g,"×").replace(/\//g,"÷").replace(/-/g,"−")||"0")+'</div></div><div class="ckeys">'+
+    KEYS.map(function(k){ var v=k[1]||k[0], op=/^[\/*\-+()]$/.test(v)||v==="clear"||v==="back";
+      return '<button type="button" class="'+(v==="eq"?"eq":op?"op":"")+'" data-ck="'+esc(v)+'">'+k[0]+'</button>'; }).join("")+'</div>';
+}
+function calcKey(v){
+  if(v==="clear"){ C.ex=""; C.last=""; }
+  else if(v==="back") C.ex=C.ex.slice(0,-1);
+  else if(v==="eq"){
+    if(!C.ex) return;
+    var r=calcEval(C.ex);
+    C.last=C.ex.replace(/\*/g,"×").replace(/\//g,"÷").replace(/-/g,"−")+" =";
+    C.ex = r===null ? "" : r;
+    if(r===null) C.last="Can't work that out";
+  }
+  else if(C.ex.length<60) C.ex+=v;
+  document.getElementById("calc").innerHTML=calcHTML();
+}
+function calcEval(s){
+  if(!/^[0-9.+\-*\/() ]+$/.test(s)) return null;
+  var x; try{ x=Function('"use strict";return ('+s+')')(); }catch(e){ return null; }
+  if(typeof x!=="number" || !isFinite(x)) return null;
+  var t=String(+x.toPrecision(10));
+  return /e/.test(t) ? x.toPrecision(6) : t;
+}
+document.addEventListener("click",function(ev){ var k=ev.target.closest("[data-ck]"); if(k) calcKey(k.dataset.ck); });
+document.addEventListener("keydown",function(ev){
+  if(M.level===null || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  var t=ev.target;
+  if(t && (t.tagName==="INPUT"||t.tagName==="SELECT"||t.tagName==="TEXTAREA"||t.isContentEditable)) return;
+  var k=ev.key, v=null;
+  if(/^[0-9.+\-*\/()]$/.test(k)) v=k;
+  else if(k==="x"||k==="X") v="*";
+  else if(k==="Enter"||k==="=") v="eq";
+  else if(k==="Backspace") v="back";
+  else if(k==="Escape"||k==="c"||k==="C"||k==="Delete") v="clear";
+  if(v){ ev.preventDefault(); calcKey(v); }
+});
+
+/* ── start ── */
+(function(){
+  markSynced(true);
+  if(ST.n){
+    try{ fetch(API+"/signin",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({n:ST.n, app:"moles"}), keepalive:true}).catch(function(){}); }catch(e){}
+    loadAssigned();
+    flushAll();
+  }
+  document.getElementById("calc").innerHTML=calcHTML();
+  var go=/[#&]go=mol_(1b|1a|2|3)/.exec(location.hash), s=CW.load("mol");
+  if(go) goLevel(LEVEL_IDS.indexOf("mol_"+go[1]));
+  else if(s && s.level>=0 && s.level<4) goLevel(s.level);
+  else drawPath();
+  window.addEventListener("hashchange",function(){
+    var g=/[#&]go=mol_(1b|1a|2|3)/.exec(location.hash);
+    if(g) goLevel(LEVEL_IDS.indexOf("mol_"+g[1]));
+  });
+})();
+</script>
+</body>
+</html>

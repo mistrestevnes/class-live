@@ -1,0 +1,3519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balancing · Class Live</title>
+<style>
+  :root{
+    --bg:#f4f2ec; --panel:#ffffff; --line:#12120f; --soft:#c9c5ba;
+    --text:#101010; --muted:#454239;
+    --mark:#c2410c; --faint:#8a857a; --soft2:#e9e5da;
+    --badbg:#ffecef; --badln:#f2a6a0; --goodbg:#e8f5ec; --warnbg:#fff3e8; --warnln:#fbd9bf;
+    --bluebg:#e3edfb; --blueln:#bfe0f0; --blue:#0b4fa8;
+    --good:#0a6b34; --bad:#b00018; --note:#7a4c00; --mark:#c2410c; 
+    --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);
+    padding:44px 16px 28px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;text-align:center}
+  sub{font-size:.6em;line-height:0}
+
+  h1{font-size:30px;font-weight:800;margin:0 0 14px}
+
+
+  /* ── sign in ─────────────────────────────────────────────────── */
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;
+    align-items:center;justify-content:center;z-index:50;padding:20px}
+  #gate[hidden]{display:none}   /* display:flex would beat the attribute */
+  .gatebox{background:var(--panel);border:3px solid var(--line);border-radius:20px;
+    padding:32px 28px;max-width:460px;width:100%;text-align:center}
+  .gatebox h2{margin:0 0 6px;font-size:27px;font-weight:800}
+  .gatelede{margin:0 0 22px;font-size:17px;color:var(--muted);line-height:1.45;font-weight:600}
+  .gatenum{font-family:var(--mono);font-size:46px;font-weight:700;width:7.5ch;max-width:100%;
+    text-align:center;letter-spacing:.06em;color:var(--text);background:var(--panel);
+    border:3px solid var(--line);border-radius:14px;padding:8px 6px;vertical-align:middle}
+  .gatenum:focus{outline:3px solid var(--note);outline-offset:2px}
+  .gatenum::placeholder{color:var(--soft);font-size:22px}
+  #gateAsk{display:flex;gap:12px;align-items:center;justify-content:center}
+  #gateAsk .check{margin-top:0}
+  .gatename{font-size:30px;font-weight:800;margin:4px 0 20px}
+  .gatebtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .gatebtns .check{margin-top:0}
+  .gatemsg{margin:16px auto 0;font-size:15.5px;line-height:1.45;color:var(--bad);
+    font-weight:700;min-height:1.4em;max-width:34ch}
+  .linkbtn{margin-top:14px;background:none;border:none;color:var(--muted);
+    font:700 14px var(--font);text-decoration:underline;cursor:pointer}
+  .linkbtn:hover{color:var(--text)}
+  .build{position:fixed;right:8px;bottom:6px;font:700 11px var(--mono);
+    color:var(--muted);opacity:.5}
+  .gatebuild{position:static;margin:14px 0 0;text-align:center}
+
+  /* ── buttons ─────────────────────────────────────────────────── */
+  .check{margin-top:24px;background:var(--line);color:var(--panel);border:3px solid var(--line);
+    border-radius:13px;padding:15px 40px;font:800 22px var(--font);cursor:pointer}
+  .check:hover{background:var(--text);border-color:var(--text)}
+  .check.ghostbtn{background:transparent;color:var(--text)}
+  .check.ghostbtn:hover{background:var(--soft);border-color:var(--line)}
+  .check:disabled,.check:disabled:hover{opacity:.35;cursor:default;
+    background:var(--line);border-color:var(--line)}
+
+  /* ── the equation ────────────────────────────────────────────── */
+  .eqbox{background:var(--panel);border:3px solid var(--line);border-radius:18px;
+    padding:20px 18px;margin:0 auto 20px;max-width:720px}
+  /* one line always — the size steps down rather than the equation wrapping */
+  .eqbox{overflow:hidden}      /* fitEq() shrinks it to fit, so nothing scrolls */
+  .eq{display:flex;flex-wrap:nowrap;gap:6px 10px;align-items:center;
+    justify-content:center;white-space:nowrap;
+    font-family:var(--mono);font-size:52px;font-weight:700;line-height:1.3;
+    letter-spacing:1px}
+  .eq.s1{font-size:44px}
+  .eq.s2{font-size:37px;letter-spacing:0}
+  .eq.s3{font-size:31px;letter-spacing:0;gap:4px 6px}
+  .eq.s1 .coef{font-size:44px;min-width:48px;height:56px}
+  .eq.s2 .coef{font-size:37px;min-width:40px;height:48px;border-bottom-width:5px}
+  .eq.s3 .coef{font-size:31px;min-width:34px;height:42px;border-bottom-width:5px}
+  .eq .plus,.eq .arrow{font-weight:700;padding:0 4px}
+  .term{display:inline-flex;align-items:baseline;gap:4px}
+  /* while counting, the element being counted is boxed where it appears —
+     the prompt says which element, this says where to look for it */
+  .eq .mark{outline:4px solid var(--mark);outline-offset:3px;border-radius:7px}
+  /* the number outside parentheses, on the intro screen that explains it */
+  .exf .multi{outline:3px dashed var(--mark);outline-offset:3px;
+    border-radius:5px;color:var(--mark)}
+  /* a coefficient is written on a line, not in a box */
+  .coef{width:2ch;min-width:58px;height:64px;text-align:center;
+    font:700 52px var(--mono);color:var(--text);background:transparent;
+    border:none;border-bottom:6px solid var(--line);border-radius:0;padding:0 2px}
+  .coef:focus{outline:none;border-bottom-color:var(--mark);background:var(--warnbg)}
+  .coef.bad{border-bottom-color:var(--bad);background:var(--badbg)}
+  /* balanced: the coefficients and the number words that match them (24 Sept) */
+  .coef.solved{color:var(--good);border-bottom-color:var(--good)}
+  .meaning{margin:10px 0 16px;font:600 20px var(--font);line-height:1.5}
+  .meaning .mnum{font-weight:800;color:var(--good)}
+
+  /* ── table on the left, prompts beside it on the right ───────── */
+  .workrow{display:flex;gap:24px;align-items:center;justify-content:flex-start;
+    max-width:720px;margin:0 auto}
+  .guide{flex:1 1 auto;text-align:left;min-width:0}
+  .guide .check{margin-top:18px}
+  .lead{margin:0;font-size:24px;font-weight:700;line-height:1.38}
+  .lead b{font-weight:800}
+  .lead .side,.hint .side{color:var(--blue);font-weight:800}
+  .btnrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btnrow .check{margin-top:18px}
+  .btnrow .ghostbtn{padding:15px 26px}
+  .tip{margin:14px 0 0;padding:12px 14px;background:var(--warnbg);
+    border-left:6px solid var(--mark);border-radius:0 10px 10px 0;
+    font-size:18px;font-weight:600;line-height:1.45}
+  .tip b{font-weight:800}
+  .tip .mono{font-family:var(--mono)}
+  .lead .warn{color:var(--mark);font-weight:800}
+  .win .offer{font-size:18px;font-weight:700;line-height:1.45;color:var(--text);
+    margin:10px auto 4px;max-width:34ch}
+  .guide .linkbtn{margin-top:12px;display:block}
+  .counter .linkbtn{margin:0 0 0 4px;font-size:13.5px;font-family:var(--font)}
+  .hint{margin:12px 0 0;font-size:20px;font-weight:700;line-height:1.4;
+    color:var(--bad)}
+  .hint.blank{display:none}
+  .erpwrap{flex:0 0 auto}
+
+  /* ── the ERP table ───────────────────────────────────────────── */
+  .erp{border-collapse:separate;border-spacing:0;background:var(--panel);
+    border:3px solid var(--line);border-radius:14px;overflow:hidden}
+  .erp th{font:800 14px var(--font);letter-spacing:.07em;text-transform:uppercase;
+    color:var(--text);padding:9px 8px;background:var(--soft);
+    border-bottom:3px solid var(--line);white-space:nowrap}
+  .erp td{padding:7px 8px;border-bottom:2px solid var(--soft)}
+  /* what went out of date when a coefficient changed, and has to be counted
+     again */
+  .erp td.restale > *{outline:3px solid var(--bad);outline-offset:3px;
+    border-radius:8px}
+  .erp td.restale .waiting{color:var(--bad);opacity:1}
+  .erp tr:last-child td{border-bottom:none}
+  .erp td.ecell,.erp th:first-child{width:104px}
+  /* a whole ion in the first column (ClO4) needs more room than a symbol */
+  .erp.wide td.ecell,.erp.wide th:first-child{width:150px}
+  .erp td.ncell,.erp th:not(:first-child){width:112px}
+  .erp input{width:100%;height:66px;text-align:center;background:var(--panel);
+    border:3px solid var(--line);border-radius:10px;color:var(--text);
+    font:700 42px var(--mono);padding:0}
+  .erp input:focus{outline:4px solid var(--mark);outline-offset:2px}
+  .erp input::placeholder{color:var(--soft)}
+  .erp input.bad{border-color:var(--bad);background:var(--badbg)}
+  .erp .elock{font:700 46px var(--mono);text-align:center;line-height:1.35}
+  .erp .fixed{font:700 42px var(--mono);text-align:center;line-height:1.55}
+  .erp .waiting{font:700 42px var(--mono);text-align:center;color:var(--soft);line-height:1.55}
+  /* live counts: colour is the whole signal once balancing starts */
+  .erp .live{font:800 44px var(--mono);text-align:center;line-height:1.5;
+    transition:color .18s}
+  .erp .live.match{color:var(--good)}
+  .erp .live.miss{color:var(--bad)}
+  .erp tr.row.matched td{background:var(--goodbg)}
+
+  .counter{margin:26px 0 0;font:700 15px var(--mono);color:var(--muted)}
+  .counter b{color:var(--text)}
+
+  .win{background:var(--panel);border:3px solid var(--good);border-radius:16px;
+    padding:16px 20px;margin:0;animation:pop .3s;text-align:center}
+  .win .f{font-size:28px;font-weight:800;color:var(--good)}
+  .win .earned{margin:6px 0 0;font-size:17px;font-weight:700;color:var(--mark)}
+  .setwin{max-width:520px;margin:0 auto}
+
+  /* ── the walkthrough that opens the advanced level ───────────── */
+  .intro{background:var(--panel);border:3px solid var(--line);border-radius:18px;
+    padding:24px 26px;max-width:620px;margin:0 auto;text-align:left}
+  .intro h2{margin:0 0 10px;font-size:26px;font-weight:800}
+  .intro p{margin:0 0 14px;font-size:19px;font-weight:600;line-height:1.45}
+  .exbox{text-align:center;margin:18px 0}
+  .exf{font:700 54px var(--mono);letter-spacing:1px}
+  .extab{margin:0 auto 16px;border-collapse:collapse;font-size:20px;font-weight:700}
+  .extab td{padding:7px 16px;border-bottom:2px solid var(--soft)}
+  .extab td:first-child{width:80px}
+  .extab td:first-child{font-family:var(--mono);font-size:24px;text-align:right}
+  .extab tr:last-child td{border-bottom:none}
+  .exwarn{font-weight:800}
+  .intro .check{display:block;margin:20px auto 0}
+  .tipbox{max-width:660px}
+  .tiplist{margin:0;padding-left:26px}
+  .tiplist li{font-size:18px;font-weight:600;line-height:1.45;margin-bottom:11px}
+  .tiplist .mono{font-family:var(--mono)}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+  .win button{margin-top:14px;background:var(--line);color:var(--panel);border:3px solid var(--line);
+    border-radius:12px;padding:13px 30px;font:800 19px var(--font);cursor:pointer}
+
+  /* ── the picture that fills in as equations are finished ─────── */
+  .reward{margin:28px auto 0;max-width:320px}
+  .pzhead{font:800 15px var(--font);color:var(--muted);margin:0 0 8px}
+  .pzhead b{color:var(--text)}
+  .pzwrap{position:relative;width:288px;height:288px;margin:0 auto;
+    border:3px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .pzart{position:absolute;inset:0}
+  .pzart svg{width:100%;height:100%;display:block}
+  .pztile{position:absolute;background:var(--soft);
+    box-shadow:inset 0 0 0 1px var(--bg);
+    transition:opacity .5s ease,transform .5s ease}
+  .pztile.gone{opacity:0;transform:scale(.7)}
+  .pzdone{margin:10px 0 0;font:800 17px var(--font);color:var(--good)}
+  .pzdone button{margin-top:8px;background:var(--line);color:var(--panel);
+    border:3px solid var(--line);border-radius:11px;padding:9px 20px;
+    font:800 15px var(--font);cursor:pointer}
+
+
+  @media (max-width:760px){
+    .workrow{flex-direction:column;gap:16px;align-items:center}
+    .guide{text-align:center;flex:1 1 100%}
+  }
+  @media (max-width:620px){
+    body{padding-top:62px}   /* the name pill wraps to two lines down here */
+    .eq{font-size:38px}
+    .coef{min-width:44px;height:48px;font-size:38px;border-bottom-width:5px}
+    .lead{font-size:21px} .hint{font-size:18px}
+    .erp td.ecell,.erp th:first-child{width:82px}
+    .erp.wide td.ecell,.erp.wide th:first-child{width:118px}
+    .erp td.ncell,.erp th:not(:first-child){width:88px}
+    .erp input{height:56px;font-size:34px}
+    .erp .elock{font-size:36px} .erp .fixed,.erp .waiting{font-size:34px}
+    .erp .live{font-size:36px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .build,.gatebuild{display:none!important}
+</style>
+<script src="/practice/theme.js"></script>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gatebox">
+    <h2>Class Live</h2>
+    <p class="gatelede" id="gateLede">Type your class number to begin.</p>
+
+    <div id="gateAsk">
+      <input id="gateNum" class="gatenum" inputmode="numeric" autocomplete="off"
+             maxlength="12" aria-label="Class number" placeholder="number">
+      <button class="check" id="gateGo">Go</button>
+    </div>
+
+    <div id="gateConfirm" hidden>
+      <div class="gatename" id="gateName"></div>
+      <div class="gatebtns">
+        <button class="check" id="gateYes">Yes, that's me</button>
+        <button class="check ghostbtn" id="gateNo">No, go back</button>
+      </div>
+    </div>
+
+    <p class="gatemsg" id="gateMsg"></p>
+    <button class="linkbtn" id="gateSkip">Just practice — don't record my work</button>
+    <p class="build gatebuild">build 3.17</p>
+  </div>
+</div>
+
+<div id="cwtop"></div>
+<div class="wrap" id="app" hidden>
+  <div class="build">build 3.17</div>
+  <div id="sec"></div>
+</div>
+
+<style>
+  /* ── predicting products ─────────────────────────────────────── */
+  .eqbox.ppwork{padding-bottom:62px}   /* room for the steppers under the boxes */
+  .ppcomp{display:inline-flex;gap:8px;align-items:center}
+  .ppslot{position:relative;display:inline-flex}
+  .ppbox{min-width:84px;height:74px;padding:0 8px;display:inline-flex;align-items:center;
+    justify-content:center;border:4px dashed var(--soft);border-radius:12px;
+    background:var(--soft2);cursor:pointer;touch-action:none}
+  .ppbox.full{border-style:solid;border-color:var(--line);background:var(--panel)}
+  .ppbox.target{border-color:var(--mark)}
+  .ppbox.over{border-color:var(--mark);border-style:solid;background:var(--warnbg)}
+  .ppbox.bad{border-color:var(--bad);border-style:solid;background:var(--badbg)}
+  .ppstep{position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    margin-top:8px;display:flex;gap:6px}
+  .ppstep.off{visibility:hidden}
+  .ppstep button{width:36px;height:36px;padding:0;border:3px solid var(--line);
+    border-radius:9px;background:var(--panel);color:var(--text);
+    font:800 22px/1 var(--font);cursor:pointer}
+  .ppstep button:disabled{opacity:.3;cursor:default}
+  .pptray{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:24px auto 22px}
+  .pppc sup,.pptile sup{font-size:.5em;line-height:0}
+  /* the charge is grayed so it never reads as part of the formula */
+  .ppq{color:var(--faint);font-weight:600}
+  .pptile{display:inline-flex;align-items:center;gap:12px;min-width:96px;padding:10px 20px;background:var(--panel);color:var(--text);
+    border:3px solid var(--line);border-radius:14px;font:700 44px var(--mono);
+    cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .pptile.setting{cursor:default;padding-right:10px}
+  .pptile.bad{border-color:var(--bad);background:var(--badbg)}
+  .ppchg{display:flex;flex-direction:column;gap:4px}
+  .ppchg button{width:40px;height:30px;padding:0;border:3px solid var(--line);border-radius:8px;
+    background:var(--panel);color:var(--text);font:800 15px/1 var(--font);cursor:pointer}
+  .ppchg button:disabled{opacity:.3;cursor:default}
+  .pptile.sel{border-color:var(--mark);box-shadow:0 0 0 5px var(--warnln)}
+  .pptile.used{opacity:.2;cursor:default}
+  .pptile.lifted{opacity:.35}
+  .ppghost{position:fixed;z-index:60;pointer-events:none;transform:translate(-50%,-50%);
+    box-shadow:0 8px 20px rgba(0,0,0,.25)}
+  .ppguide{max-width:720px;margin:0 auto}
+  .ppsym{width:3.2em;height:58px;margin:0 4px;text-align:center;vertical-align:middle;
+    font:700 34px var(--mono);color:var(--text);background:var(--panel);
+    border:3px solid var(--line);border-radius:10px}
+  .ppsym:focus{outline:4px solid var(--mark);outline-offset:2px}
+  .ppsym.bad{border-color:var(--bad);background:var(--badbg)}
+  .ppguide .btnrow,.bottomrow .btnrow{justify-content:center}
+  .bottomrow{margin:6px 0 0}
+  .linkrow{display:flex;gap:22px;justify-content:center}
+  .linkrow .linkbtn{margin-top:10px}
+  .okmsg{margin:0 0 10px;font:800 28px var(--font);color:var(--good)}
+  .ppnote{margin:0 0 12px;font-size:24px;font-weight:800}
+  .eq .unbal{outline:4px solid var(--bad);outline-offset:3px;border-radius:7px}
+  /* from names: the reactant names in the equation, and the boxes under it */
+  .eq .pnword{font:700 .62em var(--font);white-space:nowrap}
+  .eq .pnq{color:var(--faint)}
+  .pncards{display:flex;flex-direction:column;gap:18px;margin:18px 0 4px}
+  .pncard{border:3px solid var(--line);border-radius:14px;background:var(--soft2);padding:14px 16px}
+  .pnions{display:flex;gap:14px 26px;flex-wrap:wrap;justify-content:center}
+  .pnion{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pnlab{font-size:20px;font-weight:700;min-width:6.2em}
+  .pnsym,.pnchg{height:58px;text-align:center;font:700 32px var(--mono);color:var(--text);
+    background:var(--panel);border:3px solid var(--line);border-radius:10px}
+  .pnsym{width:3.4em} .pnchg{width:2.8em}
+  .pnsym::placeholder,.pnchg::placeholder{font:500 15px var(--font);color:var(--faint)}
+  .pnsym:focus,.pnchg:focus,.pncards .finput:focus{outline:4px solid var(--mark);outline-offset:2px}
+  .pnsym:disabled,.pnchg:disabled{background:var(--panel);border-style:dashed;color:var(--text);opacity:1}
+  .pnsym.bad,.pnchg.bad,.pncards .finput.bad{border-color:var(--bad);background:var(--badbg)}
+  .pnfrow{display:flex;align-items:center;gap:8px;margin-top:14px;justify-content:center;flex-wrap:wrap}
+  .pncards .finput{min-width:7em;min-height:62px;padding:4px 14px;font:700 38px/1.3 var(--mono);
+    color:var(--text);background:var(--panel);border:3px solid var(--line);border-radius:10px;text-align:left}
+  .pncards .finput.sym{min-width:4em}
+  .pncards .finput.sym:empty:before{content:"type the symbol";font:500 15px var(--font);color:var(--faint)}
+  .pncards .finput:not(.sym):empty:before{content:"type the formula";font:500 15px var(--font);color:var(--faint)}
+  .pncards .finput sub{font-size:.58em;line-height:1}
+  .pnend{color:var(--bad)}
+  @media (max-width:620px){
+    .pptile{font-size:34px;min-width:78px;padding:8px 14px}
+    .ppnote{font-size:21px}
+    .pnsym,.pnchg{font-size:26px;height:50px} .pncards .finput{font-size:30px}
+  }
+</style>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   STUDENT SIGN-IN AND TRACKING
+   Shares the class list and the Worker with the ionic page, so a
+   student's number is the same one they already use.
+   ═══════════════════════════════════════════════════════════════ */
+/* ── the tracking switch ────────────────────────────────────────
+   false: no sign-in screen, no class numbers, nothing sent anywhere.
+   Set it back to true to turn the roster and the dashboard back on. */
+var TRACKING = false;
+
+var API=(window.ION_API||"/api").replace(/\/+$/,""), QKEY="ionq", ST={n:null,name:null,off:false};
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");}
+/* A class number: digits only, short ones padded to three so an old
+   three-digit roster still works, longer ones kept whole. The Worker does
+   exactly the same, so the two always agree. */
+function normNum(raw){
+  var d=String(raw==null?"":raw).replace(/\D/g,"");
+  if(!d || d.length>12) return "";
+  return d.length<3 ? ("00"+d).slice(-3) : d;
+}
+function tqRead(){ try{ return JSON.parse(localStorage.getItem(QKEY)||"[]"); }catch(e){ return []; } }
+function tqWrite(q){ try{ localStorage.setItem(QKEY,JSON.stringify(q.slice(-400))); }catch(e){} }
+
+function track(activity, clean){
+  if(!TRACKING || !ST.n) return;
+  var q=tqRead();
+  q.push({n:ST.n, a:activity, c:clean?1:0, t:Date.now()});
+  tqWrite(q);
+  ASG.forEach(function(x){ if(x.a===activity) x.k++; });
+  asgNow();
+}
+
+/* ── assignments (24 Sept) ──────────────────────────────────────
+   Read once after sign-in. The server sends the finishes it already has;
+   finishes still waiting in the queue here are added on top, and every
+   finish from now on adds one as it happens. */
+var ASG=[];
+function loadAssigned(then){
+  if(!TRACKING || !ST.n) return then();
+  /* the queue as it stands now; nothing is posted until the reply is in, so
+     the server's count and this queue never overlap */
+  var q=tqRead();
+  fetch(API+"/assigned?n="+ST.n)
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(d){
+      ASG=(d.list||[]).map(function(x){
+        var ts=x.ts||[];
+        x.k=ts.length;
+        /* a finish still queued here counts unless the server already has
+           it — a page closed mid-post leaves it in both places */
+        q.forEach(function(e){
+          if(e.n===ST.n && e.a===x.a && e.t>=x.c && ts.indexOf(e.t)<0) x.k++; });
+        delete x.ts;
+        return x;
+      });
+      if(L.level===null) menuOnly();
+      else{   /* arrived from the dashboard before the list came back: just the counter */
+        var c=document.querySelector("#sec .counter");
+        if(c) c.outerHTML=counterHTML();
+      }
+    })
+    .catch(function(){})
+    .then(function(){ asgNow(); then(); });
+}
+
+/* Every check, with what went wrong (23 Sept) — the same record Ion
+   Workshop keeps, posted to /api/attempt. Cloudflare's free plan counts
+   writes, and each post is one write per student, so nothing goes out per
+   check: both queues go together every FLUSH_MS, and when the page is left. */
+var LKEY="ballog", FLUSH_MS=120000, lflushing=false;
+function lqRead(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"[]"); }catch(e){ return []; } }
+function lqWrite(q){ try{ localStorage.setItem(LKEY,JSON.stringify(q.slice(-1500))); }catch(e){} }
+/* the Worker takes 200 at a time; anything over goes in the next post */
+var POST_MAX=200;
+/* the results id for where the student is: bal_sr2, bal_pp1, bal_pn1 ... */
+function actId(){
+  var t=L.type;
+  if(L.src==="n") t = t==="pp" ? "pn" : "pdn";
+  return "bal_"+t+(L.level+1);
+}
+/* detail (24 Sept): for a check with more than one part, which parts were
+   right and which were wrong, so the dashboard can colour each one rather
+   than the whole answer. "label=1|label=0|..."; built with detailStr(). */
+/* topics (optional): which practice topics this check counts toward on the
+   student's progress page — "C1,P0,M" = charges missed, polyatomic ion
+   right, and the missed charge was a multivalent metal's */
+function logAttempt(step, asked, typed, ok, fault, tryNo, detail, topics){
+  if(!TRACKING || !ST.n) return;
+  var q=lqRead();
+  var row={n:ST.n, a:actId(), s:step, p:String(asked).slice(0,60),
+          y:String(typed).slice(0,40), k:ok?1:0, f:fault||"", r:tryNo||1, t:Date.now()};
+  if(detail) row.d=String(detail).slice(0,180);
+  if(topics) row.g=String(topics).slice(0,20);
+  q.push(row);
+  lqWrite(q);
+}
+/* build a detail string from [{l:label, k:right-or-wrong}, ...] */
+function detailStr(parts){
+  return parts.map(function(p){ return String(p.l).replace(/[|=]/g,"")+"="+(p.k?1:0); }).join("|");
+}
+function lqFlush(leaving){
+  if(!TRACKING || lflushing) return;
+  var q=lqRead().slice(0,POST_MAX);
+  if(!q.length) return;
+  lflushing=true;
+  fetch(API+"/attempt",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({items:q}), keepalive:!!leaving})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(){ lqWrite(lqRead().slice(q.length)); lflushing=false;
+      if(lqRead().length) lqFlush(leaving); })
+    .catch(function(){ lflushing=false; });
+}
+function flushAll(leaving){ tqFlush(leaving); lqFlush(leaving); }
+var flushing=false;
+function tqFlush(leaving){
+  if(!TRACKING || flushing) return;
+  var q=tqRead().slice(0,POST_MAX);
+  if(!q.length){ markSynced(true); return; }
+  flushing=true;
+  fetch(API+"/event",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({events:q}), keepalive:!!leaving})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(){ tqWrite(tqRead().slice(q.length)); markSynced(true); flushing=false;
+      if(tqRead().length) tqFlush(leaving); })
+    .catch(function(){ markSynced(false); flushing=false; });
+}
+function markSynced(ok){
+  var w=document.getElementById("whoami");
+  if(!w || !ST.n) return;
+  /* the name goes back to their progress page (24 Sept) */
+  w.innerHTML=esc(ST.name)+
+    (ok ? "" : ' <span class="dot" title="not saved yet">•</span>');
+}
+window.addEventListener("online", function(){ flushAll(); });
+document.addEventListener("visibilitychange", function(){
+  flushAll(document.visibilityState==="hidden");
+});
+window.addEventListener("pagehide", function(){ flushAll(true); });
+setInterval(function(){ flushAll(); }, FLUSH_MS);
+
+function startApp(){
+  document.getElementById("gate").hidden=true;
+  document.getElementById("app").hidden=false;
+  var w=document.getElementById("whoami");
+  if(!TRACKING){ w.hidden=true; bqNew(); return; }
+  if(ST.n){ markSynced(true); loadAssigned(flushAll); }
+  else if(ST.test){ w.textContent="practice · nothing recorded"; }
+  else { w.textContent="not signed in"; }
+  bqNew();
+  goFromHash();
+  if(L.level===null) restoreBal();
+}
+function goFromHash(){
+  var go=/[#&]go=(bal_[a-z]+\d)/.exec(location.hash);
+  if(go) openAct(go[1]);
+}
+window.addEventListener("hashchange", goFromHash);
+
+/* tell the dashboard they signed in, including when a remembered student
+   comes back to the page; nothing waits on it */
+function signedIn(){
+  try{ fetch(API+"/signin",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({n:ST.n, app:"balance"}), keepalive:true}).catch(function(){}); }catch(e){}
+}
+
+function gateSetup(){
+  var g=function(id){ return document.getElementById(id); };
+  var found=null;
+
+  /* tracking off: straight into the app, no number asked for */
+  if(!TRACKING){ ST.off=true; startApp(); return; }
+
+  function msg(t){ g("gateMsg").textContent=t||""; }
+  function ask(){
+    g("gateAsk").hidden=false; g("gateConfirm").hidden=true;
+    g("gateLede").textContent="Type your class number to begin.";
+    g("gateNum").focus(); g("gateNum").select();
+  }
+  function confirmAs(rec){
+    found=rec;
+    g("gateAsk").hidden=true; g("gateConfirm").hidden=false;
+    g("gateLede").textContent="Is this you?";
+    g("gateName").textContent=rec.name;
+    msg(""); g("gateYes").focus();
+  }
+  function lookUp(){
+    /* whole number, however many digits it has — cutting it down to three is
+       what stopped longer class numbers matching the roster */
+    var n=normNum(g("gateNum").value);
+    if(!n){ msg("Type your class number."); return; }
+
+    msg("Checking…");
+    fetch(API+"/student?n="+n)
+      .then(function(r){
+        if(r.status===404) throw new Error("nomatch");
+        if(!r.ok) throw new Error("api");
+        return r.json();
+      })
+      .then(function(d){ confirmAs({n:d.n, name:d.name}); })
+      .catch(function(e){
+        if(e.message==="nomatch"){
+          msg("No one on the class list has the number "+n+". Check it and try again.");
+          g("gateNum").select();
+        } else {
+          msg("The class list cannot be reached right now. Tell your teacher, "+
+              "and show them this: "+location.origin+API+"/student");
+        }
+      });
+  }
+  g("gateGo").addEventListener("click", lookUp);
+  g("gateNum").addEventListener("keydown", function(e){
+    if(e.key==="Enter"){ e.preventDefault(); lookUp(); }
+  });
+  g("gateYes").addEventListener("click", function(){
+    ST.n=found.n; ST.name=found.name; CW.setPractice(false);
+    try{ sessionStorage.setItem("ionStudent", JSON.stringify(ST)); }catch(e){}
+    signedIn();
+    /* a fresh sign-in opens on "Your progress" (24 Sept); coming back from
+       there, the remembered sign-in drops them straight into the app */
+    location.href="/beta/";
+  });
+  g("gateNo").addEventListener("click", function(){ found=null; msg(""); ask(); });
+  g("gateSkip").addEventListener("click", function(){ ST.off=true; ST.test=true; CW.setPractice(true); startApp(); });
+
+  var saved=null;
+  try{ saved=JSON.parse(sessionStorage.getItem("ionStudent")||"null"); }catch(e){}
+  if(saved && saved.n){ ST.n=saved.n; ST.name=saved.name; signedIn(); startApp(); return; }
+  /* practice mode, chosen earlier on this tab: no number asked again */
+  if(CW.practicing()){ ST.off=true; ST.test=true; startApp(); return; }
+  g("gateNum").focus();
+}
+
+
+/* 29 Sept: the assignment progress line under the top bar */
+function asgNow(){ var id=null; try{ if(L && L.level!==null && L.type) id=actId(); }catch(e){} CW.asgNow(ASG, id); }
+/* ═══════════════════════════════════════════════════════════════
+   CHEMISTRY WORKSHOP NAVIGATION (27 Sept)
+   One copy, built into /beta/, index.html and balance.html by
+   build.py (the *.use parts). The top bar, the topic list, and the
+   "you are here" row with its drop-down steps. Each page says what its
+   steps are and what a pick does; this file only draws and listens.
+   ═══════════════════════════════════════════════════════════════ */
+var CW=(function(){
+  /* the topics, in order. A new topic: add a line; built:true makes it live */
+  var TOPICS=[
+    {id:"pt",    label:"Periodic Table",  href:"periodic.html", built:true},
+    {id:"atom",  label:"Atomic Structure"},
+    {id:"cov",   label:"Covalent bonding"},
+    {id:"ionic", label:"Ionic compounds", href:"index.html",   built:true},
+    {id:"bal",   label:"Balancing",       href:"balance.html", built:true},
+    {id:"mol",   label:"Moles",           href:"moles.html",   built:true},
+    {id:"stoich",label:"Stoichiometry"}
+  ];
+  /* true: unbuilt topics show as "Coming soon" tiles. false: they are hidden */
+  var SHOW_SOON=true;
+
+  var CSS=
+  "body.cw{padding-top:0!important}"+
+  "#gate:not([hidden])~#cwtop{display:none}"+
+  ".cwbar{height:60px;display:flex;align-items:center;gap:12px;margin:0 -16px 0;padding:0 16px;"+
+    "background:var(--panel);border-bottom:3px solid var(--line);text-align:left}"+
+  ".cwhome{font:800 21px var(--font);color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;min-height:44px}"+
+  ".cwme{margin-left:auto;font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;"+
+    "padding:0 14px;min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);text-decoration:none;white-space:nowrap}"+
+  "a.cwme:hover{background:var(--line);color:var(--panel)}"+
+  ".cwme.cur{background:var(--line);color:var(--panel)}"+
+  ".cwme .dot{color:var(--mark)}"+
+  ".cwpath{display:flex;align-items:center;flex-wrap:wrap;gap:8px 6px;padding:10px 0;text-align:left}"+
+  ".cwttl{font:800 24px var(--font);margin:0 10px 0 0}"+
+  ".cwsep{font:800 22px var(--font);color:var(--faint)}"+
+  ".cwstep{position:relative}"+
+  ".cwbtn{font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;padding:0 14px;"+
+    "min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);cursor:pointer}"+
+  ".cwbtn.open,.cwbtn:hover{background:var(--line);color:var(--panel)}"+
+  /* the chosen one of two side-by-side choices (Binary / Polyatomic) */
+  ".cwbtn.sel{box-shadow:inset 0 0 0 3px var(--line);background:var(--soft2)}"+
+  ".cwbtn.sel:hover,.cwbtn.sel.open{background:var(--line);color:var(--panel)}"+
+  ".cwmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:50;width:280px;background:var(--panel);"+
+    "border:3px solid var(--line);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;"+
+    "box-shadow:0 8px 0 rgba(18,18,15,.15)}"+
+  ".cwmi{font:800 19px var(--font);text-align:left;background:var(--panel);border:3px solid var(--soft);border-radius:10px;"+
+    "min-height:48px;padding:0 14px;color:var(--text);display:flex;align-items:center;justify-content:space-between;cursor:pointer}"+
+  ".cwmi:hover{border-color:var(--line)}.cwmi.cur{border-color:var(--line)}"+
+  ".cwmi:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwseg{display:inline-flex;border:3px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);margin-left:6px}"+
+  ".cwseg.right{margin-left:auto}"+
+  ".cwseg button{font:800 17px var(--font);border:0;background:transparent;color:var(--text);padding:0 16px;min-height:44px;cursor:pointer}"+
+  ".cwseg button+button{border-left:2px solid var(--soft)}"+
+  ".cwseg button.on{background:var(--line);color:var(--panel)}"+
+  ".cwseg button:disabled{color:var(--faint);cursor:default}"+
+  ".cwfirst{text-align:center;margin:18px 0 8px}"+
+  ".cwfirst p{font:700 20px var(--font);color:var(--muted);margin:0 0 14px}"+
+  ".cwbig{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}"+
+  ".cwbig button{background:var(--panel);border:3px solid var(--line);border-radius:14px;color:var(--text);cursor:pointer;"+
+    "padding:12px 26px;font:800 24px var(--font);min-height:56px}"+
+  ".cwbig button:hover{background:var(--line);color:var(--panel)}"+
+  ".cwbig button:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwbig button:disabled:hover{background:var(--panel);color:var(--text)}"+
+  ".cwnavrow.fresh button{animation:cwin .3s ease-out both}"+
+  "@keyframes cwin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}"+
+  "@media (prefers-reduced-motion:reduce){.cwnavrow.fresh button{animation:none}}"+
+  /* the topic tiles on the dashboard */
+  ".cwtopics{display:flex;gap:10px}"+
+  ".cwtile{flex:1;min-height:112px;border-radius:16px;padding:12px;display:flex;flex-direction:column;"+
+    "justify-content:space-between;gap:6px;text-decoration:none;text-align:left}"+
+  ".cwtile.live{background:var(--panel);border:3px solid var(--line);color:var(--text)}"+
+  ".cwtile.live:hover{background:var(--line);color:var(--panel)}"+
+  ".cwtile.soon{background:transparent;border:3px dashed var(--faint);color:var(--muted)}"+
+  ".cwtile .num{font-size:14px;font-weight:800;opacity:.8}"+
+  ".cwtile .tname{font-size:20px;font-weight:800;line-height:1.15}"+
+  ".cwtile .pill{align-self:flex-start;font-size:13px;font-weight:800;border:2px solid var(--faint);border-radius:999px;padding:2px 10px}"+
+  ".cwtile .go{align-self:flex-start;font-size:15px;font-weight:800;background:var(--line);color:var(--panel);border-radius:999px;padding:3px 12px}"+
+  ".cwtile.live:hover .go{background:var(--panel);color:var(--line)}"+
+  ".cwtopics.big .cwtile{min-height:150px}.cwtopics.big .tname{font-size:28px}"+
+  "@media (max-width:1100px){.cwtopics{flex-wrap:wrap}.cwtile{flex:1 1 150px}}"+
+  "@media (max-width:600px){.cwtile{flex:1 1 40%;min-height:96px}.cwtile.soon{min-height:0}}"+
+  /* phone: icon-only home, the row becomes a card of full-width buttons */
+  "@media (max-width:600px){"+
+    
+    ".cwpath{flex-direction:column;align-items:stretch;background:var(--panel);border:3px solid var(--line);"+
+      "border-radius:16px;padding:12px;margin-top:12px;gap:8px}"+
+    ".cwttl{font-size:21px}.cwsep{display:none}"+
+    ".cwbtn{width:100%;justify-content:space-between}"+
+    ".cwmenu{width:100%}"+
+    ".cwseg,.cwseg.right{margin:0;display:flex;min-width:0}"+
+    ".cwseg button{flex:1 1 0;min-width:0;padding:0 4px;font-size:16px;line-height:1.1}"+
+  "}";
+  var st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
+  if(document.body) document.body.classList.add("cw");
+  /* a topic page has an empty #cwtop: the bar and the row go in it */
+  var top=document.getElementById("cwtop");
+
+  var FLASK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>';
+  var PERSON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
+  var CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+
+  /* practice mode is remembered for the tab, so moving between topics
+     does not ask for a class number again */
+  var PKEY="cwPractice";
+  function practicing(){ try{ return sessionStorage.getItem(PKEY)==="1"; }catch(e){ return false; } }
+  function setPractice(on){ try{ on?sessionStorage.setItem(PKEY,"1"):sessionStorage.removeItem(PKEY); }catch(e){} }
+
+  /* the bar on a topic page: home on the left, "← name" on the right,
+     both back to the dashboard. The name itself goes in #whoami. */
+  function barHTML(){
+    return '<header class="cwbar"><a class="cwhome" href="/beta/" aria-label="Back to Class Live">\u2190 <span class="cwht">Class Live</span></a><span id="whoami" hidden></span></header>';
+  }
+  if(top) top.innerHTML=barHTML()+'<div id="cwpath"></div>';
+  /* the bar on the dashboard: the name is the page they are on */
+  function homeBarHTML(name){
+    return '<header class="cwbar"><span class="cwhome">'+FLASK+'<span class="cwht">Class Live</span></span>'+
+      '<span class="cwme cur" aria-current="page">'+PERSON+esc(name)+'</span></header>';
+  }
+
+  /* the topic tiles on the dashboard */
+  function topicsHTML(){
+    var list=TOPICS.filter(function(t){ return t.built || SHOW_SOON; });
+    return '<nav class="cwtopics'+(SHOW_SOON?"":" big")+'" aria-label="Topics">'+list.map(function(t,i){
+      return t.built
+        ? '<a class="cwtile live" href="'+t.href+'"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="go">Open \u2192</span></a>'
+        : '<div class="cwtile soon" aria-disabled="true"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="pill">Coming soon</span></div>';
+    }).join("")+'</nav>';
+  }
+
+  /* the "you are here" row.
+     o.title   the topic
+     o.steps   [{id, opts:[[key,label,soon?]], cur}] — buttons with ▾
+     o.segs    [{id, opts, cur, right?}] — joined controls, the last choice
+     o.next    {id, ask, opts} — the next unchosen step, as big buttons */
+  var OPEN=null, H=null, freshRow=false;
+  function labelOf(opts,k){ for(var i=0;i<opts.length;i++) if(opts[i][0]===k) return opts[i][1]; return ""; }
+  function pathHTML(o){
+    var h='<nav class="cwpath" aria-label="You are here"><h1 class="cwttl">'+esc(o.title)+'</h1>';
+    o.steps.forEach(function(s,i){
+      if(i && !s.nosep) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      /* a plain choice beside a drop-down, the same shape (Polyatomic) */
+      if(s.btn){
+        h+='<div class="cwstep"><button class="cwbtn'+(s.sel?" sel":"")+'" data-cwpick="'+s.id+'" data-cwval="'+esc(s.val)+'"'+
+          (s.sel?' aria-pressed="true"':'')+'>'+esc(s.label)+'</button></div>';
+        return;
+      }
+      var open=OPEN===s.id;
+      h+='<div class="cwstep"><button class="cwbtn'+(open?" open":"")+(s.sel?" sel":"")+'" data-cwopen="'+s.id+'" aria-expanded="'+open+
+        '" aria-haspopup="true">'+esc(s.label||labelOf(s.opts,s.cur))+CHEV+'</button>';
+      if(open) h+='<div class="cwmenu" role="menu">'+s.opts.map(function(x){
+        var cur=x[0]===s.cur;
+        return '<button class="cwmi'+(cur?" cur":"")+'" role="menuitem" data-cwpick="'+s.id+'" data-cwval="'+esc(x[0])+'"'+
+          (cur?' aria-current="true"':"")+(x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+
+          (cur?'<span aria-hidden="true">\u2713</span>':"")+'</button>';
+      }).join("")+'</div>';
+      h+='</div>';
+    });
+    (o.segs||[]).forEach(function(g,i){
+      if(!i && o.steps.length && !g.right) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      h+='<div class="cwseg'+(g.right?" right":"")+'" role="group">'+g.opts.map(function(x){
+        var on=x[0]===g.cur;
+        return '<button data-cwpick="'+g.id+'" data-cwval="'+esc(x[0])+'"'+(on?' class="on" aria-pressed="true"':"")+
+          (x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div>';
+    });
+    h+='</nav>';
+    if(o.next) h+='<div class="cwfirst">'+(o.next.ask?'<p>'+esc(o.next.ask)+'</p>':'')+'<div class="cwbig cwnavrow'+(freshRow?" fresh":"")+'">'+
+      o.next.opts.map(function(x){
+        return '<button data-cwpick="'+o.next.id+'" data-cwval="'+esc(x[0])+'"'+(x[2]?" disabled":"")+'>'+
+          esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div></div>';
+    freshRow=false;
+    return h;
+  }
+  /* h = {draw(), pick(step, value)} from the page */
+  function init(h){ H=h; }
+  function draw(){ if(H) H.draw(); }
+  document.addEventListener("click",function(ev){
+    var t=ev.target.closest("[data-cwopen],[data-cwpick]");
+    if(t && t.dataset.cwopen){
+      OPEN = OPEN===t.dataset.cwopen ? null : t.dataset.cwopen; draw(); return;
+    }
+    if(t && t.dataset.cwpick && !t.disabled){
+      var wasBig=!!t.closest(".cwbig");
+      OPEN=null; freshRow=wasBig;
+      if(H) H.pick(t.dataset.cwpick, t.dataset.cwval);
+      return;
+    }
+    if(OPEN && !ev.target.closest(".cwmenu")){ OPEN=null; draw(); }
+  });
+  document.addEventListener("keydown",function(ev){
+    if(ev.key==="Escape" && OPEN){ OPEN=null; draw(); }
+  });
+
+  /* where a student was in a topic, so coming back reopens it */
+  function save(k,v){ try{ localStorage.setItem("cw_"+k, JSON.stringify(v)); }catch(e){} }
+  function load(k){ try{ return JSON.parse(localStorage.getItem("cw_"+k)||"null"); }catch(e){ return null; } }
+
+  /* 29 Sept: while working on an assigned section, the whole assignment's
+     progress in one line under the top bar — "Naming review: 5/20 complete".
+     list = the page's ASG rows (one per section, id "<assignment>:<i>").
+     1 Oct: an assignment runs as one. Once the section on screen is done, a
+     "Next: <section>" link opens the next unfinished one (any page); when
+     every section is done the line reads "Assignment complete". The student
+     follows it themselves — nothing jumps on its own. */
+  var BAL_T={syn:["Synthesis",3], sr:["Single replacement",3], dr:["Double replacement",3],
+    pp:["From formulas \u00b7 Single replacement",2], pdr:["From formulas \u00b7 Double replacement",2],
+    pn:["From names \u00b7 Single replacement",2], pdn:["From names \u00b7 Double replacement",2]};
+  var ION_T={charges:"Single-charge ions", nf_id:"Polyatomic ions", build:"Building \u00b7 binary",
+    sc_f2n:"Naming \u00b7 binary \u00b7 single-charge \u00b7 formula \u2192 name",
+    sc_n2f:"Naming \u00b7 binary \u00b7 single-charge \u00b7 name \u2192 formula",
+    mv_f2n:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 formula \u2192 name",
+    mv_n2f:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 name \u2192 formula",
+    poly_f2n:"Naming \u00b7 polyatomic \u00b7 formula \u2192 name",
+    poly_n2f:"Naming \u00b7 polyatomic \u00b7 name \u2192 formula"};
+  var MOL_T={mol_1b:"Counting Atoms \u00b7 Beginner", mol_1a:"Counting Atoms \u00b7 Advanced",
+    mol_2:"Molar Mass", mol_3:"Moles \u2194 Grams"};
+  var DRILL_D={n2s:"Name \u2192 symbol", s2n:"Symbol \u2192 name", mix:"Mixed"};
+  function partAct(r){ return r.act||r.a; }
+  function partName(r){
+    var a=partAct(r), m=/^bal_([a-z]+)(\d)$/.exec(a);
+    if(r.o) return "Element symbols \u00b7 "+(DRILL_D[r.o.dir]||"")+" \u00b7 "+(r.o.sec/60)+" min";
+    if(m && BAL_T[m[1]]) return BAL_T[m[1]][0]+" \u00b7 "+
+      (BAL_T[m[1]][1]===2?["Beginner","Advanced"]:["Beginner","Intermediate","Advanced"])[+m[2]-1];
+    return ION_T[a]||MOL_T[a]||a;
+  }
+  function partHref(r){
+    var a=partAct(r);
+    if(r.o) return "periodic.html#dir="+r.o.dir+"&g="+r.o.g+"&sec="+r.o.sec+"&asg="+encodeURIComponent(r.id);
+    if(ION_T[a]) return "index.html#go="+a;
+    if(MOL_T[a]) return "moles.html#go="+a;
+    return "balance.html#go="+a;
+  }
+  function asgNow(list, cur){
+    var box=document.getElementById("cwasg");
+    if(!box){
+      var top=document.getElementById("cwtop"); if(!top) return;
+      box=document.createElement("div"); box.id="cwasg"; box.setAttribute("role","status");
+      top.parentNode.insertBefore(box, top.nextSibling);
+      var st=document.createElement("style");
+      st.textContent="#cwasg{text-align:center;font:800 19px var(--font,system-ui);margin:10px 0 0}"+
+        "#cwasg .aline{display:inline-block;border:3px solid var(--line);border-radius:12px;padding:6px 16px;margin:0 6px 6px;background:var(--panel)}"+
+        "#cwasg .aline.full{border-color:var(--good);color:var(--good)}"+
+        "#cwasg .anext{display:inline-block;margin:0 6px 6px;padding:8px 18px;border-radius:12px;background:var(--line);color:var(--panel);"+
+          "text-decoration:none;font:800 19px var(--font,system-ui);min-height:44px;box-sizing:border-box}"+
+        "#cwasg .anext:hover{background:var(--good)}";
+      document.head.appendChild(st);
+    }
+    var groups={}, order=[];
+    (list||[]).forEach(function(x){
+      var g=String(x.id).split(":")[0];
+      if(!groups[g]){ groups[g]={t:x.t, k:0, n:0, cur:null, rows:[]}; order.push(g); }
+      groups[g].k+=Math.min(x.k,x.n); groups[g].n+=x.n; groups[g].rows.push(x);
+      if(cur && x.a===cur && !groups[g].cur) groups[g].cur=x;
+    });
+    var esc=function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); };
+    box.innerHTML=order.filter(function(g){ return groups[g].cur; }).map(function(g){
+      var o=groups[g], name=esc(o.t||"Assignment");
+      if(o.k>=o.n) return '<span class="aline full">'+name+": Assignment complete</span>";
+      var h='<span class="aline">'+name+": "+o.k+"/"+o.n+" complete</span>";
+      if(o.cur.k<o.cur.n) return h;
+      var rows=o.rows.slice().sort(function(x,y){ return +String(x.id).split(":")[1]-String(y.id).split(":")[1]; });
+      var at=rows.indexOf(o.cur), next=null;
+      for(var i=1;i<=rows.length && !next;i++){ var r=rows[(at+i)%rows.length]; if(r.k<r.n) next=r; }
+      return h+(next?'<a class="anext" href="'+partHref(next)+'">Next: '+esc(partName(next))+"</a>":"");
+    }).join("");
+  }
+
+  return {TOPICS:TOPICS, barHTML:barHTML, homeBarHTML:homeBarHTML, topicsHTML:topicsHTML,
+    pathHTML:pathHTML, init:init, asgNow:asgNow, partName:partName, partHref:partHref, save:save, load:load, practicing:practicing, setPractice:setPractice};
+})();
+/* ═══════════════════════════════════════════════════════════════
+   CHEMISTRY
+   ═══════════════════════════════════════════════════════════════ */
+function gcd(a,b){return b?gcd(b,a%b):a;}
+/* digits typed in the element column become subscripts as they are typed */
+var SUBS="\u2080\u2081\u2082\u2083\u2084\u2085\u2086\u2087\u2088\u2089";
+function toSubs(s){ return s.replace(/\d/g,function(d){ return SUBS.charAt(+d); }); }
+function plainDigits(s){ return s.replace(/[\u2080-\u2089]/g,function(c){ return ""+SUBS.indexOf(c); }); }
+function subDigits(t){return esc(t).replace(/\d+/g,function(m){return "<sub>"+m+"</sub>";});}
+
+/* A formula, with one element boxed wherever it appears — or, when the thing
+   marked is a polyatomic ion that has its own row, the whole ion boxed. */
+function formulaHTML(f, markEl){
+  if(markEl && isPoly(markEl)){
+    var at=polyAt(f, markEl);
+    if(at<0) return formulaHTML(f);
+    return formulaHTML(f.slice(0,at))+'<span class="mark">'+subDigits(markEl)+'</span>'+
+           formulaHTML(f.slice(at+markEl.length));
+  }
+  return plainFormulaHTML(f, markEl);
+}
+function plainFormulaHTML(f, markEl){
+  var out="", i=0, n=f.length;
+  while(i<n){
+    var ch=f.charAt(i);
+    if(ch==="("){ out+="("; i++; continue; }
+    if(ch===")"){
+      out+=")"; i++;
+      var d="";
+      while(i<n && /\d/.test(f.charAt(i))) d+=f.charAt(i++);
+      if(d) out+="<sub>"+d+"</sub>";
+      continue;
+    }
+    if(/[A-Z]/.test(ch)){
+      var sym=ch; i++;
+      while(i<n && /[a-z]/.test(f.charAt(i))) sym+=f.charAt(i++);
+      var sd="";
+      while(i<n && /\d/.test(f.charAt(i))) sd+=f.charAt(i++);
+      var piece=esc(sym)+(sd?"<sub>"+sd+"</sub>":"");
+      if(markEl && sym===markEl) out+='<span class="mark">'+piece+"</span>";
+      else out+=piece;
+      continue;
+    }
+    if(/\d/.test(ch)){ var g=""; while(i<n && /\d/.test(f.charAt(i))) g+=f.charAt(i++);
+      out+="<sub>"+g+"</sub>"; continue; }
+    out+=esc(ch); i++;
+  }
+  return out;
+}
+
+var ENAME={H:"hydrogen",Li:"lithium",C:"carbon",N:"nitrogen",O:"oxygen",F:"fluorine",
+  Na:"sodium",Mg:"magnesium",Al:"aluminum",P:"phosphorus",S:"sulfur",Cl:"chlorine",
+  K:"potassium",Ca:"calcium",Zn:"zinc",Br:"bromine",Sr:"strontium",I:"iodine",
+  Ba:"barium",Si:"silicon",B:"boron",Ga:"gallium",
+  /* the multivalent metals, added when they were let into the equations —
+     without these every prompt would read "How many Fe atoms..." */
+  Fe:"iron",Cu:"copper",Cr:"chromium",Mn:"manganese",Co:"cobalt",Ni:"nickel",
+  Ti:"titanium",V:"vanadium",Ag:"silver",Sn:"tin",Pb:"lead"};
+function eName(s){ return ENAME[s]||s; }
+
+/* Atom counts for one formula. Parentheses are handled — nothing in the
+   synthesis stage needs them, but later stages will, and a parser that
+   quietly mis-reads Ca(OH)2 is the kind of bug that shows up in class. */
+function atoms(f){
+  var i=0, n=f.length, stack=[{}];
+  function num(){
+    var d="";
+    while(i<n && /\d/.test(f.charAt(i))) d+=f.charAt(i++);
+    return d?+d:1;
+  }
+  function fold(mult){
+    var top=stack.pop(), under=stack[stack.length-1];
+    for(var k in top) under[k]=(under[k]||0)+top[k]*mult;
+  }
+  (function walk(){
+    while(i<n){
+      var ch=f.charAt(i);
+      if(ch==="("){ i++; stack.push({}); walk(); continue; }
+      if(ch===")"){ i++; fold(num()); return; }
+      if(/[A-Z]/.test(ch)){
+        var s=ch; i++;
+        while(i<n && /[a-z]/.test(f.charAt(i))) s+=f.charAt(i++);
+        var c=num(), top=stack[stack.length-1];
+        top[s]=(top[s]||0)+c;
+        continue;
+      }
+      i++;
+    }
+  })();
+  while(stack.length>1) fold(1);
+  return stack[0];
+}
+
+/* ── polyatomic ions that stay whole ──────────────────────────
+   His ion sheet only. A polyatomic ion that appears on both sides of an
+   equation gets one row and is counted as one piece; on one side only, its
+   atoms are counted separately as before (Ca + H2O -> Ca(OH)2 + H2).
+   Longest first, so ClO4 is tried before ClO and NO3 never swallows ClO3. */
+var POLY=[["ClO4","perchlorate"],["ClO3","chlorate"],["ClO2","chlorite"],
+  ["ClO","hypochlorite"],["SO4","sulfate"],["SO3","sulfite"],["NO3","nitrate"],
+  ["NO2","nitrite"],["PO4","phosphate"],["PO3","phosphite"],["CO3","carbonate"],
+  ["OH","hydroxide"],["NH4","ammonium"]];
+var PNAME={}; POLY.forEach(function(p){ PNAME[p[0]]=p[1]; });
+function isPoly(k){ return PNAME.hasOwnProperty(k); }
+/* what a row is called in a sentence, and how its key is drawn */
+function unitName(k){ return isPoly(k) ? PNAME[k] : eName(k); }
+function keyHTML(k){ return isPoly(k) ? subDigits(k) : esc(k); }
+/* where ion g sits inside formula f: in parentheses, NH4 at the front, or
+   the anion at the end (NaNO3, H2SO4). -1 if it is not there. */
+function polyAt(f, g){
+  var i=f.indexOf("("+g+")"); if(i>=0) return i+1;
+  if(g==="NH4") return (f.indexOf("NH4")===0 && f.length>3) ? 0 : -1;
+  if(f.charAt(f.length-1)===")" || f.length<=g.length) return -1;
+  for(var k=0;k<POLY.length;k++){
+    var p=POLY[k][0];
+    if(p==="NH4") continue;
+    if(f.slice(-p.length)===p) return p===g ? f.length-p.length : -1;
+  }
+  return -1;
+}
+function polysIn(f){
+  return POLY.map(function(p){ return p[0]; })
+    .filter(function(g){ return polyAt(f,g)>=0; });
+}
+/* the ions whole on both sides of this equation, worked out once */
+function groupsOf(eq){
+  if(eq.groups) return eq.groups;
+  var r=[], p=[];
+  eq.r.forEach(function(f){ r=r.concat(polysIn(f)); });
+  eq.p.forEach(function(f){ p=p.concat(polysIn(f)); });
+  eq.groups=POLY.map(function(x){ return x[0]; })
+    .filter(function(g){ return r.indexOf(g)>=0 && p.indexOf(g)>=0; });
+  return eq.groups;
+}
+/* counts for one formula with the listed ions kept whole */
+function unitsOf(f, groups){
+  var out={}, segs=[];
+  (groups||[]).forEach(function(g){
+    var at=polyAt(f,g); if(at<0) return;
+    if(f.charAt(at-1)==="("){
+      var m=/^\)(\d*)/.exec(f.slice(at+g.length));
+      segs.push({g:g, a:at-1, b:at+g.length+m[0].length, n:m[1]?+m[1]:1});
+    } else segs.push({g:g, a:at, b:at+g.length, n:1});
+  });
+  var rest=f;
+  segs.sort(function(x,y){ return y.a-x.a; }).forEach(function(s){
+    rest=rest.slice(0,s.a)+rest.slice(s.b); out[s.g]=(out[s.g]||0)+s.n; });
+  var a=atoms(rest); for(var s in a) out[s]=(out[s]||0)+a[s];
+  return out;
+}
+function elementsOf(eq){
+  var seen=[], g=groupsOf(eq);
+  eq.r.concat(eq.p).forEach(function(f){
+    Object.keys(unitsOf(f,g)).forEach(function(s){ if(seen.indexOf(s)<0) seen.push(s); });
+  });
+  return seen;
+}
+function sideCount(list, coefs, el, groups){
+  var t=0;
+  list.forEach(function(f,i){
+    var a=unitsOf(f, groups);
+    if(a[el]) t += a[el]*(coefs[i]||0);
+  });
+  return t;
+}
+function E(r,p){ return {r:r, p:p}; }
+
+
+/* Multivalent metals appear in these equations, but nothing here asks a
+   student to work out which charge the metal took \u2014 every formula is given.
+   A note about oxidation states belongs with predicting products, not with
+   balancing, and was taken out again for that reason. */
+
+/* ── the problem sets ──────────────────────────────────────────
+   Beginner: every element that is out can be fixed by one number, and
+   never a 2-against-3 or 3-against-4 — finding a common multiple is an
+   intermediate idea, not a first one.
+   Intermediate: common multiples, bigger numbers, still two elements.
+   Advanced: nothing that falls to a single coefficient. Three elements,
+   parentheses, and equations where an element sits in more than one
+   formula so it has to be left until last.
+   No multivalent metals anywhere. Nothing already balanced.
+   ─────────────────────────────────────────────────────────────── */
+var SETS={
+  syn:{
+    name:"Synthesis",
+    levels:[
+      {name:"Beginner", eqs:[
+        E(["Mg","O2"],["MgO"]),
+        E(["Na","Cl2"],["NaCl"]),
+        E(["K","Br2"],["KBr"]),
+        E(["Na","Br2"],["NaBr"]),
+        E(["K","S"],["K2S"]),
+        E(["Na","S"],["Na2S"]),
+        E(["Li","S"],["Li2S"]),
+        E(["H2","Cl2"],["HCl"]),
+        E(["H2","Br2"],["HBr"]),
+        E(["N2","O2"],["NO"]),
+        E(["C","H2"],["CH4"]),
+        E(["Si","Cl2"],["SiCl4"]),
+        E(["C","S"],["CS2"])
+      ]},
+      {name:"Intermediate", eqs:[
+        E(["Al","Br2"],["AlBr3"]),
+        E(["Al","Cl2"],["AlCl3"]),
+        E(["Al","S"],["Al2S3"]),
+        E(["Li","O2"],["Li2O"]),
+        E(["Na","O2"],["Na2O"]),
+        E(["K","O2"],["K2O"]),
+        E(["Al","O2"],["Al2O3"]),
+        E(["N2","H2"],["NH3"]),
+        E(["N2","F2"],["NF3"]),
+        E(["Al","F2"],["AlF3"]),
+        E(["Ga","O2"],["Ga2O3"]),
+        E(["B","O2"],["B2O3"]),
+        E(["Li","N2"],["Li3N"]),
+        E(["Na","N2"],["Na3N"]),
+        E(["K","N2"],["K3N"]),
+        E(["Ca","P4"],["Ca3P2"]),
+        E(["Mg","P4"],["Mg3P2"]),
+        E(["H2","O2"],["H2O"])
+      ]},
+      {name:"Advanced", eqs:[
+        E(["SO2","O2"],["SO3"]),
+        E(["NO","O2"],["NO2"]),
+        E(["CO","O2"],["CO2"]),
+        E(["Fe","O2"],["Fe2O3"]),
+        E(["Fe","Cl2"],["FeCl3"]),
+        E(["Fe","Br2"],["FeBr3"]),
+        E(["Cu","O2"],["CuO"]),
+        E(["Cr","O2"],["Cr2O3"]),
+        E(["Co","O2"],["Co2O3"])
+      ]}
+    ]
+  },
+  /* not built yet — the menu shows them so the shape of the unit is visible */
+  sr:{
+    name:"Single replacement",
+    levels:[
+      {name:"Beginner", eqs:[
+        E(["Mg","HCl"],["MgCl2","H2"]),
+        E(["Ca","H2O"],["Ca(OH)2","H2"]),
+        E(["Zn","HBr"],["ZnBr2","H2"]),
+        E(["Ba","HCl"],["BaCl2","H2"]),
+        E(["Sr","H2O"],["Sr(OH)2","H2"]),
+        E(["Ca","HBr"],["CaBr2","H2"]),
+        E(["Zn","HCl"],["ZnCl2","H2"]),
+        E(["Ba","H2O"],["Ba(OH)2","H2"]),
+        E(["Ca","HCl"],["CaCl2","H2"]),
+        E(["Mg","HBr"],["MgBr2","H2"]),
+        E(["Sr","HCl"],["SrCl2","H2"]),
+        /* nitrate, sulfate and the rest stay whole: one row each (21 Sept) */
+        E(["Zn","AgNO3"],["Zn(NO3)2","Ag"]),
+        E(["Na","H2SO4"],["Na2SO4","H2"]),
+        E(["Al","AgNO3"],["Al(NO3)3","Ag"]),
+        E(["Cu","AgNO3"],["Cu(NO3)2","Ag"]),
+        E(["Mg","AgNO2"],["Mg(NO2)2","Ag"]),
+        E(["Ni","AgNO3"],["Ni(NO3)2","Ag"]),
+        E(["Mg","AgNO3"],["Mg(NO3)2","Ag"]),
+        E(["Zn","AgClO3"],["Zn(ClO3)2","Ag"])
+      ]},
+      {name:"Intermediate", eqs:[
+        E(["Cl2","NaBr"],["NaCl","Br2"]),
+        E(["Na","H2O"],["NaOH","H2"]),
+        E(["Br2","KI"],["KBr","I2"]),
+        E(["K","AlCl3"],["KCl","Al"]),
+        E(["Cl2","KI"],["KCl","I2"]),
+        E(["Li","H2O"],["LiOH","H2"]),
+        E(["Na","ZnCl2"],["NaCl","Zn"]),
+        E(["Br2","NaI"],["NaBr","I2"]),
+        E(["K","H2O"],["KOH","H2"]),
+        E(["Cl2","NaI"],["NaCl","I2"]),
+        E(["Na","AlCl3"],["NaCl","Al"]),
+        E(["Al","Pb(NO3)2"],["Al(NO3)3","Pb"]),
+        E(["Al","CuSO4"],["Al2(SO4)3","Cu"]),
+        E(["Al","Cu(ClO4)2"],["Al(ClO4)3","Cu"]),
+        E(["Al","Fe(NO3)2"],["Al(NO3)3","Fe"]),
+        E(["Al","H2SO4"],["Al2(SO4)3","H2"])
+      ]},
+      {name:"Advanced", eqs:[
+        E(["Al","HCl"],["AlCl3","H2"]),
+        E(["Al","HBr"],["AlBr3","H2"]),
+        E(["Mg","AlCl3"],["MgCl2","Al"]),
+        E(["Ca","AlCl3"],["CaCl2","Al"]),
+        E(["Al","ZnCl2"],["AlCl3","Zn"]),
+        E(["Mg","FeCl3"],["MgCl2","Fe"]),
+        E(["Zn","FeCl3"],["ZnCl2","Fe"]),
+        E(["Na","FeCl3"],["NaCl","Fe"]),
+        E(["Fe","HCl"],["FeCl3","H2"]),
+        E(["Cr","HCl"],["CrCl3","H2"]),
+        E(["Mg","H3PO4"],["Mg3(PO4)2","H2"]),
+        E(["Mg","Al2(SO4)3"],["MgSO4","Al"]),
+        E(["Ca","H3PO4"],["Ca3(PO4)2","H2"]),
+        E(["Mg","Fe(ClO4)3"],["Mg(ClO4)2","Fe"]),
+        E(["Mg","Fe(NO3)3"],["Mg(NO3)2","Fe"]),
+        E(["Zn","H3PO4"],["Zn3(PO4)2","H2"])
+      ]}
+    ]
+  },
+  /* Double replacement: both ions stay whole, so every polyatomic ion here
+     has its own row. No acid + carbonate and no acid + hydroxide — those
+     break the ion apart. Whether the reaction really happens does not
+     matter here; the practice is the point (his call, 21 Sept). */
+  dr:{
+    name:"Double replacement",
+    levels:[
+      {name:"Beginner", eqs:[
+        E(["Na2SO3","BaCl2"],["BaSO3","NaCl"]),
+        E(["Pb(NO3)2","KI"],["PbI2","KNO3"]),
+        E(["Mg(ClO4)2","NaOH"],["Mg(OH)2","NaClO4"]),
+        E(["MgCl2","NaOH"],["Mg(OH)2","NaCl"]),
+        E(["AgNO3","BaCl2"],["AgCl","Ba(NO3)2"]),
+        E(["(NH4)2SO4","BaCl2"],["BaSO4","NH4Cl"]),
+        E(["Ca(NO2)2","K2CO3"],["CaCO3","KNO2"]),
+        E(["Na2CO3","CaCl2"],["CaCO3","NaCl"]),
+        E(["CuSO4","NaOH"],["Cu(OH)2","Na2SO4"]),
+        E(["Pb(NO3)2","NaCl"],["PbCl2","NaNO3"]),
+        E(["Na2SO4","Sr(ClO)2"],["SrSO4","NaClO"]),
+        E(["AgNO3","Na2CO3"],["Ag2CO3","NaNO3"]),
+        E(["Ba(NO3)2","K2SO4"],["BaSO4","KNO3"]),
+        E(["FeCl2","KOH"],["Fe(OH)2","KCl"]),
+        E(["Ba(ClO3)2","Na2SO4"],["BaSO4","NaClO3"]),
+        E(["CaCl2","AgNO3"],["AgCl","Ca(NO3)2"]),
+        E(["K2CO3","BaCl2"],["BaCO3","KCl"]),
+        E(["BaCl2","Na2SO4"],["BaSO4","NaCl"])
+      ]},
+      {name:"Intermediate", eqs:[
+        E(["K3PO4","MgCl2"],["Mg3(PO4)2","KCl"]),
+        E(["FeCl3","NaOH"],["Fe(OH)3","NaCl"]),
+        E(["Al(NO2)3","KOH"],["Al(OH)3","KNO2"]),
+        E(["AgNO3","FeCl3"],["AgCl","Fe(NO3)3"]),
+        E(["Al2(SO4)3","NaOH"],["Al(OH)3","Na2SO4"]),
+        E(["Na3PO3","AgClO3"],["Ag3PO3","NaClO3"]),
+        E(["AgNO3","Na3PO4"],["Ag3PO4","NaNO3"]),
+        E(["CrCl3","NaOH"],["Cr(OH)3","NaCl"]),
+        E(["Na3PO4","CaCl2"],["Ca3(PO4)2","NaCl"]),
+        E(["Fe(ClO4)3","NaOH"],["Fe(OH)3","NaClO4"]),
+        E(["Al(NO3)3","NaOH"],["Al(OH)3","NaNO3"]),
+        E(["Fe2(SO4)3","KOH"],["Fe(OH)3","K2SO4"]),
+        E(["K3PO3","Ca(ClO2)2"],["Ca3(PO3)2","KClO2"]),
+        E(["AgNO3","AlCl3"],["AgCl","Al(NO3)3"]),
+        E(["AlCl3","KOH"],["Al(OH)3","KCl"]),
+        E(["Na3PO4","BaCl2"],["Ba3(PO4)2","NaCl"])
+      ]},
+      {name:"Advanced", eqs:[
+        E(["FeCl3","Ca(OH)2"],["Fe(OH)3","CaCl2"]),
+        E(["Al2(SO4)3","Ba(NO3)2"],["BaSO4","Al(NO3)3"]),
+        E(["Fe2(SO4)3","Ca(ClO)2"],["CaSO4","Fe(ClO)3"]),
+        E(["Pb(NO3)2","K3PO4"],["Pb3(PO4)2","KNO3"]),
+        E(["K3PO4","Fe2(SO4)3"],["FePO4","K2SO4"]),
+        E(["Cr(ClO4)3","Sr(OH)2"],["Cr(OH)3","Sr(ClO4)2"]),
+        E(["AlCl3","Pb(NO3)2"],["PbCl2","Al(NO3)3"]),
+        E(["Al2(SO4)3","Ca(OH)2"],["CaSO4","Al(OH)3"]),
+        E(["(NH4)3PO4","Ca(NO3)2"],["Ca3(PO4)2","NH4NO3"]),
+        E(["Na3PO3","Mg(NO2)2"],["Mg3(PO3)2","NaNO2"]),
+        E(["Fe(NO3)3","Ba(OH)2"],["Fe(OH)3","Ba(NO3)2"]),
+        E(["Al2(SO4)3","BaCl2"],["BaSO4","AlCl3"]),
+        E(["Ba(NO3)2","K3PO4"],["Ba3(PO4)2","KNO3"]),
+        E(["Al(ClO3)3","Ba(OH)2"],["Al(OH)3","Ba(ClO3)2"]),
+        E(["Na3PO4","Al2(SO4)3"],["AlPO4","Na2SO4"]),
+        E(["FeCl3","Pb(NO3)2"],["PbCl2","Fe(NO3)3"]),
+        E(["Ca(NO3)2","Na3PO4"],["Ca3(PO4)2","NaNO3"]),
+        E(["Fe2(SO4)3","Ba(OH)2"],["BaSO4","Fe(OH)3"])
+      ]}
+    ]
+  }
+  /* combustion: left off for now (23 Sept) */
+};
+
+/* The smallest whole-number coefficients that balance an equation, found by
+   search — so the answer is never stored apart from the equation, and a
+   mistyped formula fails loudly at load instead of teaching the wrong thing. */
+function solve(eq){
+  var els=elementsOf(eq), g=groupsOf(eq), all=eq.r.concat(eq.p), n=all.length, LIM=12, best=null;
+  var c=new Array(n).fill(1);
+  (function step(i){
+    if(best) return;
+    if(i===n){
+      for(var j=0;j<els.length;j++)
+        if(sideCount(eq.r,c.slice(0,eq.r.length),els[j],g)!==
+           sideCount(eq.p,c.slice(eq.r.length),els[j],g)) return;
+      if(c.reduce(function(a,b){return gcd(a,b);})===1) best=c.slice();
+      return;
+    }
+    for(var v=1;v<=LIM && !best;v++){ c[i]=v; step(i+1); }
+    c[i]=1;
+  })(0);
+  return best;
+}
+
+function eachEq(fn){
+  Object.keys(SETS).forEach(function(k){
+    SETS[k].levels.forEach(function(lv,li){ lv.eqs.forEach(function(eq){ fn(eq,k,li); }); });
+  });
+}
+eachEq(function(eq){
+  eq.sol=solve(eq);
+  eq.sig=eq.sol?eq.sol.join("-"):"";
+  eq.steps=eq.sol?eq.sol.filter(function(v){return v>1;}).length:0;
+  /* the starting counts, as the equation is written with no coefficients */
+  eq.start=elementsOf(eq).map(function(el){
+    var one=eq.r.map(function(){return 1;}), two=eq.p.map(function(){return 1;});
+    return [sideCount(eq.r,one,el,eq.groups), sideCount(eq.p,two,el,eq.groups)];
+  });
+});
+
+/* Each level has a rule about what belongs in it. Anything that breaks its
+   rule is dropped here rather than turning up in front of a class. */
+function fitsLevel(eq, li){
+  if(!eq.sol || Math.max.apply(null,eq.sol)<=1) return false;     /* already balanced */
+  if(li===0){
+    /* In a single replacement the free element sits at 1/1 on both sides and
+       passes the divisibility test for free, which let things like
+       Al + HCl (2,6,2,3) through as "beginner". A cap on the answer itself
+       catches those wherever they are placed. */
+    if(Math.max.apply(null,eq.sol)>3) return false;
+    /* no common-multiple step: on every row one count has to divide the other */
+    return eq.start.every(function(pair){
+      var a=pair[0], b=pair[1];
+      return a===b || (a && b && (a%b===0 || b%a===0));
+    });
+  }
+  /* above beginner, one number is never enough */
+  return eq.steps>=2;
+}
+Object.keys(SETS).forEach(function(k){
+  SETS[k].levels.forEach(function(lv,li){
+    lv.eqs=lv.eqs.filter(function(eq){ return fitsLevel(eq,li); });
+  });
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   WHAT THE BALANCED EQUATION MEANS (24 Sept)
+   Once an equation is balanced, it is read back as a sentence:
+   "Two molecules of hydrogen gas react with one molecule of oxygen gas
+   to form two molecules of water."
+   The coefficients in the equation and the matching number words in the
+   sentence are both green, so a student can see which goes with which.
+
+   Every formula in every pool must have a name — a test walks all of
+   them — so a formula with no name can never reach a student.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Compounds that are not named by ion + ion, and the acids. Anything in
+   here counts as a molecule rather than a formula unit. */
+var MOLNAME={
+  H2O:"water", NH3:"ammonia", CH4:"methane",
+  CO:"carbon monoxide", CO2:"carbon dioxide", CS2:"carbon disulfide",
+  NO:"nitrogen monoxide", NO2:"nitrogen dioxide",
+  SO2:"sulfur dioxide", SO3:"sulfur trioxide",
+  NF3:"nitrogen trifluoride", SiCl4:"silicon tetrachloride",
+  B2O3:"diboron trioxide",
+  HCl:"hydrochloric acid", HBr:"hydrobromic acid",
+  H2SO4:"sulfuric acid", H3PO4:"phosphoric acid"
+};
+/* the acids: read back with the formula after the name (25 Sept) */
+var ACIDS={HCl:1, HBr:1, H2SO4:1, H3PO4:1};
+/* the elements that are gases as the free element, where saying so tells
+   the molecule apart from the atom */
+var GASNAME={H2:1, O2:1, N2:1, F2:1, Cl2:1};
+/* the negative ions a compound can end in, beyond the polyatomic list */
+var ANNAME={F:"fluoride", Cl:"chloride", Br:"bromide", I:"iodide",
+            O:"oxide", S:"sulfide", N:"nitride", P:"phosphide"};
+var ANCH={F:1, Cl:1, Br:1, I:1, O:2, S:2, N:3, P:3,
+          NO3:1, NO2:1, ClO4:1, ClO3:1, ClO2:1, ClO:1, OH:1,
+          SO4:2, SO3:2, CO3:2, PO4:3, PO3:3};
+var ROMAN={1:"I", 2:"II", 3:"III", 4:"IV", 5:"V", 6:"VI"};
+
+/* the pieces of an ionic formula: Al2(SO4)3, NaCl, (NH4)3PO4, NH4Cl */
+function ionSplit(f){
+  var cat, nc, rest;
+  var a=/^\(NH4\)(\d+)/.exec(f);
+  if(a){ cat="NH4"; nc=+a[1]; rest=f.slice(a[0].length); }
+  else if(f.indexOf("NH4")===0 && f.length>3){ cat="NH4"; nc=1; rest=f.slice(3); }
+  else {
+    var m=/^([A-Z][a-z]?)(\d*)/.exec(f);
+    if(!m) return null;
+    cat=m[1]; nc=m[2]?+m[2]:1; rest=f.slice(m[0].length);
+  }
+  if(!rest) return null;
+  var an, na, q=/^\(([A-Za-z0-9]+)\)(\d+)$/.exec(rest);
+  if(q){ an=q[1]; na=+q[2]; }
+  else if(ANCH[rest]!==undefined){ an=rest; na=1; }
+  else { var e=/^([A-Z][a-z]?)(\d*)$/.exec(rest);
+         if(!e) return null; an=e[1]; na=e[2]?+e[2]:1; }
+  if(ANCH[an]===undefined || !ENAME[cat] && cat!=="NH4") return null;
+  return {cat:cat, nc:nc, an:an, na:na};
+}
+/* the positive ion's name, with the Roman numeral only where the metal
+   forms more than one ion — the same rule the rest of the app uses */
+function catName(c){
+  if(c.cat==="NH4") return "ammonium";
+  if(!PPMV[c.cat]) return eName(c.cat);
+  var q=ANCH[c.an]*c.na/c.nc;
+  if(q!==Math.floor(q) || !ROMAN[q]) return null;
+  return eName(c.cat)+"("+ROMAN[q]+")";
+}
+function anName(a){ return isPoly(a) ? PNAME[a] : ANNAME[a]; }
+
+/* the name of one formula, or null if it cannot be named */
+function subName(f){
+  if(MOLNAME[f]) return MOLNAME[f];
+  var e=/^([A-Z][a-z]?)(\d*)$/.exec(f);
+  if(e && ENAME[e[1]]) return eName(e[1])+(GASNAME[f]?" gas":"");
+  var c=ionSplit(f);
+  if(!c) return null;
+  var cn=catName(c), an=anName(c.an);
+  return cn && an ? cn+" "+an : null;
+}
+/* what one of it is called: an atom, a molecule or a formula unit */
+function subUnit(f){
+  if(MOLNAME[f]) return "molecule";
+  var e=/^([A-Z][a-z]?)(\d*)$/.exec(f);
+  if(e) return e[2] ? "molecule" : "atom";
+  return "formula unit";
+}
+var COUNTWORD=["zero","one","two","three","four","five","six","seven","eight",
+  "nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen",
+  "seventeen","eighteen","nineteen","twenty"];
+function countWord(n){ return COUNTWORD[n] || String(n); }
+
+/* "two molecules of water", with the number in green */
+/* HCl/HBr made from the elements is the gas; as a reactant it is the acid */
+var GASFORM={HCl:"hydrogen chloride", HBr:"hydrogen bromide"};
+function pieceHTML(n, f, first, prod){
+  var w=countWord(n), unit=subUnit(f)+(n===1?"":"s");
+  return '<span class="mnum">'+esc(first ? w.charAt(0).toUpperCase()+w.slice(1) : w)+
+    '</span> '+esc(unit)+" of "+esc(prod&&GASFORM[f] ? GASFORM[f] : subName(f))+
+    (ACIDS[f] ? " ("+esc(f).replace(/(\d+)/g,"<sub>$1</sub>")+")" : "");
+}
+/* a list read aloud: A, B and C */
+function joinList(parts){
+  if(parts.length<2) return parts.join("");
+  return parts.slice(0,-1).join(", ")+" and "+parts[parts.length-1];
+}
+/* Can this equation be read back? Every formula has to have a name. */
+function canRead(eq){
+  return eq.r.concat(eq.p).every(function(f){ return !!subName(f); });
+}
+/* the sentence, or "" if anything in the equation has no name */
+function meaningHTML(eq, coef){
+  if(!canRead(eq)) return "";
+  var nr=eq.r.length, all=eq.r.concat(eq.p);
+  var n=coef.map(function(v){ v=(v||"").trim(); return v===""?1:(/^\d+$/.test(v)?+v:1); });
+  var left=eq.r.map(function(f,i){ return pieceHTML(n[i], f, i===0); });
+  var right=eq.p.map(function(f,i){ return pieceHTML(n[nr+i], f, false, true); });
+  var verb = eq.r.length<2 ? (n[0]===1?"forms":"form")
+                           : (n[0]===1?"reacts with":"react with");
+  var body = eq.r.length<2
+    ? left[0]+" "+verb+" "+joinList(right)
+    : left[0]+" "+verb+" "+joinList(left.slice(1))+" to form "+joinList(right);
+  return '<p class="meaning">'+body+'.</p>';
+}
+/* ═══════════════════════════════════════════════════════════════
+   THE PICTURE
+   Every equation finished uncovers one tile. Sixteen tiles to a
+   picture. The drawings below are my own — to use a character your
+   students would recognise, put your own image in MYPICS instead:
+   save it small (about 300x300), convert it to a data URI with any
+   "image to base64" site, and paste the whole string in, e.g.
+       var MYPICS = ["data:image/png;base64,iVBORw0KGgo..."];
+   Anything in MYPICS is used in place of the drawings.
+   ═══════════════════════════════════════════════════════════════ */
+var MYPICS = [];
+
+var ART=[
+  /* a flask that is pleased with itself */
+  {name:"Flask", svg:'<svg viewBox="0 0 100 100">'+
+    '<rect width="100" height="100" fill="var(--bluebg)"/>'+
+    '<circle cx="50" cy="52" r="42" fill="var(--blueln)"/>'+
+    '<path d="M42 18 h16 v22 l20 34 a10 10 0 0 1 -8 15 h-40 a10 10 0 0 1 -8 -15 l20 -34 z" '+
+      'fill="var(--panel)" stroke="var(--line)" stroke-width="3.5" stroke-linejoin="round"/>'+
+    '<path d="M32 62 l7 -12 h22 l7 12 a8 8 0 0 1 -6 12 h-24 a8 8 0 0 1 -6 -12 z" fill="#5cc98a"/>'+
+    '<circle cx="43" cy="66" r="3.2" fill="var(--panel)" opacity=".85"/>'+
+    '<circle cx="56" cy="70" r="2.4" fill="var(--panel)" opacity=".85"/>'+
+    '<circle cx="50" cy="61" r="1.8" fill="var(--panel)" opacity=".85"/>'+
+    '<rect x="39" y="14" width="22" height="6" rx="3" fill="var(--line)"/>'+
+    '<circle cx="43" cy="52" r="3.4" fill="var(--line)"/>'+
+    '<circle cx="57" cy="52" r="3.4" fill="var(--line)"/>'+
+    '<path d="M42 58 q8 7 16 0" stroke="var(--line)" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+    '<circle cx="30" cy="26" r="4" fill="var(--panel)" opacity=".8"/>'+
+    '<circle cx="72" cy="20" r="3" fill="var(--panel)" opacity=".8"/>'+
+    '<circle cx="78" cy="32" r="5" fill="var(--panel)" opacity=".8"/></svg>'},
+
+  /* a rocket, because reactions go bang */
+  {name:"Rocket", svg:'<svg viewBox="0 0 100 100">'+
+    '<rect width="100" height="100" fill="#141b34"/>'+
+    '<circle cx="18" cy="18" r="1.6" fill="var(--panel)"/><circle cx="80" cy="14" r="2" fill="var(--panel)"/>'+
+    '<circle cx="88" cy="40" r="1.4" fill="var(--panel)"/><circle cx="12" cy="52" r="1.7" fill="var(--panel)"/>'+
+    '<circle cx="26" cy="80" r="1.4" fill="var(--panel)"/><circle cx="84" cy="74" r="1.8" fill="var(--panel)"/>'+
+    '<circle cx="66" cy="26" r="1.3" fill="var(--panel)"/>'+
+    '<path d="M50 86 q-9 -6 -9 -16 l18 0 q0 10 -9 16z" fill="#ffb340"/>'+
+    '<path d="M50 94 q-5 -5 -5 -12 l10 0 q0 7 -5 12z" fill="#ff6a2b"/>'+
+    '<path d="M50 8 q16 16 16 38 v16 h-32 v-16 q0 -22 16 -38z" fill="#f2f1ec" '+
+      'stroke="var(--line)" stroke-width="3"/>'+
+    '<path d="M34 48 l-12 20 h12z" fill="#e23b2e" stroke="var(--line)" stroke-width="3" stroke-linejoin="round"/>'+
+    '<path d="M66 48 l12 20 h-12z" fill="#e23b2e" stroke="var(--line)" stroke-width="3" stroke-linejoin="round"/>'+
+    '<circle cx="50" cy="38" r="9" fill="#5ec8e8" stroke="var(--line)" stroke-width="3"/>'+
+    '<path d="M44 34 a8 8 0 0 1 6 -3" stroke="var(--panel)" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>'},
+
+  /* a cat, for no chemical reason at all */
+  {name:"Cat", svg:'<svg viewBox="0 0 100 100">'+
+    '<rect width="100" height="100" fill="#ffe9c9"/>'+
+    '<path d="M22 40 l2 -24 20 12z" fill="var(--muted)"/>'+
+    '<path d="M78 40 l-2 -24 -20 12z" fill="var(--muted)"/>'+
+    '<path d="M27 38 l1.4 -14 12 7z" fill="var(--badln)"/>'+
+    '<path d="M73 38 l-1.4 -14 -12 7z" fill="var(--badln)"/>'+
+    '<ellipse cx="50" cy="58" rx="33" ry="29" fill="#8b6b50"/>'+
+    '<ellipse cx="50" cy="58" rx="33" ry="29" fill="none" stroke="var(--line)" stroke-width="3"/>'+
+    '<ellipse cx="38" cy="53" rx="6.5" ry="8" fill="var(--soft2)"/>'+
+    '<ellipse cx="62" cy="53" rx="6.5" ry="8" fill="var(--soft2)"/>'+
+    '<ellipse cx="38" cy="54" rx="2.8" ry="6" fill="var(--line)"/>'+
+    '<ellipse cx="62" cy="54" rx="2.8" ry="6" fill="var(--line)"/>'+
+    '<path d="M46 66 l4 4 4 -4z" fill="var(--badln)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>'+
+    '<path d="M50 70 q0 6 -7 6 M50 70 q0 6 7 6" stroke="var(--line)" stroke-width="2.6" '+
+      'fill="none" stroke-linecap="round"/>'+
+    '<path d="M16 60 h12 M16 68 h12 M84 60 h-12 M84 68 h-12" stroke="var(--line)" '+
+      'stroke-width="2.2" stroke-linecap="round"/></svg>'}
+];
+
+/* the picture is switched off while the balancing itself is settled —
+   set PUZZLE to true to bring it back */
+var PUZZLE=false;
+var PZN=12, PZKEY="balpz";
+var PZ={pic:0, got:[]};
+try{
+  var sav=JSON.parse(localStorage.getItem(PZKEY)||"null");
+  if(sav && typeof sav.pic==="number" && Array.isArray(sav.got)) PZ=sav;
+}catch(e){}
+function pzSave(){ try{ localStorage.setItem(PZKEY,JSON.stringify(PZ)); }catch(e){} }
+function pzCount(){ return MYPICS.length ? MYPICS.length : ART.length; }
+function pzArtHTML(){
+  if(MYPICS.length)
+    return '<img src="'+esc(MYPICS[PZ.pic%MYPICS.length])+'" alt="" '+
+           'style="width:100%;height:100%;object-fit:cover;display:block">';
+  return ART[PZ.pic%ART.length].svg;
+}
+function pzName(){
+  return MYPICS.length ? ("Picture "+((PZ.pic%MYPICS.length)+1))
+                       : ART[PZ.pic%ART.length].name;
+}
+/* uncover one tile; returns true if that finished the picture */
+function pzEarn(){
+  var left=[], i;
+  for(i=0;i<PZN;i++) if(PZ.got.indexOf(i)<0) left.push(i);
+  if(!left.length) return true;
+  PZ.got.push(left[Math.floor(Math.random()*left.length)]);
+  pzSave();
+  return PZ.got.length>=PZN;
+}
+function pzNext(){
+  PZ.pic=(PZ.pic+1)%pzCount(); PZ.got=[]; pzSave(); bqRender();
+}
+function pzHTML(){
+  var done=PZ.got.length>=PZN, t="", i, side=4;
+  for(i=0;i<PZN;i++){
+    var r=Math.floor(i/side), c=i%side;
+    t+='<div class="pztile'+(PZ.got.indexOf(i)>=0?" gone":"")+'" style="left:'+
+      (c*25)+'%;top:'+(r*33.3333)+'%;width:25%;height:33.3333%"></div>';
+  }
+  return '<div class="reward">'+
+    '<p class="pzhead">'+esc(pzName())+' · <b>'+PZ.got.length+'</b> of '+PZN+' pieces</p>'+
+    '<div class="pzwrap"><div class="pzart">'+pzArtHTML()+'</div>'+t+'</div>'+
+    (done ? '<p class="pzdone">Finished!<br><button data-b="pznext">Start a new picture</button></p>' : '')+
+  '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREDICTING PRODUCTS — single replacement (22 Sept), double replacement (23 Sept)
+   The reactants are given and the products are blank. The student drags
+   the pieces into the products, sets the subscripts, checks, then types
+   coefficients with no table. Two levels. Water reactions are left out
+   (the OH in H2O is not visible to a student). Already-balanced reactions
+   are allowed here: predicting is the work.
+   ═══════════════════════════════════════════════════════════════ */
+var PPCH={F:1,Cl:1,Br:1,I:1,NO3:1,NO2:1,ClO4:1,ClO3:1,ClO2:1,ClO:1,OH:1,
+          SO4:2,SO3:2,CO3:2,PO4:3,PO3:3};
+/* a free metal from this list gets "Use Fe3+." — he asked for no more than that */
+var PPMV={Fe:1,Cr:1,Cu:1,Ni:1,Co:1,Mn:1,Sn:1,Pb:1};
+
+SETS.pp={
+  name:"Predicting: single replacement",
+  levels:[
+    /* metal + metal compound, one number to balance, no free multivalent
+       metal, no diatomic product */
+    {name:"Beginner", eqs:[
+      E(["Na","AlCl3"],["NaCl","Al"]),
+      E(["Zn","AgNO3"],["Zn(NO3)2","Ag"]),
+      E(["K","AlCl3"],["KCl","Al"]),
+      E(["Mg","AgNO2"],["Mg(NO2)2","Ag"]),
+      E(["Na","FeCl3"],["NaCl","Fe"]),
+      E(["Al","AgNO3"],["Al(NO3)3","Ag"]),
+      E(["Na","ZnCl2"],["NaCl","Zn"]),
+      E(["Zn","AgClO3"],["Zn(ClO3)2","Ag"]),
+      E(["Mg","AgNO3"],["Mg(NO3)2","Ag"]),
+      /* already balanced */
+      E(["Mg","CuSO4"],["MgSO4","Cu"]),
+      E(["Zn","CuCl2"],["ZnCl2","Cu"]),
+      E(["Zn","Pb(NO3)2"],["Zn(NO3)2","Pb"])
+    ]},
+    /* free multivalent metals, diatomic products, 2-against-3 */
+    {name:"Advanced", eqs:[
+      E(["Al","CuSO4"],["Al2(SO4)3","Cu"]),
+      E(["Cl2","NaBr"],["NaCl","Br2"]),
+      E(["Fe","HCl"],["FeCl3","H2"]),
+      E(["Mg","FeCl3"],["MgCl2","Fe"]),
+      E(["Zn","H3PO4"],["Zn3(PO4)2","H2"]),
+      E(["Ba","HCl"],["BaCl2","H2"]),
+      E(["Al","Fe(NO3)2"],["Al(NO3)3","Fe"]),
+      E(["Br2","KI"],["KBr","I2"]),
+      E(["Cu","AgNO3"],["Cu(NO3)2","Ag"]),
+      E(["Mg","Al2(SO4)3"],["MgSO4","Al"]),
+      E(["Zn","HBr"],["ZnBr2","H2"]),
+      E(["Ca","AlCl3"],["CaCl2","Al"]),
+      E(["Na","H2SO4"],["Na2SO4","H2"]),
+      E(["Al","HBr"],["AlBr3","H2"]),
+      E(["Cl2","KI"],["KCl","I2"]),
+      E(["Mg","Fe(ClO4)3"],["Mg(ClO4)2","Fe"]),
+      E(["Cr","HCl"],["CrCl3","H2"]),
+      E(["Ca","H3PO4"],["Ca3(PO4)2","H2"]),
+      E(["Mg","HCl"],["MgCl2","H2"]),
+      E(["Al","ZnCl2"],["AlCl3","Zn"]),
+      E(["Ni","AgNO3"],["Ni(NO3)2","Ag"]),
+      E(["Br2","NaI"],["NaBr","I2"]),
+      E(["Al","Pb(NO3)2"],["Al(NO3)3","Pb"]),
+      E(["Sr","HCl"],["SrCl2","H2"]),
+      E(["Zn","FeCl3"],["ZnCl2","Fe"]),
+      E(["Al","H2SO4"],["Al2(SO4)3","H2"]),
+      E(["Ca","HBr"],["CaBr2","H2"]),
+      E(["Mg","Fe(NO3)3"],["Mg(NO3)2","Fe"]),
+      E(["Al","HCl"],["AlCl3","H2"]),
+      E(["Cl2","NaI"],["NaCl","I2"]),
+      E(["Mg","H3PO4"],["Mg3(PO4)2","H2"]),
+      E(["Zn","HCl"],["ZnCl2","H2"]),
+      E(["Al","Cu(ClO4)2"],["Al(ClO4)3","Cu"]),
+      E(["Ca","HCl"],["CaCl2","H2"]),
+      E(["Mg","AlCl3"],["MgCl2","Al"]),
+      E(["Mg","HBr"],["MgBr2","H2"]),
+      /* free multivalent metals, added 23 Sept so they turn up often enough */
+      E(["Fe","CuSO4"],["FeSO4","Cu"]),
+      E(["Fe","CuCl2"],["FeCl3","Cu"]),
+      E(["Fe","AgNO3"],["Fe(NO3)2","Ag"]),
+      E(["Fe","HBr"],["FeBr3","H2"]),
+      E(["Cr","CuSO4"],["Cr2(SO4)3","Cu"]),
+      E(["Cr","Pb(NO3)2"],["Cr(NO3)3","Pb"]),
+      E(["Ni","HCl"],["NiCl2","H2"]),
+      E(["Ni","CuSO4"],["NiSO4","Cu"]),
+      E(["Co","HCl"],["CoCl2","H2"]),
+      E(["Co","AgNO3"],["Co(NO3)2","Ag"]),
+      E(["Mn","HCl"],["MnCl2","H2"]),
+      E(["Mn","CuCl2"],["MnCl2","Cu"]),
+      E(["Cu","AgClO3"],["Cu(ClO3)2","Ag"])
+    ]}
+  ]
+};
+
+
+/* Double replacement: the two positive ions swap partners. Two levels, as
+   single replacement. No water, no acids, no ammonium, no mercury. A
+   multivalent metal's charge is worked out from the compound it is in, so
+   there is no "Use Fe+3" note here (his call, 23 Sept). */
+SETS.pdr={
+  name:"Predicting: double replacement",
+  levels:[
+    /* fixed-charge metals; halides, hydroxide and carbonate only */
+    {name:"Beginner", eqs:[
+      E(["KOH","MgCl2"],["KCl","Mg(OH)2"]),
+      E(["CaI2","AgF"],["CaF2","AgI"]),
+      E(["ZnCl2","K2CO3"],["ZnCO3","KCl"]),
+      E(["CaBr2","NaOH"],["Ca(OH)2","NaBr"]),
+      E(["Na2CO3","BaBr2"],["NaBr","BaCO3"]),
+      E(["NaOH","AlCl3"],["NaCl","Al(OH)3"]),
+      E(["MgBr2","KF"],["MgF2","KBr"]),
+      E(["K2CO3","CaCl2"],["KCl","CaCO3"]),
+      E(["LiOH","ZnI2"],["LiI","Zn(OH)2"]),
+      E(["BaCl2","Li2CO3"],["BaCO3","LiCl"]),
+      E(["KOH","SrBr2"],["KBr","Sr(OH)2"])
+    ]},
+    /* the full polyatomic set and multivalent metals */
+    {name:"Advanced", eqs:[
+      E(["Cr(NO3)3","K2CO3"],["Cr2(CO3)3","KNO3"]),
+      E(["Mg(ClO3)2","Na3PO4"],["Mg3(PO4)2","NaClO3"]),
+      E(["FeCl3","NaOH"],["Fe(OH)3","NaCl"]),
+      E(["Al2(SO4)3","Ca(NO3)2"],["Al(NO3)3","CaSO4"]),
+      E(["CoCl2","Na3PO4"],["Co3(PO4)2","NaCl"]),
+      E(["Pb(NO2)2","K2CO3"],["PbCO3","KNO2"]),
+      E(["Fe(NO3)3","K2SO4"],["Fe2(SO4)3","KNO3"]),
+      E(["SnCl2","AgNO3"],["Sn(NO3)2","AgCl"]),
+      E(["Na2CO3","AlBr3"],["NaBr","Al2(CO3)3"]),
+      E(["Mn(ClO4)2","K2SO3"],["MnSO3","KClO4"]),
+      E(["CuSO4","K3PO4"],["Cu3(PO4)2","K2SO4"]),
+      E(["CrCl3","AgNO3"],["Cr(NO3)3","AgCl"]),
+      E(["Ni(NO3)2","NaOH"],["Ni(OH)2","NaNO3"]),
+      E(["CuCl2","Li3PO4"],["Cu3(PO4)2","LiCl"]),
+      E(["FeSO4","Ba(ClO3)2"],["Fe(ClO3)2","BaSO4"]),
+      E(["Pb(NO3)2","NaI"],["PbI2","NaNO3"])
+    ]}
+  ]
+};
+
+/* both predicting sections run on this one engine */
+function isPP(){ return L.type==="pp" || L.type==="pdr"; }
+
+/* a compound as cation, anion and their subscripts */
+function ppSplit(f){
+  var m=/^([A-Z][a-z]?)(\d*)/.exec(f); if(!m) return null;
+  var rest=f.slice(m[0].length), an, na;
+  var q=/^\(([A-Za-z0-9]+)\)(\d+)$/.exec(rest);
+  if(q){ an=q[1]; na=+q[2]; }
+  else if(isPoly(rest)){ an=rest; na=1; }
+  else { var e=/^([A-Z][a-z]?)(\d*)$/.exec(rest); if(!e) return null;
+         an=e[1]; na=e[2]?+e[2]:1; }
+  return {cat:m[1], nc:m[2]?+m[2]:1, an:an, na:na};
+}
+function ppElem(f){ var m=/^([A-Z][a-z]?)(\d*)$/.exec(f);
+  return m?{sym:m[1], n:m[2]?+m[2]:1}:null; }
+/* the positive ion's charge in a compound, or 0 if it does not come out whole */
+function ppCatQ(c){
+  if(!c || !PPCH[c.an]) return 0;
+  var q=PPCH[c.an]*c.na/c.nc;
+  return q===Math.floor(q) && gcd(c.nc,c.na)===1 ? q : 0;
+}
+function ppTerm(c, k){
+  return {c:true, k:k, cat:c.cat, an:c.an, nc:c.nc, na:c.na, cq:ppCatQ(c), aq:PPCH[c.an]};
+}
+
+/* Work out the pieces once, and drop anything that does not add up.
+   eq.pp.tiles are the pieces on the tray, eq.pp.tch their charges as ions,
+   eq.pp.terms the products in the order they are written, each naming the
+   boxes (slots) it is made of. */
+function ppPrep(eq){
+  var ri=ppElem(eq.r[0])?0:1, pi=ppElem(eq.p[0])?0:1;
+  var rel=ppElem(eq.r[ri]), rc=ppSplit(eq.r[1-ri]), pel=ppElem(eq.p[pi]), pc=ppSplit(eq.p[1-pi]);
+  if(!rel||!rc||!pel||!pc) return false;
+  var tiles=[rel.sym, rc.cat, rc.an];
+  if([pc.cat,pc.an,pel.sym].slice().sort().join()!==tiles.slice().sort().join()) return false;
+  var cc=ppCatQ(pc), rcc=ppCatQ(rc);
+  if(!cc || !rcc) return false;
+  if(tiles.some(function(s){ return !isPoly(s) && !ENAME[s]; })) return false;
+  eq.sol=solve(eq); if(!eq.sol) return false;
+  eq.sig=eq.sol.join("-");
+  /* the charge each piece has as an ion: the free element's from the product
+     compound, the other two from the reactant compound */
+  var tch=[rel.sym===pc.cat ? cc : -PPCH[pc.an], rcc, -PPCH[rc.an]];
+  var comp=ppTerm(pc,[0,1]), el={c:false, k:[2], sym:pel.sym, n:pel.n};
+  /* the slots: 0 the compound's positive ion, 1 its negative ion, 2 the element */
+  eq.pp={kind:"sr", tiles:tiles, tch:tch, terms:pi===0?[el,comp]:[comp,el],
+         want:[pc.cat, pc.an, pel.sym], rep:[rel.sym, pel.sym],
+         mv:PPMV[rel.sym] ? rel.sym : null, cc:cc};
+  return true;
+}
+function ppPrepDR(eq){
+  var r=eq.r.map(ppSplit), p=eq.p.map(ppSplit);
+  if(r.some(function(x){ return !x; }) || p.some(function(x){ return !x; })) return false;
+  var tiles=[r[0].cat, r[0].an, r[1].cat, r[1].an];
+  if(tiles.some(function(s,i){ return tiles.indexOf(s)!==i; })) return false;
+  if(tiles.some(function(s){ return !isPoly(s) && !ENAME[s]; })) return false;
+  /* each product pairs one reactant's positive ion with the other's negative ion */
+  var pairs=p.map(function(c){ return c.cat+"|"+c.an; }).sort().join();
+  if(pairs!==[r[0].cat+"|"+r[1].an, r[1].cat+"|"+r[0].an].sort().join()) return false;
+  var q=[ppCatQ(r[0]), ppCatQ(r[1])];
+  if(!q[0] || !q[1]) return false;
+  var terms=[ppTerm(p[0],[0,1]), ppTerm(p[1],[2,3])];
+  /* the charges on the products must agree with the reactants' */
+  if(terms.some(function(t){ return t.cq!==q[tiles.indexOf(t.cat)/2]; })) return false;
+  eq.sol=solve(eq); if(!eq.sol) return false;
+  eq.sig=eq.sol.join("-");
+  eq.pp={kind:"dr", tiles:tiles, tch:[q[0], -PPCH[r[0].an], q[1], -PPCH[r[1].an]],
+         terms:terms, want:[p[0].cat, p[0].an, p[1].cat, p[1].an],
+         rep:[r[0].cat, r[1].cat], mv:null};
+  return true;
+}
+[["pp",ppPrep],["pdr",ppPrepDR]].forEach(function(s){
+  SETS[s[0]].levels.forEach(function(lv){
+    lv.eqs=lv.eqs.filter(function(eq){
+      var ok=s[1](eq);
+      if(!ok && window.console) console.error("predict: dropped", eq.r.join("+"));
+      return ok;
+    });
+  });
+});
+
+/* ── state ───────────────────────────────────────────────────── */
+/* phases: "replace" (beginner only: "In this reaction __ replaces __" or
+   "__ swaps partners with __"), "charges" (arrows on the tiles), "predict",
+   "balance", "done". flip: in double replacement the student wrote the two
+   products the other way round, which is just as right. */
+var P={eq:null, phase:"charges", rep:["",""], tip:null, ok:false, chg:[], slot:[], sub:[], order:[],
+       sel:null, bad:{}, hint:null, misses:0, coef:[], unbal:[], flip:false};
+function ppElStep(){ return L.level>0; }   /* the element gets a stepper at advanced */
+function ppDR(){ return P.eq.pp.kind==="dr"; }
+/* the slots that belong to a compound */
+function ppInComp(k){
+  return P.eq.pp.terms.some(function(t){ return t.c && t.k.indexOf(k)>=0; });
+}
+/* the equation as the student wrote it, for balancing */
+function ppBeq(){
+  var eq=P.eq;
+  if(!P.flip) return eq;
+  if(!P.beq || P.beq.base!==eq)
+    P.beq={base:eq, r:eq.r, p:eq.p.slice().reverse(), groups:groupsOf(eq), pp:eq.pp};
+  return P.beq;
+}
+
+function ppPool(){
+  var eqs=curLevel().eqs;
+  return ppNames() ? eqs.filter(pnFits) : eqs;
+}
+function ppPick(){
+  var pool=ppPool(), fresh=pool.filter(function(e){ return L.seen.indexOf(e)<0; });
+  var last=P.eq;
+  var varied=fresh.filter(function(e){ return e!==last && (!last || e.r[0]!==last.r[0]); });
+  var bag=varied.length ? varied : (fresh.length ? fresh : pool.filter(function(e){ return e!==last; }));
+  if(!bag.length) bag=pool;
+  /* never more than two in a row without a free multivalent metal */
+  if((P.sinceMV||0)>=2){
+    var mv=bag.filter(function(e){ return e.pp.mv; });
+    if(!mv.length) mv=pool.filter(function(e){ return e.pp.mv && e!==last; });
+    if(mv.length) bag=mv;
+  }
+  var e=bag[Math.floor(Math.random()*bag.length)];
+  P.sinceMV = e.pp.mv ? 0 : (P.sinceMV||0)+1;
+  return e;
+}
+function ppNew(){
+  P.eq=ppPick();
+  if(L.seen.indexOf(P.eq)<0) L.seen.push(P.eq);
+  P.misses=0; P.tries={};
+  var n=P.eq.pp.tiles.length, o=[];
+  for(var i=0;i<n;i++) o.push(i);
+  for(i=n-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=o[i]; o[i]=o[j]; o[j]=t; }
+  P.order=o;
+  ppReset();
+}
+/* start this equation again — misses already made still count */
+function ppReset(){
+  var n=P.eq.pp.tiles.length, z=function(v){ var a=[]; for(var i=0;i<n;i++) a.push(v); return a; };
+  P.phase=ppNames()?"names":L.level===0?"replace":"charges"; P.rep=["",""]; P.tip=null; P.ok=false;
+  P.nm={ok:{}, v:{}, bad:{}}; P.lock=z(false);
+  P.chg=z(0); P.slot=z(null); P.sub=z(1); P.sel=null; P.flip=false; P.beq=null;
+  P.bad={}; P.hint=null; P.unbal=[]; P.stuck=false;
+  P.coef=P.eq.r.concat(P.eq.p).map(function(){ return ""; });
+  ppRender();
+}
+
+/* Start over clears the part they are on, not the whole equation (24 Sept).
+   Misses already made still count. */
+function ppRestartPart(){
+  var n=P.eq.pp.tiles.length, i;
+  if(P.phase==="names") pnLive().forEach(function(x){
+    pnIds(x).forEach(function(id){ delete P.nm.v[id]; }); });
+  else if(P.phase==="replace") P.rep=["",""];
+  else if(P.phase==="charges"){ for(i=0;i<n;i++) if(!P.lock[i]) P.chg[i]=0; }
+  else if(P.phase==="predict"){ for(i=0;i<n;i++){ P.slot[i]=null; P.sub[i]=1; } P.sel=null; }
+  else if(P.phase==="balance"){ P.coef=P.coef.map(function(){ return ""; }); P.unbal=[]; }
+  P.bad={}; P.nm.bad={}; P.hint=null; P.tip=null; P.ok=false;
+  ppRender();
+}
+
+/* ── drawing ─────────────────────────────────────────────────── */
+/* 0, +1, +2, \u22121 — sign first, the 1 always written, as in the ionic page */
+function ppChgText(q){
+  return q===0 ? "0" : (q>0?"+":"\u2212")+Math.abs(q);
+}
+/* The charge on a piece is grayed, on the tray and in the products, so it
+   never reads as part of the formula (his call, 23 Sept). */
+function ppChgHTML(q){ return '<sup class="ppq">'+ppChgText(q)+'</sup>'; }
+function ppPiece(s,n){
+  return isPoly(s)&&n>1 ? "("+subDigits(s)+")<sub>"+n+"</sub>"
+                        : subDigits(s)+(n>1?"<sub>"+n+"</sub>":"");
+}
+function ppSlotHTML(k){
+  var t=P.slot[k], s=t===null?null:P.eq.pp.tiles[t], n=P.sub[k], comp=ppInComp(k);
+  var step=(comp||ppElStep())
+    ? '<span class="ppstep'+(s===null?" off":"")+'">'+
+        '<button data-pp="dn" data-k="'+k+'" aria-label="Smaller subscript"'+(n<=1?" disabled":"")+'>\u2212</button>'+
+        '<button data-pp="up" data-k="'+k+'" aria-label="Bigger subscript"'+(n>=9?" disabled":"")+'>+</button></span>'
+    : "";
+  return '<span class="ppslot"><span class="ppbox'+(s!==null?" full":"")+
+    (P.bad["s"+k]?" bad":"")+(P.sel!==null&&s===null?" target":"")+'" data-slot="'+k+'">'+
+    (s===null?"":'<span class="pppc">'+ppPiece(s,n)+
+      /* the ions carry their total charge; the element on its own carries none */
+      (comp?ppChgHTML(P.chg[t]*n):'')+'</span>')+'</span>'+step+'</span>';
+}
+/* a formula with every piece that does not agree boxed in red */
+function ppMarkEl(s, marks){
+  return s.replace(/([A-Z][a-z]?)(\d*)|\)(\d+)|(\d+)|([^A-Za-z\d])/g,
+    function(m,sym,d,pd,dd,other){
+      if(sym){ var p=esc(sym)+(d?"<sub>"+d+"</sub>":"");
+        return marks.indexOf(sym)>=0 ? '<span class="unbal">'+p+'</span>' : p; }
+      if(pd) return ")<sub>"+pd+"</sub>";
+      if(dd) return "<sub>"+dd+"</sub>";
+      return esc(other);
+    });
+}
+function ppMarkHTML(f, marks, eq){
+  if(!marks.length) return formulaHTML(f);
+  var spans=[], out="", i=0;
+  groupsOf(eq||ppBeq()).forEach(function(g){ var at=polyAt(f,g); if(at>=0) spans.push([at,g]); });
+  spans.sort(function(a,b){ return a[0]-b[0]; }).forEach(function(s){
+    out+=ppMarkEl(f.slice(i,s[0]),marks);
+    var ion=subDigits(s[1]);
+    out+=marks.indexOf(s[1])>=0 ? '<span class="unbal">'+ion+'</span>' : ion;
+    i=s[0]+s[1].length;
+  });
+  return out+ppMarkEl(f.slice(i),marks);
+}
+function ppEqHTML(){
+  var eq=ppBeq(), out='<div class="eq pp">', i, nr=eq.r.length;
+  if(P.phase==="names"||P.phase==="replace"||P.phase==="charges"||P.phase==="predict"){
+    eq.r.forEach(function(f,j){
+      if(j) out+='<span class="plus">+</span>';
+      out+='<span class="term"><span>'+(P.phase==="names" && !pnDone(j)
+        ? '<span class="pnword">'+esc(pnItems(eq)[j].name)+'</span>' : formulaHTML(f))+'</span></span>';
+    });
+    out+='<span class="arrow">&rarr;</span>';
+    /* from names: the products are not the job yet, so no empty boxes */
+    if(P.phase==="names") return out+'<span class="term pnq">?</span></div>';
+    eq.pp.terms.forEach(function(t,j){
+      if(j) out+='<span class="plus">+</span>';
+      out+= t.c ? '<span class="ppcomp">'+t.k.map(ppSlotHTML).join("")+'</span>'
+                : ppSlotHTML(t.k[0]);
+    });
+    return out+'</div>';
+  }
+  var all=eq.r.concat(eq.p);
+  for(i=0;i<all.length;i++){
+    if(i===nr) out+='<span class="arrow">&rarr;</span>';
+    else if(i>0) out+='<span class="plus">+</span>';
+    out+='<span class="term">'+
+      '<input class="coef'+(P.phase==="done"?" solved":"")+(P.bad["c"+i]?" bad":"")+'" id="pc'+i+'" value="'+esc(P.coef[i])+
+      '" inputmode="numeric" autocomplete="off" maxlength="2" aria-label="Coefficient for '+
+      esc(all[i])+'"'+(P.phase==="done"?" disabled":"")+'>'+
+      '<span>'+ppMarkHTML(all[i], P.unbal)+'</span></span>';
+  }
+  return out+'</div>';
+}
+function ppTrayHTML(){
+  return '<div class="pptray">'+P.order.map(function(t){
+    var s=P.eq.pp.tiles[t], used=P.slot.indexOf(t)>=0;
+    var arrows = P.phase==="charges" && !P.lock[t]
+      ? '<span class="ppchg">'+
+          '<button data-pp="cu" data-t="'+t+'" aria-label="Raise the charge"'+(P.chg[t]>=4?" disabled":"")+'>&#9650;</button>'+
+          '<button data-pp="cd" data-t="'+t+'" aria-label="Lower the charge"'+(P.chg[t]<=-4?" disabled":"")+'>&#9660;</button></span>'
+      : "";
+    return '<div class="pptile'+(used?" used":"")+(P.sel===t?" sel":"")+
+      (P.phase==="charges"&&!P.lock[t]?" setting":"")+(P.bad["t"+t]?" bad":"")+'" data-t="'+t+'"'+
+      ' aria-label="'+esc(unitName(s))+'"><span class="pplab">'+subDigits(s)+
+      ppChgHTML(P.chg[t])+'</span>'+arrows+'</div>';
+  }).join("")+'</div>';
+}
+function ppReady(){
+  if(P.phase==="names") return pnReady();
+  if(P.phase==="replace") return P.rep.every(function(v){ return (v||"").trim()!==""; });
+  return P.phase!=="predict" || P.slot.every(function(t){ return t!==null; });
+}
+
+function ppRender(){
+  var h=navHTML(), sec=document.getElementById("sec");
+  var early=P.phase==="names"||P.phase==="replace"||P.phase==="charges"||P.phase==="predict";
+  h+='<div class="eqbox'+(early?" ppwork":"")+'">'+ppEqHTML()+'</div>';
+  var pp=P.eq.pp;
+  /* the prompts sit right under the equation; the pieces come after them */
+  h+='<div class="ppguide">';
+  if(P.phase==="done"){
+    h+=winHTML("Correct!");
+  } else {
+    /* every passed check says so, until the next Check */
+    if(P.ok) h+='<p class="okmsg">Correct!</p>';
+    if(early && pp.mv && P.phase!=="names")
+      h+='<p class="ppnote">Use '+esc(pp.mv)+'<sup>'+ppChgText(pp.cc)+'</sup>.</p>';
+    h+='<p class="lead">'+(P.phase==="names"
+        ? pnLead()
+        : P.phase==="replace"
+        ? 'In this reaction '+ppRepBox(0)+(ppDR()?' swaps partners with ':' replaces ')+ppRepBox(1)+'.'
+        : P.phase==="charges"
+        ? (ppNames() ? "Use the arrows to enter the charge on the <b>"+
+                         esc(PNANION[pp.tiles[0]]||eName(pp.tiles[0]))+"</b> ion."
+                     : "Use the arrows to give each ion its charge.")
+        : P.phase==="predict"
+        ? "Drag each piece into the products, then set the subscripts."
+        : "Add coefficients until both sides match, then press Check.")+'</p>'+
+      '<p class="hint'+(P.hint?"":" blank")+'">'+(P.hint||"")+'</p>'+
+      (P.tip?'<p class="tip">'+P.tip+'</p>':'');
+  }
+  h+='</div>';
+  /* the work, then Check | Hint | Start over directly under it (24 Sept) */
+  if(P.phase==="names") h+='<div class="ppguide">'+pnCardsHTML()+'</div>';
+  if(P.phase==="charges"||P.phase==="predict") h+=ppTrayHTML();
+  /* five wrong tries on one item, from names: no sixth attempt at it — one
+     button moves on, same as the win screen's (24 Sept) */
+  if(P.stuck) h+='<div class="ppguide"><button data-b="next">New equation</button></div>';
+  else if(P.phase!=="done") h+='<div class="ppguide">'+btnRowHTML(ppReady())+'</div>';
+  h+=counterHTML();
+  sec.innerHTML=h;
+  fitEq();
+  if(P.phase==="names") pnFocus();
+  if(P.phase==="replace"){
+    var rb=document.querySelector(".ppsym.bad")||
+      [].filter.call(document.querySelectorAll(".ppsym"),function(x){ return !x.value.trim(); })[0];
+    if(rb){ rb.focus(); rb.select(); }
+  }
+  if(P.phase==="balance"){
+    var f=document.querySelector(".coef.bad")||
+      (P.coef.every(function(v){ return !(v||"").trim(); }) ? document.getElementById("pc0") : null);
+    if(f){ f.focus(); f.select(); }
+  }
+}
+
+/* the two blanks in "In this reaction __ replaces __" / "__ swaps partners with __" */
+function ppRepBox(i){
+  var lab=ppDR() ? (i?"Symbol of the other positive ion":"Symbol of one positive ion")
+                 : (i?"Symbol of what is replaced":"Symbol of what does the replacing");
+  return '<input class="ppsym'+(P.bad["r"+i]?" bad":"")+'" id="pr'+i+'" value="'+esc(P.rep[i])+
+    '" autocomplete="off" spellcheck="false" maxlength="4" aria-label="'+lab+'">';
+}
+
+/* ── hints: never a miss ─────────────────────────────────────── */
+function ppHint(){
+  var pp=P.eq.pp;
+  if(P.phase==="names") P.tip=pnHint();
+  else if(P.phase==="replace")
+    P.tip=ppDR() ? "Each compound has a positive ion and a negative ion. The positive ions swap partners, and so do the negative ions."
+                 : "The element on its own takes the place of one element in the compound.";
+  else if(P.phase==="charges")
+    P.tip="Find each element on your periodic table."+
+      (pp.tiles.some(isPoly) ? " Find a polyatomic ion on your ion sheet." : "")+
+      (ppDR() && pp.tiles.some(function(s){ return PPMV[s]; })
+        ? " A metal that forms more than one ion gets its charge from the negative ion it is with." : "");
+  else if(P.phase==="predict")
+    P.tip=ppDR() ? "The positive ions swap partners. Write the positive ion first in each compound."
+                 : "The element on its own and the element it replaces trade places.";
+  else if(P.phase==="balance"){
+    /* the balancing page's own hint, run on this equation and these coefficients */
+    [].forEach.call(document.querySelectorAll('.eq.pp .coef'),function(x){
+      P.coef[+x.id.slice(2)]=x.value; });
+    var keep={eq:B.eq, els:B.els, coef:B.coef, phase:B.phase, tipEl:B.tipEl};
+    B.eq=ppBeq(); B.els=elementsOf(B.eq); B.coef=P.coef.slice(); B.phase="balance";
+    P.tip=hintText();
+    B.eq=keep.eq; B.els=keep.els; B.coef=keep.coef; B.phase=keep.phase; B.tipEl=keep.tipEl;
+    P.unbal=[];
+  }
+  ppRender();
+}
+
+/* ── checking ────────────────────────────────────────────────── */
+function ppCheck(){
+  if(P.phase==="done") return;
+  if(!ppReady()){
+    var empty=[].filter.call(document.querySelectorAll(".ppsym"),function(x){ return !x.value.trim(); })[0];
+    if(empty) empty.focus();
+    return;
+  }
+  var pp=P.eq.pp, dr=ppDR();
+  P.bad={}; P.hint=null; P.tip=null; P.unbal=[]; P.ok=false;
+
+  if(P.phase==="names"){ pnCheck(); return; }
+
+  if(P.phase==="replace"){
+    var want=pp.rep, msgs=[];
+    var got=P.rep.map(function(v){ return plainDigits((v||"").trim()).replace(/\s+/g,""); });
+    /* single replacement: in that order. Double replacement: the two positive
+       ions or the two negative ions, either way round (his call, 23 Sept) */
+    var negs=pp.tiles.filter(function(t,k){ return pp.tch[k]<0; }),
+        lneg=negs.map(function(t){ return t.toLowerCase(); });
+    if(dr && negs.indexOf(got[0])>=0 && negs.indexOf(got[1])>=0) want=negs;
+    var right=function(i){
+      return dr ? want.indexOf(got[i])>=0 && !(i===1 && got[1]===got[0]) : got[i]===want[i];
+    };
+    var repTyped=P.rep.map(function(v){ return (v||"").trim(); }).join(", ");
+    if(right(0) && right(1)){
+      logAttempt("replace", ppAsked(), repTyped, true, "", ppTry("replace"));
+      /* from names, double replacement: the charges are already on the tiles */
+      P.phase = ppNames() && dr ? "predict" : "charges"; P.ok=true; ppRender(); return;
+    }
+    P.misses++;
+    var repFault="";
+    /* in double replacement, which sign the other box holds */
+    var other=function(i){ var o=got[1-i].toLowerCase();
+      return lneg.indexOf(o)>=0 ? "neg" : want.some(function(w){ return w.toLowerCase()===o; }) ? "pos" : ""; };
+    [0,1].forEach(function(i){
+      if(right(i)) return;
+      var g=got[i], lo=g.toLowerCase(), m;
+      P.bad["r"+i]=true;
+      /* a positive ion they should have written, typed with the wrong capitals */
+      var near=(dr?pp.rep.concat(negs):[want[i]]).filter(function(w){ return w!==g && w.toLowerCase()===lo; })[0];
+      var fc;
+      if(dr && ((lneg.indexOf(lo)>=0 && other(i)==="pos") || (lneg.indexOf(lo)<0 && other(i)==="neg"))){
+        m="Ions swap with ions of the same charge sign."; fc="swapsign"; }
+      else if(!dr && lneg.indexOf(lo)>=0){
+        m="Positive ions replace positive ions."; fc="negion"; }
+      else if(near){
+        m="Check the capitals. A symbol starts with a capital letter, and a second letter "+
+          "is always lowercase — <b>"+keyHTML(near)+"</b>, not <b>"+esc(g)+"</b>."; fc="caps"; }
+      else if(!pp.tiles.some(function(t){ return t.toLowerCase()===lo; })){
+        m="<b>"+esc(g)+"</b> is not in this equation."; fc="notin"; }
+      else { m="Not quite."; fc="other"; }
+      if(!repFault) repFault=fc;
+      if(msgs.indexOf(m)<0) msgs.push(m);
+    });
+    /* "Not quite." says nothing the others do not */
+    if(msgs.length>1) msgs=msgs.filter(function(m){ return m!=="Not quite."; });
+    P.hint=msgs.join(" ");
+    var repDet=[0,1].map(function(i){ return {l:got[i]||"(blank)", k:right(i)}; });
+    logAttempt("replace", ppAsked(), repTyped, false, repFault, ppTry("replace"), detailStr(repDet));
+    ppRender(); return;
+  }
+
+  if(P.phase==="charges"){
+    var chgTyped=P.order.map(function(t){ return pp.tiles[t]+" "+ppChgText(P.chg[t]); }).join(", ");
+    var off=pp.tch.map(function(q,t){ return t; }).filter(function(t){ return P.chg[t]!==pp.tch[t]; });
+    var chgDet=P.order.map(function(t){ return {l:pp.tiles[t]+" "+ppChgText(P.chg[t]), k:P.chg[t]===pp.tch[t]}; });
+    logAttempt("charges", ppAsked(), chgTyped, !off.length, off.length?"charge":"", ppTry("charges"),
+      chgDet.length>1?detailStr(chgDet):null,
+      "C"+(off.length?1:0)+(off.some(function(t){ return PPMV[pp.tiles[t]]; })?",M":""));
+    if(off.length){
+      P.misses++;
+      off.forEach(function(t){ P.bad["t"+t]=true; });
+      P.hint="Not quite. Check the boxed charges.";
+      ppRender(); return;
+    }
+    P.phase="predict"; P.ok=true; ppRender(); return;
+  }
+  if(P.phase==="predict"){
+    var s=P.slot.map(function(t){ return pp.tiles[t]; });
+    /* double replacement: the products may be written in either order */
+    var orders=[pp.terms], wants=[pp.want];
+    if(dr){
+      orders.push([pp.terms[1],pp.terms[0]]);
+      wants.push(pp.want.slice(2).concat(pp.want.slice(0,2)));
+    }
+    var score=wants.map(function(w){ return w.filter(function(x,k){ return s[k]===x; }).length; });
+    var o=score.length>1 && score[1]>score[0] ? 1 : 0, w=wants[o], terms=orders[o];
+    var wrong=w.map(function(x,k){ return k; }).filter(function(k){ return s[k]!==w[k]; });
+    if(wrong.length){
+      P.misses++;
+      wrong.forEach(function(k){ P.bad["s"+k]=true; });
+      /* where each box sits, and what belongs there */
+      var boxes=pp.terms.filter(function(t){ return t.c; }).map(function(t){ return t.k; });
+      var reversed=boxes.some(function(k){ return s[k[0]]===w[k[1]] && s[k[1]]===w[k[0]]; });
+      var kept=dr && boxes.some(function(k){
+        var a=pp.tiles.indexOf(s[k[0]]), b=pp.tiles.indexOf(s[k[1]]);
+        return Math.floor(a/2)===Math.floor(b/2) && a!==b; });
+      P.hint = reversed ? "The positive ion is written first."
+             : kept ? "The positive ions swap partners."
+             : "Not quite. The boxed pieces are in the wrong places.";
+      var prDet=w.map(function(x,k){ return {l:s[k]||"(blank)", k:s[k]===x}; });
+      logAttempt("products", ppAsked(), ppBuilt(), false, reversed?"order":kept?"kept":"place", ppTry("products"),
+        prDet.length>1?detailStr(prDet):null);
+      ppRender(); return;
+    }
+    /* each compound's subscripts, against the compound that belongs in that place */
+    var badSub=null, subFault="";
+    pp.terms.forEach(function(t,j){
+      if(!t.c) return;
+      var want=terms[j], a=P.sub[t.k[0]], b=P.sub[t.k[1]];
+      if(a===want.nc && b===want.na) return;
+      P.bad["s"+t.k[0]]=P.bad["s"+t.k[1]]=true;
+      if(!badSub){ subFault = want.cq*a===want.aq*b ? "reduce" : "balance";
+        badSub = subFault==="reduce"
+        ? "The charges balance, but the subscripts can be smaller."
+        : "The charges don't balance yet."; }
+    });
+    if(badSub){ P.misses++; P.hint=badSub;
+      logAttempt("products", ppAsked(), ppBuilt(), false, subFault, ppTry("products"));
+      ppRender(); return; }
+    var elt=pp.terms.filter(function(t){ return !t.c; })[0];
+    if(elt && P.sub[elt.k[0]]!==elt.n){
+      P.misses++; P.bad["s"+elt.k[0]]=true;
+      P.hint="Not quite. Check the boxed subscript.";
+      logAttempt("products", ppAsked(), ppBuilt(), false, "elsub", ppTry("products"));
+      ppRender(); return;
+    }
+    logAttempt("products", ppAsked(), ppBuilt(), true, "", ppTry("products"));
+    P.flip = o===1; P.beq=null;
+    P.phase="balance"; P.ok=true; ppRender(); return;
+  }
+
+  /* coefficients: a blank means one, and a 1 is never written */
+  [].forEach.call(document.querySelectorAll('.eq.pp .coef'),function(x){
+    P.coef[+x.id.slice(2)]=x.value; });
+  var fault=null, c=P.coef.map(function(v,i){
+    v=(v||"").trim();
+    if(v==="1"){ P.bad["c"+i]=true; fault="one"; return 1; }
+    if(v==="") return 1;
+    if(!/^\d+$/.test(v) || +v===0){ P.bad["c"+i]=true; fault=fault||"nan"; return 0; }
+    return +v;
+  });
+  var coefTyped=coefText(ppBeq(), P.coef);
+  if(fault){
+    P.misses++;
+    P.hint = fault==="one"
+      ? "A coefficient of <b>1</b> is never written. Leave that space blank."
+      : "A coefficient has to be a whole number.";
+    logAttempt("balance", ppAsked(), coefTyped, false, fault, ppTry("balance"));
+    ppRender(); return;
+  }
+  var eq=ppBeq(), g=groupsOf(eq), nr=eq.r.length;
+  var off2=elementsOf(eq).filter(function(u){
+    return sideCount(eq.r,c.slice(0,nr),u,g)!==sideCount(eq.p,c.slice(nr),u,g); });
+  if(off2.length){
+    P.misses++; P.unbal=off2; P.hint="Not balanced yet.";
+    logAttempt("balance", ppAsked(), coefTyped, false, "unbal:"+off2.join(","), ppTry("balance"));
+    ppRender(); return;
+  }
+  var g2=c.reduce(function(x,y){ return gcd(x,y); });
+  if(g2>1){
+    P.misses++;
+    P.hint="Both sides match, but every coefficient can be divided by <b>"+g2+
+           "</b>. Coefficients must be the smallest whole numbers that work.";
+    logAttempt("balance", ppAsked(), coefTyped, false, "reduce", ppTry("balance"));
+    ppRender(); return;
+  }
+  logAttempt("balance", ppAsked(), coefTyped, true, "", ppTry("balance"));
+  P.phase="done";
+  noteSolved(!P.misses);
+  if(PUZZLE) B.earned = pzEarn() ? "full" : "one";
+  track(actId(), P.misses===0);
+  ppRender();
+}
+
+/* ── for the mistake report ── */
+function ppTry(step){ P.tries[step]=(P.tries[step]||0)+1; return P.tries[step]; }
+/* the reactants, as the report shows what was asked */
+function ppAsked(){ return P.eq.r.join(" + ")+" \u2192"; }
+/* the products as the student built them, e.g. "Zn(NO3)2 + Ag" */
+function ppBuilt(){
+  var pp=P.eq.pp;
+  return pp.terms.map(function(t){
+    return t.k.map(function(k){
+      var s=P.slot[k]===null?"?":pp.tiles[P.slot[k]], n=P.sub[k];
+      return n>1 ? (isPoly(s)?"("+s+")"+n:s+n) : s;
+    }).join("");
+  }).join(" + ");
+}
+
+/* ── placing pieces: drag with mouse or touch, or tap a piece then a box ── */
+function ppPlace(t,k){
+  var was=P.slot.indexOf(t); if(was>=0){ P.slot[was]=null; P.sub[was]=1; }
+  P.slot[k]=t; P.sub[k]=1; P.sel=null; P.bad={}; P.hint=null; P.tip=null;
+  ppRender();
+}
+function ppBoxAt(x,y){
+  var el=document.elementFromPoint(x,y);
+  return el ? el.closest(".ppbox") : null;
+}
+var PPD=null;   /* a drag in progress */
+document.addEventListener("pointerdown",function(ev){
+  if(!isPP() || P.phase!=="predict") return;
+  var tile=ev.target.closest(".pptile"), box=ev.target.closest(".ppbox");
+  if(tile && !tile.classList.contains("used")){
+    PPD={t:+tile.dataset.t, x:ev.clientX, y:ev.clientY, ghost:null, src:tile};
+    ev.preventDefault();
+  } else if(box) PPD={slot:+box.dataset.slot};
+});
+document.addEventListener("pointermove",function(ev){
+  if(!PPD || PPD.t===undefined) return;
+  if(!PPD.ghost){
+    if(Math.abs(ev.clientX-PPD.x)+Math.abs(ev.clientY-PPD.y)<7) return;
+    var g=document.createElement("div");
+    g.className="pptile ppghost"; g.innerHTML=PPD.src.innerHTML;
+    document.body.appendChild(g); PPD.ghost=g;
+    PPD.src.classList.add("lifted");
+  }
+  PPD.ghost.style.left=ev.clientX+"px"; PPD.ghost.style.top=ev.clientY+"px";
+  var b=ppBoxAt(ev.clientX,ev.clientY);
+  [].forEach.call(document.querySelectorAll(".ppbox.over"),function(x){
+    if(x!==b) x.classList.remove("over"); });
+  if(b) b.classList.add("over");
+});
+document.addEventListener("pointerup",function(ev){
+  if(!PPD) return;
+  var d=PPD; PPD=null;
+  if(d.t!==undefined){
+    if(d.ghost){
+      d.ghost.remove();
+      var b=ppBoxAt(ev.clientX,ev.clientY);
+      if(b) ppPlace(d.t,+b.dataset.slot); else ppRender();
+    } else { P.sel = P.sel===d.t ? null : d.t; ppRender(); }
+    return;
+  }
+  var box=ppBoxAt(ev.clientX,ev.clientY);
+  if(!box || +box.dataset.slot!==d.slot) return;
+  if(P.sel!==null) ppPlace(P.sel,d.slot);
+  else if(P.slot[d.slot]!==null){   /* tap a filled box to take the piece back */
+    P.slot[d.slot]=null; P.sub[d.slot]=1; P.bad={}; P.hint=null; ppRender();
+  }
+});
+document.addEventListener("pointercancel",function(){
+  if(PPD && PPD.ghost) PPD.ghost.remove();
+  PPD=null; if(isPP() && P.phase==="predict") ppRender();
+});
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-pp]");
+  if(!t || t.disabled || !isPP()) return;
+  if(t.dataset.pp==="cu"||t.dataset.pp==="cd"){
+    var i=+t.dataset.t;
+    P.chg[i]=Math.max(-4,Math.min(4,P.chg[i]+(t.dataset.pp==="cu"?1:-1)));
+    P.bad={}; P.hint=null; P.tip=null; ppRender(); return;
+  }
+  var k=+t.dataset.k;
+  P.sub[k]=Math.max(1,Math.min(9,P.sub[k]+(t.dataset.pp==="up"?1:-1)));
+  P.bad={}; P.hint=null;
+  ppRender();
+});
+document.addEventListener("input",function(ev){
+  var r=/^pr(\d)$/.exec(ev.target.id||"");
+  if(r && isPP()){
+    if(/\d/.test(ev.target.value)){
+      var re=ev.target, rpos=re.selectionStart;
+      re.value=toSubs(re.value); re.setSelectionRange(rpos,rpos);
+    }
+    P.rep[+r[1]]=ev.target.value;
+    var btn=document.querySelector('.check[data-b="go"]'); if(btn) btn.disabled=!ppReady();
+    return;
+  }
+  var m=/^pc(\d+)$/.exec(ev.target.id||"");
+  if(m && isPP()) P.coef[+m[1]]=ev.target.value;
+});
+/* ═══════════════════════════════════════════════════════════════
+   PREDICTING PRODUCTS — FROM NAMES (23 Sept)
+   The reactants arrive as names. For each compound the student types the
+   symbol and charge of both ions, then its formula in a box beneath; a
+   free element is just a formula box. Beginner: one reactant at a time,
+   its ions checked before its formula. Advanced: everything at once, one
+   Check. Short corrections only — no ladder, no columns, no board.
+   Once every reactant is written it runs as From formulas, with the
+   charges they typed already on the tiles.
+   ═══════════════════════════════════════════════════════════════ */
+function ppNames(){ return isPP() && L.src==="n"; }
+
+var PNROMAN={1:"I",2:"II",3:"III",4:"IV"};
+var PNANION={F:"fluoride",Cl:"chloride",Br:"bromide",I:"iodide",O:"oxide",S:"sulfide",N:"nitride"};
+/* only groups 1 and 2 get "check which group" for a metal's charge */
+var PNGROUP={Li:1,Na:1,K:1,Mg:2,Ca:2,Sr:2,Ba:2};
+
+function pnAnName(s){ return isPoly(s) ? PNAME[s] : PNANION[s]; }
+/* "iron(III)", "zinc" — the Roman numeral only on a metal with more than one ion */
+function pnCatName(s,q){ return (s==="NH4"?"ammonium":eName(s))+(PPMV[s]?"("+PNROMAN[q]+")":""); }
+/* the -ate, -ite or -ide ending in red: corrections only, never a prompt */
+function pnRed(name){
+  var m=/(ate|ite|ide)$/.exec(name);
+  return m ? esc(name.slice(0,-3))+'<span class="pnend">'+m[1]+'</span>' : esc(name);
+}
+
+/* the reactants as the student has to write them, worked out once */
+function pnItems(eq){
+  if(eq.pn) return eq.pn;
+  eq.pn=eq.r.map(function(f){
+    var e=ppElem(f);
+    if(e) return {el:true, f:f, sym:e.sym, name:eName(e.sym)};
+    var c=ppSplit(f), q=ppCatQ(c);
+    return {el:false, f:f, cat:c.cat, an:c.an, nc:c.nc, na:c.na, cq:q, aq:PPCH[c.an],
+            name:pnCatName(c.cat,q)+" "+pnAnName(c.an)};
+  });
+  return eq.pn;
+}
+/* acids are left out of From names (his call, 23 Sept) */
+function pnFits(eq){
+  if(eq.pp.tiles.indexOf("H")>=0) return false;
+  return pnItems(eq).every(function(it){
+    return it.el ? !!ENAME[it.sym] : !!pnAnName(it.an) && it.cq>0 && !!ENAME[it.cat];
+  });
+}
+
+/* ── where the student is ─────────────────────────────────────── */
+function pnDone(i){
+  var it=pnItems(P.eq)[i];
+  return !!P.nm.ok[i+"f"] && (it.el || !!P.nm.ok[i+"ions"]);
+}
+function pnAt(){
+  var n=pnItems(P.eq).length;
+  for(var i=0;i<n;i++) if(!pnDone(i)) return i;
+  return n;
+}
+/* the parts to check now: [item, "ions" | "f"] */
+function pnLive(){
+  var its=pnItems(P.eq), out=[];
+  its.forEach(function(it,i){
+    if(pnDone(i) || i!==pnAt()) return;
+    var ionsOk=it.el || P.nm.ok[i+"ions"];
+    if(!ionsOk) out.push([i,"ions"]);
+    /* beginner: the formula only once its ions are right */
+    if(ionsOk || L.level>0) out.push([i,"f"]);
+  });
+  return out;
+}
+function pnVal(id){ return P.nm.v[id]||""; }
+function pnIds(x){
+  var p="pn"+x[0];
+  return x[1]==="ions" ? [p+"s0",p+"c0",p+"s1",p+"c1"] : [p+"f"];
+}
+function pnReady(){
+  return pnLive().every(function(x){
+    return pnIds(x).every(function(id){ return pnVal(id).trim()!==""; });
+  });
+}
+
+function pnDiatomic(it){ return it.el && it.f!==it.sym; }
+
+/* ── drawing ──────────────────────────────────────────────────── */
+function pnLead(){
+  var i=pnAt(), it=pnItems(P.eq)[i];
+  /* an element that is one atom is a symbol, not a formula (24 Sept) */
+  if(it.el) return pnDiatomic(it) ? "Write the formula for <b>"+esc(it.name)+"</b>."
+                                  : "Enter the symbol of <b>"+esc(it.name)+"</b>.";
+  if(L.level>0)
+    return "Type the symbol and charge of each ion in <b>"+esc(it.name)+"</b>, then write its formula.";
+  if(!P.nm.ok[i+"ions"])
+    return "Type the symbol and charge of each ion in <b>"+esc(it.name)+"</b>.";
+  return "Write the formula for <b>"+esc(it.name)+"</b>.";
+}
+function pnField(id, cls, ph, lab, locked){
+  return '<input class="'+cls+(P.nm.bad[id]?" bad":"")+'" id="'+id+'" value="'+esc(pnVal(id))+
+    '" placeholder="'+ph+'" autocomplete="off" spellcheck="false" maxlength="6" aria-label="'+esc(lab)+'"'+
+    (locked?" disabled":"")+'>';
+}
+function pnIonHTML(i,k,locked){
+  var p="pn"+i, lab=k?"Negative ion":"Positive ion";
+  return '<div class="pnion"><span class="pnlab">'+lab+'</span>'+
+    pnField(p+"s"+k,"pnsym","symbol",lab+" symbol",locked)+
+    pnField(p+"c"+k,"pnchg","charge",lab+" charge",locked)+'</div>';
+}
+function pnCardsHTML(){
+  var its=pnItems(P.eq), adv=L.level>0, h='<div class="pncards">';
+  its.forEach(function(it,i){
+    if(pnDone(i) || i!==pnAt()) return;
+    var ionsOk=!!P.nm.ok[i+"ions"], id="pn"+i+"f", sym=it.el && !pnDiatomic(it);
+    h+='<div class="pncard">';
+    if(!it.el) h+='<div class="pnions">'+pnIonHTML(i,0,ionsOk)+pnIonHTML(i,1,ionsOk)+'</div>';
+    if(it.el || ionsOk || adv)
+      h+='<div class="pnfrow"><span class="pnlab">'+(sym?"Symbol":"Formula")+'</span>'+
+        '<div class="finput'+(sym?" sym":"")+(P.nm.bad[id]?" bad":"")+'" id="'+id+'" contenteditable="true" '+
+        'spellcheck="false" role="textbox" aria-label="'+(sym?"Symbol":"Formula")+' for '+esc(it.name)+'">'+
+        subDigits(pnVal(id))+'</div></div>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+/* the first box that is wrong, or else the first empty one */
+function pnFocus(){
+  var all=[].slice.call(document.querySelectorAll(".pncards input:not([disabled]), .pncards .finput"));
+  var f=all.filter(function(x){ return x.classList.contains("bad"); })[0] ||
+        all.filter(function(x){ return !(x.value!==undefined ? x.value : x.textContent).trim(); })[0];
+  if(!f) return;
+  f.focus();
+  if(f.select) f.select(); else pnCaret(f, f.textContent.length);
+}
+
+/* ── hints: never a miss ──────────────────────────────────────── */
+function pnHint(){
+  var x=pnLive()[0]; if(!x) return null;
+  var it=pnItems(P.eq)[x[0]];
+  if(it.el) return "Find <b>"+esc(it.name)+"</b> on your periodic table.";
+  if(x[1]==="f") return "Put the two ions together so that the charges balance.";
+  return "Find the metal on your periodic table"+(isPoly(it.an)?" and the polyatomic ion on your ion sheet":"")+"."+
+    (PPMV[it.cat] ? " A Roman numeral in the name is the metal's charge." : "");
+}
+
+/* ── checking ─────────────────────────────────────────────────── */
+/* the ionic page's parseCharge: +2, 2+, a bare + or − for one */
+function pnCharge(raw){
+  var s=(raw||"").trim().replace(/[\u2212\u2013\u2014]/g,"-").replace(/\s+/g,"");
+  /* a bare sign is not enough: the 1 is always written, +1 or -1 (24 Sept) */
+  if(s==="+"||s==="-") return {bare:s};
+  var m=s.match(/^(?:([+-])(\d)|(\d)([+-]))$/);
+  if(!m) return /^\d+$/.test(s) ? {noSign:true} : {err:true};
+  var d=+(m[2]||m[3]);
+  return d ? {q:d*((m[1]||m[4])==="+"?1:-1)} : {err:true};
+}
+var PNCAPS="Check the capitals. A symbol starts with a capital letter, and a second letter is always lowercase.";
+
+/* both ions of one compound: {fault, msg, bad:[ids]} or null */
+function pnIonsFault(i,it){
+  var first=null, bad=[];
+  [0,1].forEach(function(k){
+    var p="pn"+i, want=k?it.an:it.cat, q=k?-it.aq:it.cq;
+    var ion=k?pnAnName(it.an):pnCatName(it.cat,it.cq);
+    var sym=plainDigits(pnVal(p+"s"+k)).replace(/[\s()]/g,""), f=null;
+    if(sym!==want){
+      bad.push(p+"s"+k);
+      if(sym.toLowerCase()===want.toLowerCase()) f=["caps",PNCAPS];
+      else if(!k) f=["symbol","Find <b>"+esc(eName(it.cat))+"</b> on your periodic table."];
+      else if(isPoly(want)) f=["ion","Find <b>"+pnRed(ion)+"</b> on your ion sheet."];
+      else f=["symbol","The <b>"+pnRed(ion)+"</b> ion comes from <b>"+esc(eName(want))+"</b>."];
+    }
+    var r=pnCharge(pnVal(p+"c"+k)), g=null;
+    if(r.bare) g=["format","Write the 1 too: <b>"+(r.bare==="+"?"+1":"\u22121")+"</b>."];
+    else if(r.err) g=["format","Write a sign and a number, like +1."];
+    else if(r.noSign || r.q===-q) g=["sign","Is the <b>"+esc(ion)+"</b> ion positive or negative?"];
+    else if(r.q!==q) g=["charge",
+        !k ? (PPMV[it.cat] ? "What does the Roman numeral tell you?"
+              : PNGROUP[it.cat] ? "Check which group <b>"+esc(eName(it.cat))+"</b> is in."
+              : "Check your periodic table for the charge on the <b>"+esc(ion)+"</b> ion.")
+           : (isPoly(want) ? "Find <b>"+pnRed(ion)+"</b> on your ion sheet."
+              : "Check which group <b>"+esc(eName(want))+"</b> is in.")];
+    if(g) bad.push(p+"c"+k);
+    if(!first) first=f||g;
+  });
+  return first ? {fault:first[0], msg:first[1], bad:bad} : null;
+}
+/* Does this typed formula actually name a different real ion — the sulfate/
+   sulfite kind of mix-up — rather than being malformed? Same cation, a
+   different anion that is itself a real one. Used only on the last try (24
+   Sept): he rescinded "never show the answer" for this case specifically,
+   because a student stuck on one item should be told plainly and moved on,
+   not left to keep guessing. */
+function pnWrongIonNamed(got,it){
+  var c=ionSplit(got);
+  if(!c || c.cat!==it.cat || c.an===it.an) return null;
+  return pnAnName(c.an) || null;
+}
+function pnIonsTyped(i){
+  var p="pn"+i;
+  return [0,1].map(function(k){ return pnVal(p+"s"+k).trim()+" "+pnVal(p+"c"+k).trim(); }).join(", ");
+}
+
+/* one formula: {fault, msg} or null. The order of the tests is the order
+   a student should fix things in: the shape first, then the numbers. */
+function pnFormFault(raw,it){
+  var got=plainDigits(String(raw||"")).replace(/\s+/g,""), want=it.f;
+  if(got===want) return null;
+  var F=function(f,m){ return {fault:f, msg:m}; };
+  if(!got) return F("other","Type the formula.");
+  var round=got.replace(/[\[{]/g,"(").replace(/[\]}]/g,")");
+  if(round!==got && round===want) return F("parens","Use round parentheses ( ), not square or curly brackets.");
+  if(got.toLowerCase()===want.toLowerCase()) return F("caps",PNCAPS);
+  if(it.el) return F("other","Not quite.");
+  got=round;
+  if((got.match(/\(/g)||[]).length!==(got.match(/\)/g)||[]).length)
+    return F("parens","Your parentheses do not match up. Every one that opens has to close.");
+  var rn=PNROMAN[it.cq];
+  if(PPMV[it.cat] && (got.indexOf("("+rn+")")>=0 || got.indexOf(it.cat+rn)===0))
+    return F("roman","The Roman numeral is the charge, not a subscript. It never appears in the formula.");
+  var one=/\(([A-Z][a-z]?)\)/.exec(got);
+  if(one && !isPoly(one[1]))
+    return F("parens","Parentheses go around a polyatomic ion, never around a single element's symbol.");
+  var poly=isPoly(it.an), C=it.cat, A=it.an;
+  if(poly && new RegExp("\\("+A+"\\d+\\)").test(got))
+    return F("parens","The number goes outside the parentheses, just after the closing parenthesis.");
+  var m=new RegExp("^"+C+"(\\d*)(?:\\("+A+"\\)(\\d*)|"+A+"(\\d*))$").exec(got);
+  if(m){
+    var paren=m[2]!==undefined, dc=m[1], da=paren?m[2]:m[3];
+    var nc=dc===""?1:+dc, na=da===""?1:+da;
+    if(dc==="1" || da==="1") return F("one","Drop the 1. When there is only one ion, no number is written.");
+    if(poly && na>1 && !paren)
+      return F("parens","When a formula needs more than one of a polyatomic ion, the ion goes in "+
+               "parentheses and the number sits outside them.");
+    if(paren && da==="" && it.na>1)
+      return F("parens","The number of polyatomic ions is missing. It goes just after the closing parenthesis.");
+    if(paren && na===1)
+      return F("parens","A polyatomic ion only takes parentheses when the formula needs more than one of it. "+
+               "With just one, write it plain.");
+    if(it.cq*nc!==it.aq*na) return F("balance","The charges don't balance yet.");
+    return F("reduce","The charges balance, but the subscripts can be smaller.");
+  }
+  if(new RegExp("^(?:\\("+A+"\\)\\d*|"+A+"\\d*)"+C+"\\d*$").test(got))
+    return F("order","The positive ion is written first.");
+  return F("other","Not quite.");
+}
+
+function pnCheck(){
+  var its=pnItems(P.eq), msgs=[], wrong=false, pnStuck=false;
+  P.nm.bad={};
+  pnLive().forEach(function(x){
+    var i=x[0], it=its[i], r;
+    if(x[1]==="ions"){
+      r=pnIonsFault(i,it);
+      /* each ion right or wrong on the dashboard, and which practice topic
+         a miss belongs to on the student's progress page (24 Sept) */
+      var ib=r?r.bad:[], pre="pn"+i, ionOk=function(k){
+        return ib.indexOf(pre+"s"+k)<0 && ib.indexOf(pre+"c"+k)<0; };
+      var ionDet=[0,1].map(function(k){
+        return {l:(pnVal(pre+"s"+k).trim()+" "+pnVal(pre+"c"+k).trim()).trim()||"(blank)", k:ionOk(k)}; });
+      var catChgBad=ib.indexOf(pre+"c0")>=0, anPoly=isPoly(it.an);
+      var tg="C"+((catChgBad || (!anPoly && ib.indexOf(pre+"c1")>=0))?1:0);
+      if(anPoly) tg+=",P"+(ionOk(1)?0:1);
+      if(catChgBad && PPMV[it.cat]) tg+=",M";
+      logAttempt("ions", it.name, pnIonsTyped(i), !r, r?r.fault:"", ppTry(i+"ions"), detailStr(ionDet), tg);
+      if(!r){ P.nm.ok[i+"ions"]=true;
+        /* the charges they typed stay on screen written the standard way: +3, -1 */
+        P.nm.v["pn"+i+"c0"]="+"+it.cq; P.nm.v["pn"+i+"c1"]="-"+it.aq;
+        return; }
+      r.bad.forEach(function(id){ P.nm.bad[id]=true; });
+    } else {
+      var id="pn"+i+"f", typed=plainDigits(pnVal(id)).replace(/\s+/g,"");
+      var tryNo=(P.tries[i+"f"]||0)+1;
+      r=pnFormFault(typed,it);
+      if(r && tryNo>=5){
+        var wrongIon=pnWrongIonNamed(typed,it);
+        if(wrongIon){
+          r={fault:"ion", msg:"That is the <b>"+esc(wrongIon)+"</b> ion. You are looking for the "+
+             "<b>"+esc(pnAnName(it.an))+"</b> ion."};
+        }
+        pnStuck=true;
+      }
+      /* a formula built on a different real ion (sulfite for sulfate) is
+         logged as "ion" whatever the correction on screen says */
+      var otherIon=r && pnWrongIonNamed(typed,it);
+      logAttempt("formula", it.name, typed, !r, r?(otherIon?"ion":r.fault):"", ppTry(i+"f"), null,
+        isPoly(it.an)?"P"+(otherIon?1:0):"");
+      if(!r){ P.nm.ok[i+"f"]=true; return; }
+      P.nm.bad[id]=true;
+    }
+    wrong=true;
+    /* one correction per reactant at most */
+    if(msgs.length<2 && !msgs.some(function(m){ return m.i===i; })) msgs.push({i:i, m:r.msg});
+  });
+  if(wrong){
+    P.misses++;
+    P.hint=msgs.map(function(m){ return m.m; }).join(" ");
+    /* five tries on one reactant's formula and still wrong: rather than a
+       sixth attempt at the same item, move straight to a new one (24 Sept) */
+    P.stuck=pnStuck;
+    ppRender(); return;
+  }
+  P.ok=true;
+  if(pnAt()<its.length){ ppRender(); return; }   /* beginner: on to the next part */
+
+  /* every reactant written: the charges they typed go onto the tiles */
+  var pp=P.eq.pp;
+  its.forEach(function(it){
+    if(it.el) return;
+    [it.cat, it.an].forEach(function(s){
+      var t=pp.tiles.indexOf(s);
+      if(t>=0){ P.chg[t]=pp.tch[t]; P.lock[t]=true; }
+    });
+  });
+  P.phase = L.level===0 ? "replace" : ppDR() ? "predict" : "charges";
+  ppRender();
+}
+
+/* ── typing ───────────────────────────────────────────────────── */
+function pnOffset(root){
+  var sel=window.getSelection();
+  if(!sel.rangeCount) return root.textContent.length;
+  var rg=sel.getRangeAt(0), r=document.createRange();
+  r.selectNodeContents(root);
+  try{ r.setEnd(rg.endContainer, rg.endOffset); }catch(e){ return root.textContent.length; }
+  return r.toString().length;
+}
+function pnCaret(root,off){
+  var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), n, seen=0, r=document.createRange();
+  while((n=w.nextNode())){
+    if(seen+n.nodeValue.length>=off){ r.setStart(n,off-seen); r.collapse(true); break; }
+    seen+=n.nodeValue.length;
+  }
+  if(!n){ r.selectNodeContents(root); r.collapse(false); }
+  var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+document.addEventListener("input",function(ev){
+  var t=ev.target, id=t.id||"";
+  if(!/^pn\d[scf]\d?$/.test(id) || P.phase!=="names") return;
+  if(id.slice(-1)==="f"){
+    /* digits become subscripts as they are typed, in the box itself */
+    var off=pnOffset(t), txt=plainDigits(t.textContent);
+    P.nm.v[id]=txt; t.innerHTML=subDigits(txt); pnCaret(t,off);
+  } else if(/s\d$/.test(id)){
+    /* the symbol box — e.g. "SO4" — the same live subscript, not the
+       charge box beside it (24 Sept) */
+    if(/\d/.test(t.value)){ var pos=t.selectionStart; t.value=toSubs(t.value); t.setSelectionRange(pos,pos); }
+    P.nm.v[id]=t.value;
+  } else P.nm.v[id]=t.value;
+  var btn=document.querySelector('.check[data-b="go"]'); if(btn) btn.disabled=!ppReady();
+});
+document.addEventListener("paste",function(ev){
+  if(!/^pn\df$/.test(ev.target.id||"")) return;
+  ev.preventDefault();
+  var txt=(ev.clipboardData||window.clipboardData).getData("text").replace(/\s+/g,"");
+  document.execCommand("insertText",false,txt);
+});
+/* ═══════════════════════════════════════════════════════════════
+   THE ACTIVITY
+   Elements, then counting one cell at a time, then coefficients.
+   ═══════════════════════════════════════════════════════════════ */
+/* No level ends (23 Sept). After GOOD_AT equations right first time on a level
+   — not necessarily in a row — they are asked whether to go up or practise
+   more. Practising more starts the count again. Never offered at the top. */
+var GOOD_AT=10;
+
+/* nothing is chosen at the start: the row builds up one step at a time */
+var L={mode:null, src:null, type:null, level:null, unlocked:2, seen:[], intro:{}, tips:false, good:0};
+var B={eq:null,phase:"elements",els:[],
+       ecell:[],rcell:[],pcell:[],coef:[],focusK:null,
+       stale:[],bad:{},hint:null,tip:null,misses:0,done:0,clean:0,ok:false};
+/* Whether the student updates the table by hand after changing a
+   coefficient. Off on every level for now (21 Sept) — he has turned it on and
+   off several times, so the by-hand path (recount, restale, clearing on
+   leaving a coefficient box) is kept behind this one switch. */
+var MANUAL_TABLE=false;
+/* Intermediate and advanced (23 Sept): straight to the coefficients. The table
+   is optional, off by default, and the student's own — never checked, never
+   filled in for them. Their on/off choice is kept, across levels and visits. */
+function freeLevel(){ return L.level>0; }
+var TKEY="baltable";
+L.showTable=(function(){ try{ return localStorage.getItem(TKEY)==="1"; }catch(e){ return false; } })();
+function setShowTable(on){ L.showTable=on; try{ localStorage.setItem(TKEY,on?"1":"0"); }catch(e){} }
+function manual(){ return MANUAL_TABLE && L.level!==0; }
+/* the arrow in the equation goes at advanced, and only there */
+function noPointers(){ return L.level===2; }
+
+/* one equation finished: count it, and decide whether to ask about moving up */
+function noteSolved(clean){
+  B.done++; if(clean){ B.clean++; L.good++; }
+  B.offerUp = L.good>=GOOD_AT && L.level<levels().length-1;
+}
+function winHTML(title){
+  /* what the balanced equation says, in words (24 Sept) */
+  var eq=isPP()?ppBeq():B.eq, coef=isPP()?P.coef:B.coef;
+  return '<div class="win"><div class="f">'+(title||"Correct!")+'</div>'+
+    meaningHTML(eq, coef)+
+    (B.offerUp
+      ? '<p class="offer">You have '+GOOD_AT+' right on the '+esc(curLevel().name.toLowerCase())+
+          ' level. Would you like to go to the next level, or practice more on this level?</p>'+
+        '<div class="btnrow"><button data-b="levelup">Next level</button>'+
+        '<button class="ghostbtn" data-b="staylevel">Practice more</button></div>'
+      : '<button data-b="next">New equation</button>')+'</div>';
+}
+/* Check, Hint and Start over, the same row everywhere */
+function btnRowHTML(ready){
+  return '<div class="btnrow"><button class="check" data-b="go"'+(ready?'':' disabled')+'>Check</button>'+
+    '<button class="check ghostbtn" data-b="hint">Hint</button>'+
+    '<button class="check ghostbtn" data-b="restart">Start over</button></div>';
+}
+function counterHTML(){
+  /* on an assigned level, how far through it they are */
+  asgNow();
+  return '<p class="counter"><b>'+B.done+'</b> done · <b>'+B.clean+'</b> with no misses'+
+'</p>'+
+    (PUZZLE?pzHTML():"");
+}
+
+/* for the mistake report: the equation, and coefficients as typed ("_" for blank) */
+function eqText(eq){ return eq.r.join(" + ")+" \u2192 "+eq.p.join(" + "); }
+function coefText(eq, coef){
+  var v=coef.map(function(c){ c=(c||"").trim(); return c===""?"_":c; }), nr=eq.r.length;
+  return v.slice(0,nr).join(" + ")+" \u2192 "+v.slice(nr).join(" + ");
+}
+function bqTry(step){ B.tries[step]=(B.tries[step]||0)+1; return B.tries[step]; }
+
+function levels(){ return SETS[L.type].levels; }
+function curLevel(){ return levels()[L.level]; }
+
+/* draw from the current level, skipping anything already used in this set */
+function pickEq(){
+  var pool=curLevel().eqs, fresh=pool.filter(function(e){ return L.seen.indexOf(e)<0; });
+  var lastSig=B.eq?B.eq.sig:null;
+  var varied=fresh.filter(function(e){ return e.sig!==lastSig; });
+  var bag = varied.length ? varied : (fresh.length ? fresh : pool);
+  return bag[Math.floor(Math.random()*bag.length)];
+}
+
+function bqNew(){
+  if(L.level===null) return menuOnly();
+  if(isPP()) return ppNew();
+  B.eq=pickEq();
+  if(L.seen.indexOf(B.eq)<0) L.seen.push(B.eq);
+  B.els=elementsOf(B.eq);
+  /* the first time an ion gets its own row, say so once */
+  if(groupsOf(B.eq).length && !L.intro.poly) L.intro.poly="show";
+  B.phase=freeLevel()?"balance":"elements"; B.stale=[]; B.focusK=null;
+  B.ecell=B.els.map(function(){return "";});
+  B.rcell=B.els.map(function(){return "";});
+  B.pcell=B.els.map(function(){return "";});
+  B.ft={e:B.els.map(function(){return "";}), r:B.els.map(function(){return "";}),
+        p:B.els.map(function(){return "";})};
+  B.coef=B.eq.r.concat(B.eq.p).map(function(){return "";});
+  B.committed=B.coef.slice(); B.unbal=[];
+  B.bad={}; B.hint=null; B.tip=null; B.tipEl=null; B.misses=0; B.tries={}; B.ok=false;
+  bqRender();
+}
+
+/* a blank coefficient slot means one — the 1 is never written */
+function coefVals(){
+  return B.coef.map(function(v){
+    v=(v||"").trim();
+    return v==="" ? 1 : (/^\d+$/.test(v) ? +v : 0);
+  });
+}
+function liveCount(i, side){
+  var c=coefVals(), nr=B.eq.r.length;
+  return side==="r" ? sideCount(B.eq.r, c.slice(0,nr), B.els[i], groupsOf(B.eq))
+                    : sideCount(B.eq.p, c.slice(nr), B.els[i], groupsOf(B.eq));
+}
+function rowMatched(i){ return liveCount(i,"r")===liveCount(i,"p"); }
+function allMatched(){
+  for(var i=0;i<B.els.length;i++) if(!rowMatched(i)) return false;
+  return true;
+}
+
+function cellAt(k){ return {i:Math.floor(k/2), side:(k%2===0?"r":"p")}; }
+/* the count boxes open right now: every one while counting, only the stale
+   ones while recounting */
+function openCells(){
+  if(B.phase==="counts") return B.els.map(function(e,i){ return [i*2,i*2+1]; })
+                                  .reduce(function(a,b){ return a.concat(b); },[]);
+  if(B.phase==="recount") return B.stale.slice();
+  return [];
+}
+function cellVal(k){
+  var at=cellAt(k); return ((at.side==="r"?B.rcell:B.pcell)[at.i]||"").trim();
+}
+/* Check does nothing until every open box is filled */
+function readyToCheck(){
+  if(B.phase==="elements")
+    return B.ecell.every(function(v){ return (v||"").trim()!==""; });
+  if(B.phase==="counts"||B.phase==="recount")
+    return openCells().every(function(k){ return /^\d+$/.test(cellVal(k)); });
+  return true;
+}
+function cellState(i,side){
+  var k=i*2+(side==="r"?0:1);
+  if(B.phase==="counts") return "live";
+  if(B.phase==="recount") return B.stale.indexOf(k)<0 ? "done" : "live";
+  return "other";
+}
+
+/* ── the equation line ───────────────────────────────────────── */
+/* keep the whole equation on one line by stepping the size down */
+function eqSize(){
+  var all=B.eq.r.concat(B.eq.p);
+  var len=all.join("").length + all.length*3;
+  return len<=20 ? "" : len<=25 ? " s1" : len<=30 ? " s2" : " s3";
+}
+function eqHTML(){
+  var live = B.phase==="balance"||B.phase==="done"||B.phase==="recount";
+  var out='<div class="eq'+eqSize()+'">', all=B.eq.r.concat(B.eq.p), nr=B.eq.r.length, i;
+  for(i=0;i<all.length;i++){
+    if(i===nr) out+='<span class="arrow">&rarr;</span>';
+    else if(i>0) out+='<span class="plus">+</span>';
+    var side = i<nr ? "r" : "p";
+    var mark = (B.markEl && (!B.markSide || B.markSide===side)) ? B.markEl : null;
+    out+='<span class="term">'+
+      (live
+        ? '<input class="coef'+(B.phase==="done"?" solved":"")+(B.bad["c"+i]?" bad":"")+'" id="bc'+i+'" value="'+
+          esc(B.coef[i])+'" inputmode="numeric" autocomplete="off" maxlength="2" '+
+          'aria-label="Coefficient for '+esc(all[i])+'">'
+        : "")+
+      '<span>'+((B.unbal||[]).length ? ppMarkHTML(all[i], B.unbal, B.eq)
+                                     : formulaHTML(all[i], mark))+'</span></span>';
+  }
+  return out+'</div>';
+}
+
+/* ── the ERP table ───────────────────────────────────────────── */
+function tableHTML(){
+  var ph=B.phase, h='<div class="erpwrap"><table class="erp'+(groupsOf(B.eq).length?" wide":"")+'"><thead><tr>'+
+    '<th>Element</th><th>Reactant</th><th>Product</th></tr></thead><tbody>';
+  B.els.forEach(function(el,i){
+    var shown = shownCount(i);
+    var matched = (ph==="balance"||ph==="done") &&
+                  shown.r!==null && shown.p!==null && shown.r===shown.p;
+    h+='<tr class="row'+(matched?" matched":"")+'">';
+
+    /* element column, one row at a time while listing them */
+    var rowStale = ph==="recount" &&
+      (B.stale.indexOf(i*2)>=0 || B.stale.indexOf(i*2+1)>=0);
+    h+='<td class="ecell'+(rowStale?" restale":"")+'">'+ (ph==="elements"
+      ? '<input id="be'+i+'" class="'+(B.bad["e"+i]?"bad":"")+'" value="'+esc(B.ecell[i])+
+        '" autocomplete="off" spellcheck="false" aria-label="Element">'
+      : '<div class="elock">'+keyHTML(B.els[i])+'</div>') +'</td>';
+
+    ["r","p"].forEach(function(side){
+      if(ph==="elements"){ h+='<td class="ncell"><div class="waiting">·</div></td>'; return; }
+      var val=side==="r"?B.rcell[i]:B.pcell[i];
+      if(ph==="counts"||ph==="recount"){
+        var st=cellState(i,side);
+        var flag = ph==="recount" && B.stale.indexOf(i*2+(side==="r"?0:1))>=0;
+        h+='<td class="ncell'+(flag?" restale":"")+'">'+(
+          st==="live"
+            ? '<input id="b'+side+i+'" class="'+(B.bad[side+i]?"bad":"")+'" value="'+
+              esc(val)+'" inputmode="numeric" autocomplete="off" aria-label="How many '+
+              esc(unitName(B.els[i]))+(isPoly(B.els[i])?' ions':' atoms')+'">'
+            : '<div class="fixed">'+esc(val)+'</div>')+'</td>';
+        return;
+      }
+      /* balancing: worked out for them below advanced, their own numbers above */
+      var n = side==="r"?shown.r:shown.p;
+      h+='<td class="ncell">'+(n===null
+        ? '<div class="waiting">·</div>'
+        : '<div class="live '+(matched?"match":"miss")+'">'+n+'</div>')+'</td>';
+    });
+    h+='</tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+/* intermediate and advanced: blank boxes that are theirs to fill and change */
+function freeTableHTML(){
+  var h='<div class="erpwrap"><table class="erp free'+(groupsOf(B.eq).length?" wide":"")+
+    '"><thead><tr><th>Element</th><th>Reactant</th><th>Product</th></tr></thead><tbody>';
+  B.els.forEach(function(el,i){
+    h+='<tr class="row"><td class="ecell"><input id="fe'+i+'" value="'+esc(B.ft.e[i])+
+      '" autocomplete="off" spellcheck="false" aria-label="Element"></td>'+
+      ["r","p"].map(function(s){ return '<td class="ncell"><input id="f'+s+i+'" value="'+
+        esc(B.ft[s][i])+'" inputmode="numeric" autocomplete="off" aria-label="'+
+        (s==="r"?"Reactant":"Product")+' count"></td>'; }).join("")+'</tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+/* what the table is showing for a row: the live count, or — once the student
+   is keeping it themselves — whatever they last wrote there */
+function shownCount(i){
+  if(!manual() || B.phase==="counts" || B.phase==="elements")
+    return {r:liveCount(i,"r"), p:liveCount(i,"p")};
+  var a=(B.rcell[i]||"").trim(), b=(B.pcell[i]||"").trim();
+  return {r:/^\d+$/.test(a)?+a:null, p:/^\d+$/.test(b)?+b:null};
+}
+/* rows whose real count no longer matches what the student wrote down */
+function staleCells(){
+  var out=[];
+  B.els.forEach(function(el,i){
+    ["r","p"].forEach(function(side){
+      var raw=((side==="r"?B.rcell:B.pcell)[i]||"").trim();
+      if(!/^\d+$/.test(raw) || +raw!==liveCount(i,side)) out.push(i*2+(side==="r"?0:1));
+    });
+  });
+  return out;
+}
+
+function leadText(){
+  if(B.phase==="elements")
+    return "Name every element in this equation, one in each box, then press Check."+
+      (groupsOf(B.eq).length ? " A polyatomic ion on both sides takes one box of its own." : "");
+  if(B.phase==="counts")
+    return "Count the atoms of each element"+
+      (groupsOf(B.eq).length ? ", and each polyatomic ion as one piece," : "")+
+      " on the <b class=\"side\">reactant</b> and "+
+      "<b class=\"side\">product</b> sides. Fill in every box, then press Check.";
+  if(B.phase==="recount")
+    return (B.justStale
+      ? "<span class=\"warn\">Changing a coefficient changed some counts.</span> "
+      : "")+"Count the boxed rows again, then press Check.";
+  if(B.phase==="balance" && freeLevel())
+    return "Add coefficients until both sides match, then press Check.";
+  if(B.phase==="balance")
+    return manual()
+      ? "Add coefficients, then check. On this level, you update the table yourself."
+      : "Add coefficients until every row matches. The counts keep themselves up to date.";
+  return "";
+}
+
+/* ── the hint ────────────────────────────────────────────────── */
+/* counts for a formula in the current equation, whole ions kept whole */
+function fa(f){ return unitsOf(f, groupsOf(B.eq)); }
+function lcm(a,b){ return a/gcd(a,b)*b; }
+function spread(i){
+  var el=B.els[i];
+  var r=B.eq.r.filter(function(f){ return fa(f)[el]; }).length;
+  var p=B.eq.p.filter(function(f){ return fa(f)[el]; }).length;
+  return Math.max(r,p);
+}
+/* a formula that is one element on its own, like O2 or Na */
+function loneOf(i){
+  var el=B.els[i], hit=null;
+  B.eq.r.concat(B.eq.p).forEach(function(f){
+    var a=fa(f);
+    if(a[el] && Object.keys(a).length===1) hit=f;
+  });
+  return hit;
+}
+/* Which element to talk about. One that sits in a single formula on each
+   side can be fixed and stays fixed; one that appears in several moves
+   again every time anything else changes. */
+function hintTarget(){
+  var best=-1, i;
+  for(i=0;i<B.els.length;i++){
+    if(rowMatched(i)) continue;
+    if(spread(i)===1) return i;
+    if(best<0) best=i;
+  }
+  return best;
+}
+function hintCell(){
+  var open=openCells();
+  if(open.indexOf(B.focusK)>=0) return B.focusK;
+  var bad=open.filter(function(k){ var a=cellAt(k); return B.bad[a.side+a.i]; });
+  if(bad.length) return bad[0];
+  var empty=open.filter(function(k){ return !/^\d+$/.test(cellVal(k)); });
+  return empty.length ? empty[0] : open[0];
+}
+function hintText(){
+  if(B.phase==="elements")
+    return "Every capital letter in a formula begins an element, and a small letter "+
+           "after it belongs to the same one. Each box takes a different one."+
+           (groupsOf(B.eq).length ? " A polyatomic ion that appears on both sides "+
+             "takes one box of its own." : "");
+  if(B.phase==="counts"||B.phase==="recount"){
+    var at=cellAt(hintCell()), el=B.els[at.i];
+    var list=(at.side==="r"?B.eq.r:B.eq.p).filter(function(f){ return fa(f)[el]; });
+    var looks="Look at "+(list.length===1?"the formula ":"each formula ")+
+      list.map(function(f){ return '<b class="mono">'+formulaHTML(f)+"</b>"; }).join(" and ");
+    if(isPoly(el))
+      return looks+". <b>"+keyHTML(el)+"</b> counts as one piece. A number right after "+
+        "the parentheses around it says how many, and with no parentheses there is one"+
+        (B.phase==="recount" ? ". The coefficient in front multiplies the whole formula." : ".");
+    return looks+". A subscript right after <b>"+esc(el)+"</b> says how many, and no subscript "+
+      "means one. A number outside parentheses multiplies everything inside them"+
+      (B.phase==="recount" ? ", and the coefficient in front multiplies the whole formula." : ".");
+  }
+
+  var i2=hintTarget();
+  if(i2<0) return "Both sides match. Check whether all the coefficients can be "+
+    "divided by the same number.";
+  B.tipEl=B.els[i2];
+  var el2=B.els[i2], a=liveCount(i2,"r"), b2=liveCount(i2,"p");
+  if(!a || !b2)
+    return "There is no <b>"+keyHTML(el2)+"</b> on one side yet. Every atom in the "+
+      "reactants has to turn up in the products.";
+  if(spread(i2)===1)
+    return "You have <b>"+a+" "+keyHTML(el2)+"</b> on the reactant side and <b>"+b2+" "+
+      keyHTML(el2)+"</b> on the product side. The smallest number both <b>"+a+"</b> and <b>"+
+      b2+"</b> divide into is <b>"+lcm(a,b2)+"</b>, so aim for <b>"+lcm(a,b2)+" "+
+      keyHTML(el2)+"</b> on each side.";
+
+  /* it is in more than one formula — is it also sitting on its own somewhere? */
+  var lone=loneOf(i2);
+  /* Only the elements that are still out. Naming one that already matches is
+     what made this advice read as nonsense when sulfur sat at 1/1. */
+  var others=B.els.filter(function(e,j){ return j!==i2 && !rowMatched(j); })
+    .map(function(e){ return esc(unitName(e)); });
+  if(lone){
+    var per=fa(lone)[el2]||1;          /* O2 moves oxygen two at a time */
+    var gap=Math.abs(a-b2);
+    if(!others.length && per>1 && gap%per!==0)
+      /* everything else agrees, but the lone formula cannot close an odd gap:
+         the matching formulas have to be scaled before it can finish */
+      return "Everything else already matches, and <b>"+esc(unitName(el2))+"</b> is out by <b>"+
+        gap+"</b> — but <b class=\"mono\">"+formulaHTML(lone)+"</b> only moves "+
+        esc(unitName(el2))+" <b>"+per+"</b> at a time, so no number in front of it can "+
+        "close a gap of "+gap+". The formulas that already agree have to move first, "+
+        "together, and then <b class=\"mono\">"+formulaHTML(lone)+"</b> can make up "+
+        "the difference.";
+    return "<b>"+esc(unitName(el2))+"</b> is the only one left, and it appears in more "+
+      "than one formula — but it is also on its own as <b class=\"mono\">"+
+      formulaHTML(lone)+"</b>. A substance made of one element is the one to save "+
+      "for last, because changing it moves nothing else. "+
+      (others.length
+        ? "Get the formulas holding "+
+          (others.length===1?"<b>"+others[0]+"</b>":"the other elements")+
+          " to agree first, then use <b class=\"mono\">"+formulaHTML(lone)+
+          "</b> to make up the difference."
+        : "Use <b class=\"mono\">"+formulaHTML(lone)+"</b> to make up the difference.");
+  };
+  return "<b>"+esc(unitName(el2))+"</b> turns up in more than one formula on a side, so "+
+    "its count shifts every time you change something else. Leave it until last and "+
+    "sort the other elements first.";
+}
+
+/* ── the list they can call up at any time ───────────────────── */
+var TIPS=[
+  "Count every element on both sides before you change anything.",
+  "Only the big number in front may change. A subscript is part of the formula and "+
+    "is never touched.",
+  "Start with an element that appears in only one formula on each side.",
+  "An element that appears in several formulas on the same side shifts every time "+
+    "you change something else — leave it until last.",
+  "A substance made of one element on its own, like <b class=\"mono\">O<sub>2</sub></b> "+
+    "or <b class=\"mono\">Na</b>, is the easiest thing to change last, because it moves "+
+    "nothing but itself.",
+  "When one side has 2 and the other has 3, look for the smallest number both divide "+
+    "into. For 2 and 3 that is 6; for 2 and 10 it is 10, not 20.",
+  "Fixing one element often breaks another. Recount every row before you call it done.",
+  "A number outside parentheses multiplies everything inside them: "+
+    "<b class=\"mono\">Ca(OH)<sub>2</sub></b> is 1 calcium, 2 oxygen and 2 hydrogen.",
+  "A coefficient of 1 is never written — leave that space blank.",
+  "If every coefficient divides by the same number, divide them all down."
+];
+function tipsHTML(){
+  return '<div class="intro tipbox"><h2>Balancing tips</h2><ol class="tiplist">'+
+    TIPS.map(function(t){ return "<li>"+t+"</li>"; }).join("")+
+    '</ol><button class="check" data-b="closetips">Back to the equation</button></div>';
+}
+
+/* ── navigation ──────────────────────────────────────────────
+   Three rows that build up as they are chosen (23 Sept): what to do, which
+   reaction, which level. Every row stays on screen, so any choice is one tap
+   away. Nothing else is drawn until a level is picked. */
+var MODES=[["bal","Balancing equations"],["pp","Predicting products"]];
+var MENU={bal:[["syn","Synthesis"],["sr","Single replacement"],["dr","Double replacement"]],
+          pp:[["pp","Single replacement"],["pdr","Double replacement"]]};
+/* Predicting products has one more row, right after it: where the
+   reactants come from (23 Sept). Everything before this is From formulas. */
+var SOURCES=[["f","From formulas"],["n","From names"]];
+/* the "you are here" row (27 Sept, Class Live practice): each choice is a
+   button that drops down its alternatives; the level is a joined control.
+   Before a choice is made, that step shows as big buttons under the row. */
+function balPath(){
+  var o={title:"Balancing", steps:[], segs:[], next:null};
+  if(!L.mode) o.next={id:"mode", opts:MODES};
+  else{
+    o.steps.push({id:"mode", opts:MODES, cur:L.mode});
+    if(L.mode==="pp" && !L.src) o.next={id:"src", opts:SOURCES};
+    else{
+      if(L.mode==="pp") o.steps.push({id:"src", opts:SOURCES, cur:L.src});
+      if(!L.type) o.next={id:"type", opts:MENU[L.mode]};
+      else{
+        o.steps.push({id:"type", opts:MENU[L.mode], cur:L.type});
+        var lv=levels().map(function(x,i){ return [String(i), x.name]; });
+        if(L.level===null) o.next={id:"level", opts:lv};
+        else o.segs.push({id:"level", opts:lv, cur:String(L.level)});
+      }
+    }
+  }
+  return o;
+}
+function drawPath(){
+  asgNow();
+  if(L.level!==null) CW.save("bal",{mode:L.mode, src:L.src, type:L.type, level:L.level});
+  var el=document.getElementById("cwpath");
+  if(el) el.innerHTML=CW.pathHTML(balPath());
+}
+/* the row lives above #sec; the activity no longer carries its own menu */
+function navHTML(){ drawPath(); return ""; }
+/* nothing but the row, before a level is chosen */
+function menuOnly(){
+  asgNow();
+  drawPath();
+  document.getElementById("sec").innerHTML="";
+}
+/* a pick from the row. Changing one step keeps the others where they
+   still apply, so a student already on an activity lands on another
+   activity, never back at the start. */
+function balPick(id, v){
+  var had=L.level!==null, was=L.type && L.mode ? menuName(MENU[L.mode],L.type) : null;
+  if(id==="level"){ if(+v!==L.level) goLevel(+v); else drawPath(); return; }
+  if(id==="mode"){
+    if(v===L.mode) return drawPath();
+    L.mode=v;
+    if(v!=="pp") L.src=null;
+    else if(!L.src && had) L.src=L.lastSrc||"f";
+  }
+  if(id==="src"){ if(v===L.src) return drawPath(); L.src=v; L.lastSrc=v; }
+  if(id==="type"){ if(v===L.type) return drawPath(); L.type=v; }
+  else if(L.type){           /* the same reaction, by name, in the new list */
+    var same=MENU[L.mode].filter(function(t){ return t[1]===was; })[0];
+    L.type = same ? same[0] : (had ? MENU[L.mode][0][0] : null);
+  }
+  if(L.mode==="pp" && !L.src) L.type=null;
+  L.seen=[]; L.good=0; B.offerUp=false;
+  var lv = !L.type ? null : L.level===null ? (had?0:null) : Math.min(L.level, levels().length-1);
+  L.level=null;
+  if(lv===null) return menuOnly();
+  goLevel(lv);
+}
+CW.init({draw:function(){ asgNow(); L.level===null ? menuOnly() : drawPath(); }, pick:balPick});
+/* coming back to the topic reopens where they left off */
+function restoreBal(){
+  var s=CW.load("bal");
+  if(!s || !MENU[s.mode] || !MENU[s.mode].some(function(t){ return t[0]===s.type; })) return;
+  if(s.mode==="pp" && SOURCES.every(function(o){ return o[0]!==s.src; })) return;
+  if(!SETS[s.type] || !SETS[s.type].levels[s.level]) return;
+  L.mode=s.mode; L.src=s.mode==="pp"?s.src:null; L.type=s.type; L.lastSrc=L.src||L.lastSrc;
+  L.seen=[]; goLevel(s.level);
+}
+
+/* ── assignments: where each results id lives in the menu ── */
+var ASG_WHERE={syn:["bal",null,"syn"], sr:["bal",null,"sr"], dr:["bal",null,"dr"],
+  pp:["pp","f","pp"], pdr:["pp","f","pdr"], pn:["pp","n","pp"], pdn:["pp","n","pdr"]};
+function asgWhere(a){
+  var m=/^bal_([a-z]+)(\d)$/.exec(a), w=m && ASG_WHERE[m[1]];
+  if(!w || !SETS[w[2]] || !SETS[w[2]].levels[+m[2]-1]) return null;
+  return {mode:w[0], src:w[1], type:w[2], level:+m[2]-1};
+}
+function menuName(list, k){
+  for(var i=0;i<list.length;i++) if(list[i][0]===k) return list[i][1];
+  return k;
+}
+/* open one level by its results id, bal_sr2 and so on: an assignment, or a
+   link from the progress page (balance.html#go=bal_sr2) */
+function openAct(a){
+  var w=asgWhere(a);
+  if(!w) return;
+  L.mode=w.mode; L.src=w.src; L.type=w.type;
+  L.seen=[]; B.offerUp=false;
+  goLevel(w.level);
+}
+
+/* shown once, the first time a polyatomic ion gets its own row */
+function polyIntroHTML(){
+  return '<div class="intro">'+
+    '<h2>Polyatomic ions on both sides</h2>'+
+    '<p>When a polyatomic ion appears on both sides of an equation, count it as '+
+      (freeLevel() ? 'a single unit, just like an element.</p>'
+                   : 'one piece. It gets one row in the table, just like an element.</p>')+
+    '<div class="exbox"><span class="exf">Al<sub>2</sub>(<span class="multi">SO<sub>4</sub></span>)<sub>3</sub></span></div>'+
+    '<table class="extab"><tr><td>Al</td><td>subscript <b>2</b></td></tr>'+
+    '<tr><td>SO<sub>4</sub></td><td>1 inside &times; 3 = <b>3</b></td></tr></table>'+
+    '<p class="exwarn">So Al<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> is 2 aluminum and 3 sulfate. '+
+      'You do not count the atoms inside the sulfate one by one.</p>'+
+    '<button class="check" data-b="gotpoly">Got it</button></div>';
+}
+
+function bqRender(){
+  if(L.level===null) return menuOnly();
+  if(isPP()) return ppRender();
+  setMark();
+  var solved=B.phase==="done";
+  var h=navHTML();
+
+  if(L.tips){ document.getElementById("sec").innerHTML=h+tipsHTML(); return; }
+  if(L.intro.poly==="show"){
+    document.getElementById("sec").innerHTML=h+polyIntroHTML();
+    return;
+  }
+
+  var tbl = !freeLevel() ? tableHTML() : (L.showTable ? freeTableHTML() : "");
+  h+='<div class="eqbox">'+eqHTML()+'</div>'+
+    '<div class="workrow'+(tbl?"":" notable")+'">'+tbl+'<div class="guide">'+
+      (solved
+        ? winHTML()
+        : (B.ok?'<p class="okmsg">Correct!</p>':'')+
+          '<p class="lead">'+leadText()+'</p>'+
+          '<p class="hint'+(B.hint?"":" blank")+'">'+(B.hint||"")+'</p>'+
+          (B.tip?'<p class="tip">'+B.tip+'</p>':'')+
+          '')+
+    '</div></div>'+
+    /* Check | Hint | Start over directly under the work (24 Sept) */
+    (solved ? '' : '<div class="bottomrow">'+btnRowHTML(readyToCheck())+
+      '<div class="linkrow">'+
+      (freeLevel() ? '<button class="linkbtn" data-b="table">'+
+        (L.showTable?"Hide the table":"Show the table")+'</button>' : '')+
+      '<button class="linkbtn" data-b="tips">Balancing tips</button></div></div>');
+
+  h+=counterHTML();
+  document.getElementById("sec").innerHTML=h;
+
+  var f=null, pick=false;
+  if(B.phase==="elements"||B.phase==="counts"||B.phase==="recount"){
+    var boxes=[].slice.call(document.querySelectorAll(".erp input"));
+    var kept=B.tip && B.focusK!==null && B.phase!=="elements"
+      ? document.getElementById("b"+cellAt(B.focusK).side+cellAt(B.focusK).i) : null;
+    f=kept ||    /* after a hint, stay in the box it is about */
+      boxes.filter(function(x){ return x.classList.contains("bad"); })[0] ||
+      boxes.filter(function(x){ return !x.value.trim(); })[0] || boxes[0];
+    pick=true;
+  }
+  else if(B.phase==="balance" && B.coef.every(function(v){return !(v||"").trim();}))
+    f=document.getElementById("bc0");   /* only on arrival, never mid-edit */
+  fitEq();
+  if(f){ f.focus(); if(pick && f.select) f.select(); }
+}
+/* shrink the equation until it fits the box — never a scroll bar */
+function fitEq(){
+  var eq=document.querySelector(".eqbox .eq");
+  if(!eq) return;
+  eq.style.zoom="";
+  /* the row is centred, so an overflow spills off both ends: measure the
+     pieces themselves rather than scrollWidth, which misses the left side */
+  var lo=Infinity, hi=-Infinity;
+  [].forEach.call(eq.children,function(c){
+    var r=c.getBoundingClientRect(); lo=Math.min(lo,r.left); hi=Math.max(hi,r.right); });
+  var room=eq.clientWidth, need=hi-lo;
+  if(need>room) eq.style.zoom=Math.floor(room/need*100)/100-0.01;
+}
+window.addEventListener("resize",fitEq);
+
+/* which element the equation should point at right now */
+function setMark(){
+  B.markEl=null; B.markSide=null;
+  if(!B.eq || noPointers()) return;  /* advanced works without the pointers */
+  if(B.phase==="counts"){
+    if(B.focusK!==null){ var at=cellAt(B.focusK); B.markEl=B.els[at.i]; B.markSide=at.side; }
+    return;
+  }
+  if(B.phase==="balance" && (B.hint||B.tip)){
+    if(B.tip && B.tipEl){ B.markEl=B.tipEl; return; }
+    var j=hintTarget();
+    if(j>=0) B.markEl=B.els[j];
+  }
+}
+
+/* ── reading the fields back ─────────────────────────────────── */
+function bqSync(){
+  var f,i;
+  for(i=0;i<B.els.length;i++){
+    if((f=document.getElementById("be"+i))) B.ecell[i]=f.value;
+    if((f=document.getElementById("br"+i))) B.rcell[i]=f.value;
+    if((f=document.getElementById("bp"+i))) B.pcell[i]=f.value;
+  }
+  for(i=0;i<B.coef.length;i++)
+    if((f=document.getElementById("bc"+i))) B.coef[i]=f.value;
+}
+
+function bqCheck(){
+  if(isPP()) return ppCheck();
+  bqSync();
+  if(!readyToCheck()) return;       /* nothing until every box has something in it */
+  B.bad={}; B.hint=null; B.tip=null; B.tipEl=null; B.unbal=[]; B.ok=false;
+
+  /* every element at once; any order, as long as each is really in there */
+  if(B.phase==="elements"){
+    var grp=groupsOf(B.eq), all=B.eq.r.concat(B.eq.p);
+    /* a whole ion is matched ignoring case, then the capitals are checked */
+    function asIon(raw){
+      var lo=raw.toLowerCase();
+      for(var k=0;k<POLY.length;k++) if(POLY[k][0].toLowerCase()===lo) return POLY[k][0];
+      return null;
+    }
+    var norm=B.ecell.map(function(v){ v=plainDigits((v||"").trim()).replace(/\s+/g,"");
+      return asIon(v) || v.charAt(0).toUpperCase()+v.slice(1).toLowerCase(); });
+    var seen=[], msgs=[], stray=false, efault="";
+    B.ecell.forEach(function(v,i){
+      var raw=plainDigits((v||"").trim()).replace(/\s+/g,""), g=norm[i], msg=null;
+      var ion=asIon(raw);
+      if(ion && grp.indexOf(ion)<0)
+        msg=all.some(function(f){ return polyAt(f,ion)>=0; })
+          ? "<b>"+keyHTML(ion)+"</b> is only on one side of this equation, so list its "+
+            "elements one at a time."
+          : "<b>"+esc(raw)+"</b> is not in this equation.";
+      else if(!ion && /\d/.test(raw))
+        msg=grp.length ? "This column takes element symbols and polyatomic ions, not numbers."
+                       : "This column takes element symbols, not numbers.";
+      else if(!ion && B.els.indexOf(g)<0 &&
+              grp.some(function(p){ return unitsOf(p,[]).hasOwnProperty(g); }) &&
+              all.some(function(f){ return atoms(f)[g]; }))
+        msg="<b>"+esc(g)+"</b> is part of a polyatomic ion that appears on both sides. "+
+            "List the whole ion in one box.";
+      else if(B.els.indexOf(g)<0){ msg="<b>"+esc(raw)+"</b> is not in this equation."; stray=true; }
+      else if(ion && raw!==g) msg="Check the capitals — <b>"+keyHTML(g)+"</b>, not <b>"+
+        esc(raw)+"</b>.";
+      else if(raw!==g) msg="Check the capitals. A symbol starts with a capital letter, and a "+
+        "second letter is always lowercase — <b>"+esc(g)+"</b>, not <b>"+esc(raw)+"</b>.";
+      else if(seen.indexOf(g)>=0) msg="<b>"+keyHTML(g)+"</b> is already listed. Find a different one.";
+      else seen.push(g);
+      if(msg){ B.bad["e"+i]=true; if(msgs.indexOf(msg)<0) msgs.push(msg);
+        if(!efault) efault = /capitals/.test(msg) ? "caps" : /not in this equation/.test(msg) ? "notin"
+          : /already listed/.test(msg) ? "dup" : /polyatomic|one side/.test(msg) ? "polyrow" : "other"; }
+    });
+    var edet=B.ecell.map(function(v,i){ return {l:(v||"").trim()||"(blank)", k:!B.bad["e"+i]}; });
+    logAttempt("elements", eqText(B.eq), B.ecell.map(function(v){ return (v||"").trim(); }).join(", "),
+      !msgs.length, efault, bqTry("elements"), edet.length>1?detailStr(edet):null);
+    if(msgs.length){
+      B.misses++;
+      B.hint=msgs.join(" ")+(stray?" Read the symbols in the formulas.":"");
+    } else {
+      B.els=norm;                    /* the rows keep the order they chose */
+      B.phase="counts"; B.focusK=null; B.ok=true;
+    }
+    bqRender(); return;
+  }
+
+  /* the whole table, or every boxed row, at once */
+  if(B.phase==="counts"||B.phase==="recount"){
+    var wrong=openCells().filter(function(k){
+      var at=cellAt(k); return +cellVal(k)!==liveCount(at.i,at.side); });
+    B.justStale=false;
+    var cdet=openCells().map(function(k){ var a=cellAt(k);
+      return {l:eName(B.els[a.i])+" "+(a.side==="r"?"left":"right"), k:+cellVal(k)===liveCount(a.i,a.side)}; });
+    logAttempt("counts", eqText(B.eq), wrong.map(function(k){ var a=cellAt(k);
+        return B.els[a.i]+(a.side==="r"?" left ":" right ")+cellVal(k); }).join(", "),
+      !wrong.length, wrong.length?"count":"", bqTry("counts"), cdet.length>1?detailStr(cdet):null);
+    if(!wrong.length){ B.phase="balance"; B.stale=[]; B.focusK=null; B.ok=true; }
+    else {
+      wrong.forEach(function(k){ var at=cellAt(k); B.bad[at.side+at.i]=true; });
+      B.misses++;
+      var w=cellAt(wrong[0]);
+      B.hint = wrong.length===1
+        ? "Not quite. Count <b>"+esc(eName(B.els[w.i]))+"</b> again on the "+
+          '<b class="side">'+(w.side==="r"?"reactant":"product")+"</b> side."
+        : "Not quite. Count the red boxes again.";
+    }
+    bqRender(); return;
+  }
+
+  /* balancing — any number of coefficients per check */
+  var c=coefVals(), i2, fault=null, changed=[];
+  for(i2=0;i2<B.coef.length;i2++)
+    if((B.coef[i2]||"").trim()!==((B.committed||[])[i2]||"").trim()) changed.push(i2);
+  if(!changed.length && !allMatched()){
+    B.hint="Change a coefficient, then check.";
+    bqRender(); return;
+  }
+
+  for(i2=0;i2<c.length;i2++){
+    if((B.coef[i2]||"").trim()==="1"){ B.bad["c"+i2]=true; fault="one"; }
+    else if(c[i2]===0){ B.bad["c"+i2]=true; fault=fault||"nan"; }
+  }
+  var ctyped=coefText(B.eq, B.coef);
+  var ball=B.eq.r.concat(B.eq.p);
+  var bdet=B.coef.map(function(v,i){ return {l:ball[i], k:!B.bad["c"+i]}; });
+  if(fault) logAttempt("balance", eqText(B.eq), ctyped, false, fault, bqTry("balance"), bdet.length>1?detailStr(bdet):null);
+  if(fault==="one"){
+    B.hint="A coefficient of <b>1</b> is never written. Leave that space blank.";
+    B.misses++; bqRender(); return;
+  }
+  if(fault==="nan"){
+    B.hint="A coefficient has to be a whole number.";
+    B.misses++; bqRender(); return;
+  }
+  B.committed=B.coef.slice();
+  var g2=c.reduce(function(a,b){return gcd(a,b);});
+  if(g2>1 && allMatched()){
+    logAttempt("balance", eqText(B.eq), ctyped, false, "reduce", bqTry("balance"));
+    B.hint="Both sides match, but every coefficient can be divided by <b>"+g2+
+           "</b>. Coefficients must be the smallest whole numbers that work.";
+    B.misses++; bqRender(); return;
+  }
+  if(manual()){
+    var st=staleCells();
+    if(st.length){
+      /* their table no longer describes the equation — wipe those cells */
+      st.forEach(function(kk){
+        var a2=cellAt(kk);
+        if(a2.side==="r") B.rcell[a2.i]=""; else B.pcell[a2.i]="";
+      });
+      B.stale=st; B.phase="recount"; B.justStale=true;
+      bqRender(); return;
+    }
+  }
+  var rdet=B.els.map(function(e,i){ return {l:eName(e), k:rowMatched(i)}; });
+  if(!allMatched()) logAttempt("balance", eqText(B.eq), ctyped, false,
+    "unbal:"+B.els.filter(function(e,i){ return !rowMatched(i); }).join(","), bqTry("balance"),
+    rdet.length>1?detailStr(rdet):null);
+  if(!allMatched() && freeLevel()){
+    B.unbal=B.els.filter(function(e,i){ return !rowMatched(i); });
+    B.hint="Not balanced yet.";
+    B.misses++; bqRender(); return;
+  }
+  if(!allMatched()){
+    B.hint="Not yet — the red rows still have different numbers on each side.";
+    B.misses++; bqRender(); return;
+  }
+
+  logAttempt("balance", eqText(B.eq), ctyped, true, "", bqTry("balance"),
+    B.els.length>1?detailStr(B.els.map(function(e){ return {l:eName(e), k:true}; })):null);
+  B.phase="done";
+  noteSolved(!B.misses);
+  if(PUZZLE) B.earned = pzEarn() ? "full" : "one";
+  track(actId(), B.misses===0);
+  bqRender();
+}
+
+/* ── moving between levels and sets ──────────────────────────── */
+function goLevel(i){
+  if(i>L.unlocked) return;
+  L.level=i; L.good=0;
+  bqNew();
+}
+function afterSolve(){ B.offerUp=false; bqNew(); }
+/* 3. start over the part they are on — the elements, the counts or the
+   coefficients — never the whole equation (24 Sept). Misses already made
+   still count; starting over clears the mess, not the record. Their own
+   table at the upper levels is theirs and is left alone. */
+function startOver(){
+  if(isPP()) return ppRestartPart();
+  var blank=function(){ return B.els.map(function(){return "";}); };
+  if(B.phase==="elements") B.ecell=blank();
+  else if(B.phase==="counts"||B.phase==="recount"){ B.rcell=blank(); B.pcell=blank(); B.focusK=null; }
+  else if(B.phase==="balance"){
+    B.coef=B.eq.r.concat(B.eq.p).map(function(){return "";});
+    B.committed=B.coef.slice(); B.unbal=[];
+  }
+  B.bad={}; B.hint=null; B.tip=null; B.tipEl=null; B.ok=false;
+  bqRender();
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-b]");
+  if(!t || t.disabled) return;
+  var d=t.dataset.b;
+  if(d==="next") afterSolve();
+  else if(d==="levelup"){ B.offerUp=false; goLevel(L.level+1); }
+  else if(d==="staylevel"){ L.good=0; afterSolve(); }
+  else if(d==="gotpoly"){ L.intro.poly="seen"; bqRender(); }
+  else if(d==="hint" && isPP()) ppHint();
+  else if(d==="hint"){ B.unbal=[]; B.tip=hintText(); bqRender(); }
+  else if(d==="table"){ bqSync(); setShowTable(!L.showTable); bqRender(); }
+  else if(d==="tips"){ L.tips=true; bqRender(); }
+  else if(d==="closetips"){ L.tips=false; bqRender(); }
+  else if(d==="restart") startOver();
+  else if(d==="pznext") pzNext();
+  else bqCheck();
+});
+/* the counts follow the coefficients as they are typed, without a
+   redraw that would cost the caret */
+document.addEventListener("input",function(ev){
+  var m=/^b([erp])(\d+)$/.exec(ev.target.id||"");
+  if(m){
+    if(m[1]==="e" && /\d/.test(ev.target.value)){
+      var el=ev.target, pos=el.selectionStart;
+      el.value=toSubs(el.value); el.setSelectionRange(pos,pos);
+    }
+    (m[1]==="e"?B.ecell:m[1]==="r"?B.rcell:B.pcell)[+m[2]]=ev.target.value;
+    var btn=document.querySelector('.check[data-b="go"]');
+    if(btn) btn.disabled=!readyToCheck();
+    return;
+  }
+  var ft=/^f([erp])(\d+)$/.exec(ev.target.id||"");
+  if(ft && B.ft && !isPP()){      /* their own table: kept, never judged */
+    if(ft[1]==="e" && /\d/.test(ev.target.value)){
+      var fe=ev.target, fpos=fe.selectionStart;
+      fe.value=toSubs(fe.value); fe.setSelectionRange(fpos,fpos);
+    }
+    B.ft[ft[1]][+ft[2]]=ev.target.value;
+    return;
+  }
+  if(!/^bc\d+$/.test(ev.target.id||"") || B.phase!=="balance") return;
+  B.coef[+ev.target.id.slice(2)]=ev.target.value;
+  if(freeLevel()) return;   /* nothing in their table updates itself */
+  if(manual()) return;      /* above this level the student keeps the table */
+  var rows=document.querySelectorAll(".erp tbody tr");
+  B.els.forEach(function(el,i){
+    if(!rows[i]) return;
+    var m=rowMatched(i), cells=rows[i].querySelectorAll(".live");
+    rows[i].classList.toggle("matched",m);
+    if(cells[0]){ cells[0].textContent=liveCount(i,"r");
+      cells[0].className="live "+(m?"match":"miss"); }
+    if(cells[1]){ cells[1].textContent=liveCount(i,"p");
+      cells[1].className="live "+(m?"match":"miss"); }
+  });
+});
+/* leaving a coefficient box clears the counts it changed, and the student
+   updates them before going on (intermediate and advanced) */
+document.addEventListener("change",function(ev){
+  if(!/^bc\d+$/.test(ev.target.id||"") || !manual()) return;
+  if(B.phase!=="balance" && B.phase!=="recount") return;
+  bqSync();
+  /* not a whole number yet: leave the table alone, Check will say what is wrong */
+  if(B.coef.some(function(v){ return !/^\d*$/.test((v||"").trim()); })) return;
+  var st=staleCells();
+  if(!st.length) return;
+  st.forEach(function(k){
+    var a=cellAt(k);
+    if(a.side==="r") B.rcell[a.i]=""; else B.pcell[a.i]="";
+  });
+  B.stale=st; B.phase="recount"; B.justStale=true; B.bad={}; B.hint=null; B.ok=false;
+  bqRender();
+});
+/* moving into a count box points the equation at that element */
+document.addEventListener("focusin",function(ev){
+  var m=/^b([rp])(\d+)$/.exec(ev.target.id||"");
+  if(!m || (B.phase!=="counts" && B.phase!=="recount")) return;
+  B.focusK=+m[2]*2+(m[1]==="r"?0:1);
+  if(B.phase!=="counts" || noPointers()) return;
+  setMark();
+  var box=document.querySelector(".eqbox"); if(box){ box.innerHTML=eqHTML(); fitEq(); }
+});
+document.addEventListener("keydown",function(ev){
+  if(ev.key!=="Enter" || document.getElementById("app").hidden) return;
+  ev.preventDefault();
+  if(L.tips){ L.tips=false; bqRender(); return; }
+  if(L.level===null) return;   /* the menu: nothing to check yet */
+  if(L.intro.poly==="show"){ L.intro.poly="seen"; bqRender(); return; }
+  /* a question on screen waits for a button, not Enter */
+  if(B.offerUp && (isPP()?P.phase:B.phase)==="done") return;
+  /* Enter in their own table moves along it rather than checking */
+  if(/^f[erp]\d+$/.test(ev.target.id||"")){
+    var fb=[].slice.call(document.querySelectorAll(".erp.free input")), fi=fb.indexOf(ev.target);
+    if(fi>=0 && fi<fb.length-1){ fb[fi+1].focus(); fb[fi+1].select(); }
+    return;
+  }
+  if(/^b[erp]\d+$/.test(ev.target.id||"") && !readyToCheck()){
+    var boxes=[].slice.call(document.querySelectorAll(".erp input")),
+        at=boxes.indexOf(ev.target), n=boxes.length, j;
+    for(j=1;j<=n;j++){ var x=boxes[(at+j)%n];
+      if(B.phase==="elements" ? !x.value.trim() : !/^\d+$/.test(x.value.trim())){
+        x.focus(); x.select(); return; } }
+    return;
+  }
+  (isPP()?P.phase:B.phase)==="done" ? afterSolve() : bqCheck();
+});
+
+gateSetup();
+</script>
+</body>
+</html>

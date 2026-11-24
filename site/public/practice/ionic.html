@@ -1,0 +1,4223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ionic compounds · Class Live</title>
+<style>
+  :root{
+    --bg:#f4f2ec; --panel:#ffffff; --line:#12120f; --soft:#c9c5ba;
+    --text:#101010; --muted:#454239;
+    /* cations warm, anions cool — the bright pair fills the puzzle pieces,
+       the dark pair is for anything set as text on white */
+    --posFill:#f0a132; --posEdge:#8a4b00; --posInk:#2a1800; --pos:#8a4b00;
+    --negFill:#45c4d6; --negEdge:#0d5c6b; --negInk:#04262e; --neg:#0b5866;
+    --mark:#c2410c; --faint:#8a857a; --soft2:#e9e5da;
+    --badbg:#ffecef; --badln:#f2a6a0; --goodbg:#e8f5ec; --warnbg:#fff3e8; --warnln:#fbd9bf;
+    --bluebg:#e3edfb; --blueln:#bfe0f0; --blue:#0b4fa8;
+    --good:#0a6b34; --bad:#b00018; --note:#7a4c00; --mark:#c2410c; --hot:#e01b00;
+    --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);
+    padding:14px 16px 28px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;text-align:center}
+  .mono{font-family:var(--mono)}
+  sup{font-size:.58em;line-height:0}
+  sub{font-size:.6em;line-height:0}
+
+  h1{font-size:27px;font-weight:800;margin:0 0 3px}
+  .lede{color:var(--muted);font-size:17.5px;font-weight:600;margin:0 auto 18px;
+    max-width:52ch;line-height:1.4}
+
+  .wordin{width:20ch}
+  .pfrow{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:12px}
+  .ionpair .val{min-height:1.1em}
+  .ioncol.live{border-color:var(--mark)}
+  .ask b{font-weight:800;color:var(--text)}
+  .correction{margin:16px auto 4px;font-size:17px;font-weight:600;line-height:1.4;
+    color:var(--bad);max-width:46ch;min-height:1.4em}
+  .correction.blank{visibility:hidden}
+  /* the settled charge sits beside the symbol as its own flex item here,
+     so it needs its own size rather than an em of the symbol */
+  .ionentry > .qsup{font-family:var(--mono);font-weight:700;font-size:30px;
+    line-height:1;margin-top:4px;opacity:.7}
+  .ionentry > .qsup.pp{color:var(--pos)}
+  .ionentry > .qsup.nn{color:var(--neg)}
+  .ioncol .symfield{font-size:44px;min-width:122px}
+  .qsup.ring{outline:4px solid var(--mark);outline-offset:3px;border-radius:7px;
+    padding:1px 5px;opacity:1}
+
+  /* symbol + charge entry: the charge sits raised, like a superscript */
+  .ionentry{display:flex;align-items:flex-start;justify-content:center;gap:4px}
+  .symfield{font-family:var(--mono);font-weight:700;font-size:52px;line-height:1.15;
+    color:var(--text);background:var(--panel);border:3px solid var(--line);border-radius:12px;
+    padding:4px 12px;min-width:140px;text-align:center;outline:none}
+  .symfield:focus{border-color:var(--mark)}
+  .symfield.bad{border-color:var(--bad)}
+  .symfield:empty:before{content:attr(data-ph);font:500 15px var(--font);
+    color:var(--muted);opacity:.6}
+  .qfield{font-family:var(--mono);font-weight:700;font-size:26px;width:84px;
+    text-align:center;padding:5px 4px;margin-top:2px;border:3px solid var(--line);
+    border-radius:10px;background:var(--panel);color:var(--text)}
+  .qfield:focus{outline:none;border-color:var(--mark)}
+  .qfield.bad{border-color:var(--bad)}
+  .qfield::placeholder{font:500 11.5px var(--font);color:var(--muted);opacity:.7}
+
+  /* the ions restated under the compound name on the puzzle screen */
+  .ionrecap{display:flex;gap:34px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+  .ionrecap .cap{margin:0 0 3px;font-size:13px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted)}
+  .ionrecap .rval{font-family:var(--mono);font-weight:700;font-size:34px;line-height:1.1}
+  .ionrecap .rval.p{color:var(--pos)}
+  .ionrecap .rval.n{color:var(--neg)}
+
+  /* board and its controls side by side */
+  .buildrow{display:flex;gap:20px;align-items:flex-start;justify-content:center;
+    flex-wrap:wrap;margin-top:14px}
+  .buildside{flex:0 1 330px;min-width:270px;display:flex;flex-direction:column;gap:6px}
+  .buildside .fbox,.buildside .win{margin-top:0}
+  .buildside .steppers{margin-top:0}
+  /* a revealed answer stands beside the board rather than under it, so it
+     reads as the answer to what the board is showing */
+  .buildside:has(.reveal),.buildside:has(.actions){flex:0 1 440px}
+  /* the column is narrower than the page, so the two lower buttons carry a
+     little less type — enough to stay on one line, which is what keeps them
+     shorter than Check */
+  .buildside .actions{margin-top:10px;max-width:none}
+  .buildside .actions button{font-size:15px;padding:10px 12px}
+  .buildside .actions .wide button{font-size:23px}
+  .buildside .hintbox{font-size:16px;margin-top:10px}
+  .buildside .reveal{margin:0;max-width:none;padding:12px 16px 14px}
+  .buildside .reveal .rans{font-size:29px;margin-bottom:7px}
+  .buildside .reveal .rwhy{font-size:16px;line-height:1.45;padding-left:20px}
+  .buildside .reveal .rwhy li{margin:4px 0}
+  .buildside .showrow{margin-top:2px}
+  #gate{position:fixed;inset:0;z-index:200;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  #gate[hidden]{display:none}
+  .gatebox{background:var(--panel);border:3px solid var(--line);border-radius:20px;
+    padding:34px 30px 28px;max-width:440px;width:100%;text-align:center}
+  .gatebox h2{margin:0 0 6px;font-size:26px;font-weight:700}
+  .gatelede{margin:0 0 22px;font-size:17px;font-weight:600;color:var(--muted);line-height:1.45}
+  .gatebox .gatename{font-size:24px;line-height:1.3}
+  .gatenum{font-family:var(--mono);font-size:46px;font-weight:700;width:7.5ch;max-width:100%;
+    text-align:center;letter-spacing:.06em;color:var(--text);background:var(--panel);
+    border:3px solid var(--line);border-radius:14px;padding:8px 6px;vertical-align:middle}
+  .gatenum:focus{outline:none;border-color:var(--mark)}
+  .gatenum::placeholder{color:var(--muted);opacity:.3;font-size:22px}
+  #gateAsk{display:flex;gap:12px;align-items:center;justify-content:center}
+  #gateAsk .check{margin-top:0}
+  .gatename{font-size:30px;font-weight:700;margin:4px 0 20px;color:var(--note)}
+  .yn{display:inline-flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  div.yn{display:flex;margin-top:6px}
+  .yn .check{min-width:110px}
+  .qstep .in .yn .check{margin-top:0}
+  .gatebtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .gatebtns .check{margin-top:0}
+  .ghostbtn{background:transparent;color:var(--muted);border:3px solid var(--line)}
+  .ghostbtn:hover{color:var(--text)}
+  .gatemsg{margin:16px auto 0;font-size:15.5px;line-height:1.45;color:var(--bad);
+    min-height:1.4em;max-width:34ch}
+  .linkbtn{margin-top:14px;background:none;border:none;color:var(--muted);
+    font:600 14px var(--font);text-decoration:underline;cursor:pointer}
+  .linkbtn:hover{color:var(--text)}
+  .build{font:600 12px var(--mono);color:var(--muted);opacity:.55;
+    position:fixed;right:10px;bottom:8px;z-index:50}
+  .gatebuild{position:static;margin:14px 0 0;opacity:.5}
+  .whoami b{color:var(--text)}
+  .whoami a{color:var(--text)}
+  .whoami .dot{color:var(--bad);font-weight:700}
+
+  .sec{display:none}
+  .sec.on{display:block}
+  .sec [hidden]{display:none}
+  /* the section owns the heading now; the two activities inside it do not */
+  #sechead{text-align:center}
+  #sechead h1{margin-bottom:10px}
+
+  .pair{display:flex;gap:14px;max-width:620px;margin:0 auto}
+  .layout{display:flex;gap:18px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+  .ions{flex:0 1 280px;min-width:230px;display:flex;flex-direction:column;gap:12px}
+  .rightcol{flex:0 1 auto;max-width:100%}
+
+  .el{flex:1;min-width:0;background:var(--panel);border:3px solid var(--line);
+    border-radius:18px;padding:18px 14px 16px;transition:border-color .25s}
+  .el.ok-pos{border-color:var(--posEdge)}
+  .el.ok-neg{border-color:var(--negEdge)}
+  .el.dim{opacity:.32;border-color:var(--soft)}
+  .el.err{border-color:var(--bad)}
+  .el.shake{animation:shk .4s}
+  .sym{font-family:var(--mono);font-size:56px;font-weight:700;line-height:1}
+  .el.small{padding:12px 14px;display:flex;align-items:center;gap:14px;text-align:left}
+  .el.small .sym{font-size:40px}
+  .nm{font-size:18px;font-weight:600;color:var(--muted);margin:4px 0 14px}
+  .el.small .nm{margin:0 0 3px;font-size:16px}
+
+  .verbs{display:flex;gap:8px;justify-content:center}
+  .verbs button{flex:1;background:var(--panel);color:var(--muted);border:3px solid var(--line);
+    border-radius:11px;padding:10px 0;font:600 17px var(--font);cursor:pointer}
+  .verbs button:hover{color:var(--text)}
+  .verbs button.on{background:var(--note);border-color:var(--mark);color:var(--panel);font-weight:700}
+  .verbs.err{border-radius:11px;box-shadow:0 0 0 3px var(--bad)}
+
+  .ln{margin-top:12px;font-size:17px;font-weight:500;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+  .blank{background:none;border:none;border-bottom:2px solid var(--line);
+    color:var(--text);font:700 22px var(--font);text-align:center;padding:3px}
+  .blank:focus{outline:none;border-bottom-color:var(--note)}
+  .blank::placeholder{font:500 13px var(--font);color:var(--muted);opacity:.6}
+  .wordin::placeholder{font-size:14px}
+  .blank.bad{border-bottom-color:var(--bad)}
+  .num{width:56px}
+  .chg{width:132px}
+  .tiny{width:72px}
+  .roman{width:88px;font-family:var(--mono)}
+
+  .said{font-size:17px;font-weight:600;line-height:1.4}
+  .said .hl{font-family:var(--mono);font-weight:700;font-size:19px}
+  .said.p .hl{color:var(--pos)} .said.n .hl{color:var(--neg)}
+  .why{font-size:15px;font-weight:500;line-height:1.4;margin:8px auto 0;
+    max-width:28ch;color:var(--muted)}
+  .why.err{color:var(--bad)}
+
+  .check{margin-top:20px;background:var(--line);color:var(--panel);border:3px solid var(--line);
+    border-radius:13px;padding:15px 34px;font:700 19px var(--font);cursor:pointer}
+  .check:hover{filter:brightness(1.07)}
+  .check.slim{margin-top:0;padding:12px 24px;font-size:17px}
+  /* .check is declared after .ghostbtn, so the ghost look needs to be
+     restated here to take effect on a button carrying both */
+  .check.ghostbtn{background:transparent;color:var(--muted);border:3px solid var(--line)}
+  .check.ghostbtn:hover{color:var(--text);border-color:var(--muted);filter:none}
+
+  .board{background:var(--panel);border:3px solid var(--line);border-radius:18px;
+    padding:8px;display:inline-block;transition:border-color .3s}
+  .board.solved{border-color:var(--good)}
+  .board svg{display:block;max-width:100%;height:auto}
+  #anionStack{transition:transform .4s cubic-bezier(.2,.8,.3,1)}
+  .piece{cursor:pointer}
+
+  /* the two steppers sit side by side when they fit and stack when a long
+     polyatomic formula means they do not */
+  .steppers{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .step{flex:1 1 120px;background:var(--panel);border:3px solid var(--line);
+    border-radius:14px;
+    padding:9px;display:flex;align-items:center;justify-content:center;gap:10px}
+  .step span{font-size:18px;font-weight:700;min-width:58px;text-align:center;
+    white-space:nowrap}
+  .step button{flex:0 0 auto;width:40px;height:40px;border-radius:11px;border:3px solid var(--line);
+    background:var(--panel);color:var(--text);font:700 22px var(--font);cursor:pointer;line-height:1}
+  .step button:hover:not(:disabled){background:var(--line)}
+  .step button:disabled{opacity:.3;cursor:default}
+
+  .status{margin:11px auto 0;font-size:16px;font-weight:500;line-height:1.45;
+    max-width:36ch;color:var(--muted)}
+  .status.note{color:var(--note)} .status.good{color:var(--good)}
+
+  /* ── numbered question steps (used by the naming sections) ───── */
+  .subject{background:var(--panel);border:3px solid var(--line);border-radius:18px;
+    padding:22px 18px 18px;max-width:560px;margin:0 auto;transition:border-color .3s}
+  .subject.solved{border-color:var(--good)}
+  .subject .big{font-family:var(--mono);font-weight:700;font-size:74px;line-height:1.05}
+  .subject .bigname{font-size:37px;font-weight:700;line-height:1.2}
+  .subject .cap{font-size:14px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .subject .ionline{font-family:var(--mono);font-weight:700;font-size:19px;
+    color:var(--good);margin-top:9px;min-height:20px}
+  .subject .big.p{color:var(--pos)} .subject .big.n{color:var(--neg)}
+
+  .qsteps{max-width:560px;margin:16px auto 0;text-align:left;
+    display:flex;flex-direction:column;gap:14px}
+  .qstep{display:grid;grid-template-columns:22px 1fr;column-gap:12px;align-items:baseline}
+  .qstep .no{font:700 14px var(--mono);color:var(--muted)}
+  .qstep.cur .no{color:var(--note)}
+  .qstep .qt b, .nflead b, .nfhint b, .correction b, .status b, .ask b{font-weight:800}
+  .nflead b.mono sup{font-size:.6em}
+  .qstep .qt{font-size:21px;font-weight:700;line-height:1.45}
+  .qstep .dn{font-size:19px;font-weight:600;color:var(--muted);line-height:1.45}
+  .qstep .dn b{color:var(--text);font-family:var(--mono)}
+  .qstep .dn b.word{font-family:var(--font)}
+  .qstep .in{margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .qstep .in .lbl{font-size:16px;font-weight:500;color:var(--muted)}
+  .qstep .hint{flex-basis:100%;font-size:15.5px;font-weight:500;
+    line-height:1.4;color:var(--bad);margin:0}
+  .fill{font-size:18.5px;font-weight:600;line-height:2.2}
+  .fill .blank{margin:0 2px}
+  .qstep .in .fill{flex-basis:100%}
+  .qstep .blank.bad{box-shadow:0 0 0 3px var(--bad);border-radius:6px}
+  .ferr.mgno{flex-basis:100%;margin:2px 0 0;max-width:none;font-weight:700;font-size:18px}
+  .qstep .in .verbs.err{box-shadow:0 0 0 3px var(--bad);border-radius:11px}
+
+  .ionpair{display:flex;gap:16px;justify-content:center;margin:16px auto 0;
+    flex-wrap:wrap;max-width:560px}
+  .ioncol{flex:1 1 210px;max-width:260px;background:var(--panel);
+    border:3px solid var(--line);border-radius:16px;padding:14px 12px;
+    display:flex;flex-direction:column;gap:11px;align-items:center;
+    transition:border-color .25s}
+  .ioncol.p{border-color:var(--posEdge)}
+  .ioncol.n{border-color:var(--negEdge)}
+  .ioncol .cap{font-size:14px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);margin:0}
+  .ioncol .val{font-family:var(--mono);font-weight:700;font-size:68px;line-height:1}
+  .ioncol .cval{font-family:var(--mono);font-weight:700;font-size:38px;line-height:1}
+  .ioncol .symin{width:160px;font-family:var(--mono);font-size:56px;
+    font-weight:700;padding:0 4px}
+  .ioncol .chg{width:150px;font-family:var(--mono);font-size:34px;font-weight:700}
+  .ioncol.dim{opacity:.3}
+  .ioncol .val sup.qsup{font-size:.44em;line-height:0;margin-left:3px;opacity:.62}
+  .qsup.pp{color:var(--pos)} .qsup.nn{color:var(--neg)}
+  .ioncol .blank{border:3px solid var(--line);border-radius:12px;
+    background:var(--panel);padding:6px 10px}
+  .ioncol .blank:focus{border-color:var(--mark)}
+  .ioncol .blank.bad{border-color:var(--bad)}
+  .ask{font-size:18px;font-weight:600;line-height:1.4;color:var(--note);
+    margin:0 0 2px;max-width:26ch}
+  .mult{display:flex;align-items:center;gap:7px;font-family:var(--mono);
+    font-weight:700;font-size:23px}
+  .mult .cnt{width:58px;font-family:var(--mono);font-size:23px}
+  .mult .cnt.bad{border:2px solid var(--bad);border-radius:8px;padding:2px 4px;
+    color:var(--bad)}
+  .mult .ringnum{outline:3px solid var(--bad);outline-offset:3px;border-radius:7px;
+    padding:1px 5px;color:var(--bad)}
+  .mult .pp{color:var(--pos)} .mult .nn{color:var(--neg)}
+  .nflead{margin:18px auto 6px;font-size:22px;font-weight:700;
+    line-height:1.4;max-width:46ch}
+  .nfstat{margin:13px auto 0;font-size:16px;font-weight:500;
+    color:var(--muted);max-width:42ch;line-height:1.45}
+  .nfstat.good{color:var(--good)} .nfstat.note{color:var(--note)}
+  .nfhint{margin:11px auto 0;font-size:15.5px;font-weight:500;
+    color:var(--bad);max-width:40ch;line-height:1.4}
+
+  .tally{display:flex;gap:10px;justify-content:flex-start;margin-top:2px}
+  .tally div{background:var(--panel);border:3px solid var(--line);border-radius:11px;
+    padding:7px 13px;font:700 17px var(--mono)}
+  .tally .p{color:var(--pos)} .tally .n{color:var(--neg)}
+
+  /* Polyatomic ions: five options, one picked */
+  .opts{display:flex;flex-direction:column;gap:9px;margin:16px auto 0;max-width:560px}
+  .opt{background:var(--panel);border:3px solid var(--soft);border-radius:13px;
+    padding:13px 16px;font-family:var(--mono);font-size:26px;font-weight:700;
+    color:var(--text);cursor:pointer;text-align:center;letter-spacing:.03em}
+  .opt:hover{border-color:var(--line)}
+  .opt.on{border-color:var(--line);background:var(--soft2)}
+  .sfx{color:var(--hot)}
+  #sec-ions .check{width:100%;max-width:560px}
+  .counter{margin:18px auto 0;font:600 14.5px var(--mono);color:var(--muted)}
+  .counter b{color:var(--text)}
+
+  /* formula entry */
+  .fbox{margin-top:12px;background:var(--panel);border:2px solid var(--note);
+    border-radius:18px;padding:16px;animation:pop .3s}
+  .fbox .lbl{font-size:17px;font-weight:600;color:var(--text);margin:0 0 12px}
+  .finput{font-family:var(--mono);font-size:38px;font-weight:700;color:var(--text);
+    background:var(--panel);border:3px solid var(--line);border-radius:12px;
+    padding:8px 14px;min-height:60px;min-width:200px;display:inline-block;
+    text-align:center;outline:none;caret-color:var(--note)}
+  .finput:focus{border-color:var(--mark)}
+  .finput:empty:before{content:"type the formula";font:500 15px var(--font);
+    color:var(--muted);opacity:.6}
+  /* subscripts in the formula box sit on their own baseline rather than the
+     page-wide line-height:0 rule, so a ring drawn round one is centred on
+     the digit instead of on a collapsed line box */
+  .finput sub{font-size:.58em;line-height:1;vertical-align:baseline;
+    position:relative;top:.2em}
+  /* after a wrong formula, ring the numbers that count ions — never the
+     digits that belong inside a polyatomic ion, and only when the numbers
+     are what went wrong */
+  .finput.marknum sub.cnt{display:inline-block;outline:3px solid var(--bad);
+    outline-offset:2px;border-radius:5px;padding:0 2px;color:var(--bad)}
+  .fbox button{display:block;margin:12px auto 0;background:var(--line);color:var(--panel);
+    border:none;border-radius:12px;padding:11px 26px;font:700 16px var(--font);cursor:pointer}
+  .ferr{color:var(--bad);font-size:16px;font-weight:500;line-height:1.45;
+    margin:10px auto 0;max-width:34ch}
+
+  .okmsg{margin:0 0 10px;font:800 28px var(--font);color:var(--good)}
+  .win{margin-top:12px;background:var(--goodbg);border:2px solid var(--good);
+    border-radius:18px;padding:16px;animation:pop .3s}
+  .win .f{font-family:var(--mono);font-size:38px;font-weight:700;color:var(--good);line-height:1.1}
+  .win .fname{font-size:38px;font-weight:700;color:var(--good);line-height:1.15;
+    text-wrap:balance}
+  .win .c{font-size:21px;font-weight:600;margin-top:4px}
+  .win p{color:var(--muted);font-size:16px;font-weight:500;line-height:1.5;margin:8px auto 14px;max-width:40ch}
+  .win button{background:var(--line);color:var(--panel);border:none;border-radius:12px;
+    padding:13px 28px;font:700 18px var(--font);cursor:pointer}
+  .win.slim{max-width:560px;margin-left:auto;margin-right:auto}
+  /* deliberately not the green of .win — a revealed answer is not a win */
+  .reveal{margin:12px auto 0;max-width:620px;text-align:left;
+    background:var(--warnbg);border:3px solid var(--note);border-radius:16px;
+    padding:14px 20px 16px}
+  .reveal .rlab{margin:0 0 3px;font:700 13px var(--font);letter-spacing:.14em;
+    text-transform:uppercase;color:var(--note)}
+  .reveal .rans{font-family:var(--mono);font-weight:700;font-size:36px;
+    line-height:1.15;color:var(--text);margin-bottom:9px;word-break:break-word}
+  .reveal .rwhy{margin:0;padding-left:24px;font-size:19px;line-height:1.5}
+  .reveal .rwhy li{margin:6px 0}
+  .reveal .rwhy b{color:var(--note)}
+  .reveal sub{line-height:1;vertical-align:baseline;position:relative;top:.2em}
+  .showrow{margin-top:14px;text-align:center}
+  .showrow button{background:transparent;color:var(--muted);
+    border:3px solid var(--soft);border-radius:12px;padding:12px 20px;
+    font:700 17px var(--font);cursor:pointer}
+  .showrow button:hover{color:var(--text);border-color:var(--line)}
+
+  /* Check on top at full width, the two ways out beneath it. Identical
+     padding on all three; only the type size on Check is larger. */
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;
+    max-width:540px;margin:16px auto 0}
+  .actions .wide{grid-column:1 / -1;display:flex;gap:10px}
+  .actions .wide button{flex:1 1 0;min-width:0}
+  .actions button{padding:12px 20px;border-radius:12px;cursor:pointer;
+    font-family:var(--font);font-weight:700;font-size:17px;line-height:1.25;
+    border:3px solid var(--soft);background:transparent;color:var(--muted)}
+  .actions button:hover{color:var(--text);border-color:var(--line)}
+  .actions .wide button{font-size:25px;background:var(--line);
+    border-color:var(--line);color:var(--panel)}
+  .actions .wide button:hover{color:var(--panel);opacity:.88}
+  /* at phone width the two lower labels no longer fit at full size; shrinking
+     them keeps each on one line, which is what keeps Check the taller button */
+  @media (max-width:560px){
+    .actions button{padding:10px 8px}
+    .actions .wide button{font-size:21px}
+    .actions > button{font-size:13px;white-space:nowrap}
+  }
+  .hintbox{max-width:540px;margin:12px auto 0;text-align:left;
+    background:var(--warnbg);border:3px solid var(--note);border-radius:14px;
+    padding:11px 16px;font-size:18px;line-height:1.45;color:var(--text)}
+  .hintbox b{color:var(--note)}
+
+  /* tutorial overlay (build section only) */
+  #tutLayer{position:fixed;inset:0;z-index:100;pointer-events:none}
+  #tutHole{position:fixed;border-radius:15px;border:3px solid var(--note);
+    box-shadow:0 0 0 9999px rgba(18,18,15,.36);
+    transition:top .28s cubic-bezier(.2,.8,.3,1),left .28s cubic-bezier(.2,.8,.3,1),
+               width .28s cubic-bezier(.2,.8,.3,1),height .28s cubic-bezier(.2,.8,.3,1)}
+  #tutBox{position:fixed;background:var(--line);color:var(--panel);border-radius:13px;
+    padding:13px 16px;font:600 15.5px var(--font);line-height:1.45;text-align:left;
+    pointer-events:auto;transform:none;box-shadow:0 12px 28px rgba(0,0,0,.22)}
+  #tutBox.center{left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:16.5px;line-height:1.5;padding:20px 22px}
+  #tutBox p{margin:0 0 9px}
+  #tutBox p:last-of-type{margin-bottom:12px}
+  #tutBox b{font-family:var(--mono);font-weight:700}
+  #tutBtns{display:flex;gap:8px;align-items:center}
+  #tutBox button{background:rgba(255,255,255,.24);border:none;color:var(--panel);
+    font:700 14px var(--font);padding:8px 14px;border-radius:9px;cursor:pointer}
+  #tutBox button#tutNext{background:var(--panel);color:var(--line);padding:9px 22px;font-size:15px;font-weight:800}
+  #tutBox button:hover{filter:brightness(1.08)}
+  #tutReplay{position:fixed;top:72px;right:10px;z-index:60;width:34px;height:34px;
+    border-radius:50%;border:3px solid var(--line);background:var(--panel);
+    color:var(--muted);font:700 16px var(--font);cursor:pointer}
+  #tutReplay:hover{color:var(--text);border-color:var(--mark)}
+
+  @keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  @keyframes pop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+  button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline:3px solid var(--note);outline-offset:2px}
+  @media (max-width:560px){
+    .sym{font-size:44px} .verbs{flex-direction:column} .chg{width:100%}
+    .ions{flex:1 1 100%} .finput{font-size:30px}
+    .step{flex-direction:column;gap:8px} .step span{font-size:15px}
+    .subject .big{font-size:46px} .subject .bigname{font-size:24px}
+    .nav button{padding:7px 11px;font-size:13px}
+    /* the groups stack on a narrow screen, so the divider between them
+       would be a stray vertical line; the labels alone carry the split */
+    .nav{gap:4px 0} .navgrp{flex:1 1 100%} .navgrp+.navgrp:before{display:none}
+    .seg button{padding:8px 14px;font-size:13.5px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .build,.gatebuild{display:none!important}
+</style>
+<script src="/practice/theme.js"></script>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gatebox">
+    <h2 id="gateTitle">Class Live</h2>
+    <p class="gatelede" id="gateLede">Type your class number to begin.</p>
+
+    <div id="gateAsk">
+      <input id="gateNum" class="gatenum" inputmode="numeric" autocomplete="off"
+             maxlength="12" aria-label="Class number" placeholder="number">
+      <button class="check" id="gateGo">Go</button>
+    </div>
+
+    <div id="gateConfirm" hidden>
+      <div class="gatename" id="gateName"></div>
+      <div class="gatebtns">
+        <button class="check" id="gateYes">Yes, that's me</button>
+        <button class="check ghostbtn" id="gateNo">No, go back</button>
+      </div>
+    </div>
+
+    <p class="gatemsg" id="gateMsg"></p>
+    <button class="linkbtn" id="gateSkip">Just practice — don't record my work</button>
+    <p class="build gatebuild">build 3.8</p>
+  </div>
+</div>
+
+<div id="cwtop"></div>
+<div class="wrap" id="app" hidden>
+  <div class="build">build 3.8</div>
+  <div class="sec" id="sec-charges"></div>
+  <div class="sec" id="sec-ions"></div>
+  <div class="sec" id="sec-build"></div>
+  <div class="sec" id="sec-simple">
+    <div id="sec-f2n"></div>
+    <div id="sec-n2f"></div>
+  </div>
+  <div class="sec" id="sec-poly"></div>
+</div>
+<button id="tutReplay" title="Replay the tutorial" aria-label="Replay the tutorial" hidden>?</button>
+<div id="tutLayer" hidden><div id="tutHole"></div><div id="tutBox"></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   STUDENT SIGN-IN AND TRACKING
+   Finished items are queued in this browser and posted in batches,
+   so a dropped connection never loses anyone's work.
+   ═══════════════════════════════════════════════════════════════ */
+/* ── the tracking switch ────────────────────────────────────────
+   false: no sign-in screen, no class numbers, nothing sent anywhere.
+   The counters under each section still run, so a student can see
+   their own progress for as long as the tab is open.
+   Set it back to true to turn the roster and the dashboard back on;
+   nothing else has to change. */
+var TRACKING = false;
+
+var API=(window.ION_API||"/api").replace(/\/+$/,""), QKEY="ionq", ST={n:null,name:null,off:false};
+
+/* A class number: digits only, short ones padded to three so an old
+   three-digit roster still works, longer ones kept whole. The Worker does
+   exactly the same, so the two always agree. */
+function normNum(raw){
+  var d=String(raw==null?"":raw).replace(/\D/g,"");
+  if(!d || d.length>12) return "";
+  return d.length<3 ? ("00"+d).slice(-3) : d;
+}
+function tqRead(){ try{ return JSON.parse(localStorage.getItem(QKEY)||"[]"); }catch(e){ return []; } }
+function tqWrite(q){ try{ localStorage.setItem(QKEY,JSON.stringify(q.slice(-400))); }catch(e){} }
+
+function track(activity, clean){
+  if(!TRACKING || !ST.n) return;
+  var q=tqRead();
+  q.push({n:ST.n, a:activity, c:clean?1:0, t:Date.now()});
+  tqWrite(q);
+  ASG.forEach(function(x){ if(x.a===activity) x.k++; });
+  asgNow();
+}
+
+/* ── assignments (25 Sept) ──────────────────────────────────────
+   Read once after sign-in. The server sends the finishes it already has;
+   finishes still waiting in the queue here are added on top, and every
+   finish from now on adds one as it happens. Ported from Balance
+   Workshop, which built this first. */
+var ASG=[];
+function loadAssigned(then){
+  if(!TRACKING || !ST.n) return then();
+  var q=tqRead();
+  fetch(API+"/assigned?n="+ST.n)
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(d){
+      ASG=(d.list||[]).map(function(x){
+        var ts=x.ts||[];
+        x.k=ts.length;
+        q.forEach(function(e){
+          if(e.n===ST.n && e.a===x.a && e.t>=x.c && ts.indexOf(e.t)<0) x.k++; });
+        delete x.ts;
+        return x;
+      });
+    })
+    .catch(function(){})
+    .then(function(){ asgNow(); then(); });
+}
+/* Nothing is posted per answer: Cloudflare's free plan counts writes, and
+   each post is one write per student, so the queues go every FLUSH_MS and
+   when the page is left (23 Sept). */
+var flushing=false, FLUSH_MS=120000;
+function tqFlush(leaving){
+  if(!TRACKING || flushing) return;
+  var q=tqRead().slice(0,200);   /* the Worker takes 200 at a time */
+  if(!q.length){ markSynced(true); return; }
+  flushing=true;
+  fetch(API+"/event",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({events:q}), keepalive:!!leaving})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(){ tqWrite(tqRead().slice(q.length)); markSynced(true); flushing=false;
+      if(tqRead().length) tqFlush(leaving); })
+    .catch(function(){ markSynced(false); flushing=false; });
+}
+function markSynced(ok){
+  var w=document.getElementById("whoami");
+  if(!w || !ST.n) return;
+  /* the name goes back to their progress page (24 Sept) */
+  w.innerHTML=esc(ST.name)+
+    (ok ? "" : ' <span class="dot" title="not saved yet">•</span>');
+}
+function flushAll(leaving){ tqFlush(leaving); if(window.lqFlush) lqFlush(leaving); }
+window.addEventListener("online", function(){ flushAll(); });
+document.addEventListener("visibilitychange", function(){
+  flushAll(document.visibilityState==="hidden");
+});
+window.addEventListener("pagehide", function(){ flushAll(true); });
+setInterval(function(){ flushAll(); }, FLUSH_MS);
+
+function startApp(){
+  document.getElementById("gate").hidden=true;
+  document.getElementById("app").hidden=false;
+  var w=document.getElementById("whoami");
+  if(!TRACKING){ w.hidden=true; return; }
+  if(ST.n){ markSynced(true); loadAssigned(flushAll); }
+  else if(ST.test){ w.textContent="practice · nothing recorded"; }
+  else { w.textContent="not signed in"; }
+}
+
+/* tell the dashboard they signed in, including when a remembered student
+   comes back to the page; nothing waits on it */
+function signedIn(){
+  try{ fetch(API+"/signin",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({n:ST.n, app:"ion"}), keepalive:true}).catch(function(){}); }catch(e){}
+}
+
+function gateSetup(){
+  var g=function(id){ return document.getElementById(id); };
+  var found=null;
+
+  /* tracking off: straight into the app, no number asked for */
+  if(!TRACKING){ ST.off=true; startApp(); return; }
+
+  function msg(t){ g("gateMsg").textContent=t||""; }
+  function ask(){
+    g("gateAsk").hidden=false; g("gateConfirm").hidden=true;
+    g("gateLede").textContent="Type your class number to begin.";
+    g("gateNum").focus(); g("gateNum").select();
+  }
+
+  function confirmAs(rec){
+    found=rec;
+    g("gateAsk").hidden=true;
+    g("gateConfirm").hidden=false;
+    g("gateLede").textContent = rec.test ? "Testing mode" : "Is this you?";
+    g("gateName").textContent = rec.name;
+    msg("");
+    g("gateYes").focus();
+  }
+
+  function lookUp(){
+    /* whole number, however many digits it has — cutting it down to three is
+       what stopped longer class numbers matching the roster */
+    var n=normNum(g("gateNum").value);
+    if(!n){ msg("Type your class number."); return; }
+
+    msg("Checking…");
+    fetch(API+"/student?n="+n)
+      .then(function(r){
+        if(r.status===404) throw new Error("nomatch");
+        if(!r.ok) throw new Error("api");
+        return r.json();
+      })
+      .then(function(d){ confirmAs({n:d.n, name:d.name}); })
+      .catch(function(e){
+        if(e.message==="nomatch"){
+          msg("No one on the class list has the number "+n+". Check it and try again.");
+          g("gateNum").select();
+        } else {
+          msg("The class list cannot be reached right now. Tell your teacher, "+
+              "and show them this: "+location.origin+API+"/student");
+        }
+      });
+  }
+
+  g("gateGo").addEventListener("click", lookUp);
+  g("gateNum").addEventListener("keydown", function(e){
+    if(e.key==="Enter"){ e.preventDefault(); lookUp(); }
+  });
+  g("gateYes").addEventListener("click", function(){
+    if(found.test){ ST.n=null; ST.name="Testing"; ST.test=true; startApp(); return; }
+    ST.n=found.n; ST.name=found.name; CW.setPractice(false);
+    try{ sessionStorage.setItem("ionStudent", JSON.stringify(ST)); }catch(e){}
+    signedIn();
+    /* a fresh sign-in opens on "Your progress" (24 Sept); coming back from
+       there, the remembered sign-in drops them straight into the app */
+    location.href="/beta/";
+  });
+  g("gateNo").addEventListener("click", function(){ found=null; msg(""); ask(); });
+  g("gateSkip").addEventListener("click", function(){ ST.off=true; ST.test=true; CW.setPractice(true); startApp(); });
+
+  var saved=null;
+  try{ saved=JSON.parse(sessionStorage.getItem("ionStudent")||"null"); }catch(e){}
+  if(saved && saved.n){ ST.n=saved.n; ST.name=saved.name; signedIn(); startApp(); return; }
+  /* practice mode, chosen earlier on this tab: no number asked again */
+  if(CW.practicing()){ ST.off=true; ST.test=true; startApp(); return; }
+  g("gateNum").focus();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHEMISTRY WORKSHOP NAVIGATION (27 Sept)
+   One copy, built into /beta/, index.html and balance.html by
+   build.py (the *.use parts). The top bar, the topic list, and the
+   "you are here" row with its drop-down steps. Each page says what its
+   steps are and what a pick does; this file only draws and listens.
+   ═══════════════════════════════════════════════════════════════ */
+var CW=(function(){
+  /* the topics, in order. A new topic: add a line; built:true makes it live */
+  var TOPICS=[
+    {id:"pt",    label:"Periodic Table",  href:"periodic.html", built:true},
+    {id:"atom",  label:"Atomic Structure"},
+    {id:"cov",   label:"Covalent bonding"},
+    {id:"ionic", label:"Ionic compounds", href:"index.html",   built:true},
+    {id:"bal",   label:"Balancing",       href:"balance.html", built:true},
+    {id:"mol",   label:"Moles",           href:"moles.html",   built:true},
+    {id:"stoich",label:"Stoichiometry"}
+  ];
+  /* true: unbuilt topics show as "Coming soon" tiles. false: they are hidden */
+  var SHOW_SOON=true;
+
+  var CSS=
+  "body.cw{padding-top:0!important}"+
+  "#gate:not([hidden])~#cwtop{display:none}"+
+  ".cwbar{height:60px;display:flex;align-items:center;gap:12px;margin:0 -16px 0;padding:0 16px;"+
+    "background:var(--panel);border-bottom:3px solid var(--line);text-align:left}"+
+  ".cwhome{font:800 21px var(--font);color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;min-height:44px}"+
+  ".cwme{margin-left:auto;font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;"+
+    "padding:0 14px;min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);text-decoration:none;white-space:nowrap}"+
+  "a.cwme:hover{background:var(--line);color:var(--panel)}"+
+  ".cwme.cur{background:var(--line);color:var(--panel)}"+
+  ".cwme .dot{color:var(--mark)}"+
+  ".cwpath{display:flex;align-items:center;flex-wrap:wrap;gap:8px 6px;padding:10px 0;text-align:left}"+
+  ".cwttl{font:800 24px var(--font);margin:0 10px 0 0}"+
+  ".cwsep{font:800 22px var(--font);color:var(--faint)}"+
+  ".cwstep{position:relative}"+
+  ".cwbtn{font:800 18px var(--font);background:var(--panel);border:3px solid var(--line);border-radius:12px;padding:0 14px;"+
+    "min-height:44px;display:inline-flex;align-items:center;gap:8px;color:var(--text);cursor:pointer}"+
+  ".cwbtn.open,.cwbtn:hover{background:var(--line);color:var(--panel)}"+
+  /* the chosen one of two side-by-side choices (Binary / Polyatomic) */
+  ".cwbtn.sel{box-shadow:inset 0 0 0 3px var(--line);background:var(--soft2)}"+
+  ".cwbtn.sel:hover,.cwbtn.sel.open{background:var(--line);color:var(--panel)}"+
+  ".cwmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:50;width:280px;background:var(--panel);"+
+    "border:3px solid var(--line);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;"+
+    "box-shadow:0 8px 0 rgba(18,18,15,.15)}"+
+  ".cwmi{font:800 19px var(--font);text-align:left;background:var(--panel);border:3px solid var(--soft);border-radius:10px;"+
+    "min-height:48px;padding:0 14px;color:var(--text);display:flex;align-items:center;justify-content:space-between;cursor:pointer}"+
+  ".cwmi:hover{border-color:var(--line)}.cwmi.cur{border-color:var(--line)}"+
+  ".cwmi:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwseg{display:inline-flex;border:3px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);margin-left:6px}"+
+  ".cwseg.right{margin-left:auto}"+
+  ".cwseg button{font:800 17px var(--font);border:0;background:transparent;color:var(--text);padding:0 16px;min-height:44px;cursor:pointer}"+
+  ".cwseg button+button{border-left:2px solid var(--soft)}"+
+  ".cwseg button.on{background:var(--line);color:var(--panel)}"+
+  ".cwseg button:disabled{color:var(--faint);cursor:default}"+
+  ".cwfirst{text-align:center;margin:18px 0 8px}"+
+  ".cwfirst p{font:700 20px var(--font);color:var(--muted);margin:0 0 14px}"+
+  ".cwbig{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}"+
+  ".cwbig button{background:var(--panel);border:3px solid var(--line);border-radius:14px;color:var(--text);cursor:pointer;"+
+    "padding:12px 26px;font:800 24px var(--font);min-height:56px}"+
+  ".cwbig button:hover{background:var(--line);color:var(--panel)}"+
+  ".cwbig button:disabled{opacity:.45;cursor:default;border-style:dashed}"+
+  ".cwbig button:disabled:hover{background:var(--panel);color:var(--text)}"+
+  ".cwnavrow.fresh button{animation:cwin .3s ease-out both}"+
+  "@keyframes cwin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}"+
+  "@media (prefers-reduced-motion:reduce){.cwnavrow.fresh button{animation:none}}"+
+  /* the topic tiles on the dashboard */
+  ".cwtopics{display:flex;gap:10px}"+
+  ".cwtile{flex:1;min-height:112px;border-radius:16px;padding:12px;display:flex;flex-direction:column;"+
+    "justify-content:space-between;gap:6px;text-decoration:none;text-align:left}"+
+  ".cwtile.live{background:var(--panel);border:3px solid var(--line);color:var(--text)}"+
+  ".cwtile.live:hover{background:var(--line);color:var(--panel)}"+
+  ".cwtile.soon{background:transparent;border:3px dashed var(--faint);color:var(--muted)}"+
+  ".cwtile .num{font-size:14px;font-weight:800;opacity:.8}"+
+  ".cwtile .tname{font-size:20px;font-weight:800;line-height:1.15}"+
+  ".cwtile .pill{align-self:flex-start;font-size:13px;font-weight:800;border:2px solid var(--faint);border-radius:999px;padding:2px 10px}"+
+  ".cwtile .go{align-self:flex-start;font-size:15px;font-weight:800;background:var(--line);color:var(--panel);border-radius:999px;padding:3px 12px}"+
+  ".cwtile.live:hover .go{background:var(--panel);color:var(--line)}"+
+  ".cwtopics.big .cwtile{min-height:150px}.cwtopics.big .tname{font-size:28px}"+
+  "@media (max-width:1100px){.cwtopics{flex-wrap:wrap}.cwtile{flex:1 1 150px}}"+
+  "@media (max-width:600px){.cwtile{flex:1 1 40%;min-height:96px}.cwtile.soon{min-height:0}}"+
+  /* phone: icon-only home, the row becomes a card of full-width buttons */
+  "@media (max-width:600px){"+
+    
+    ".cwpath{flex-direction:column;align-items:stretch;background:var(--panel);border:3px solid var(--line);"+
+      "border-radius:16px;padding:12px;margin-top:12px;gap:8px}"+
+    ".cwttl{font-size:21px}.cwsep{display:none}"+
+    ".cwbtn{width:100%;justify-content:space-between}"+
+    ".cwmenu{width:100%}"+
+    ".cwseg,.cwseg.right{margin:0;display:flex;min-width:0}"+
+    ".cwseg button{flex:1 1 0;min-width:0;padding:0 4px;font-size:16px;line-height:1.1}"+
+  "}";
+  var st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
+  if(document.body) document.body.classList.add("cw");
+  /* a topic page has an empty #cwtop: the bar and the row go in it */
+  var top=document.getElementById("cwtop");
+
+  var FLASK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>';
+  var PERSON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '+
+    'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
+  var CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+
+  /* practice mode is remembered for the tab, so moving between topics
+     does not ask for a class number again */
+  var PKEY="cwPractice";
+  function practicing(){ try{ return sessionStorage.getItem(PKEY)==="1"; }catch(e){ return false; } }
+  function setPractice(on){ try{ on?sessionStorage.setItem(PKEY,"1"):sessionStorage.removeItem(PKEY); }catch(e){} }
+
+  /* the bar on a topic page: home on the left, "← name" on the right,
+     both back to the dashboard. The name itself goes in #whoami. */
+  function barHTML(){
+    return '<header class="cwbar"><a class="cwhome" href="/beta/" aria-label="Back to Class Live">\u2190 <span class="cwht">Class Live</span></a><span id="whoami" hidden></span></header>';
+  }
+  if(top) top.innerHTML=barHTML()+'<div id="cwpath"></div>';
+  /* the bar on the dashboard: the name is the page they are on */
+  function homeBarHTML(name){
+    return '<header class="cwbar"><span class="cwhome">'+FLASK+'<span class="cwht">Class Live</span></span>'+
+      '<span class="cwme cur" aria-current="page">'+PERSON+esc(name)+'</span></header>';
+  }
+
+  /* the topic tiles on the dashboard */
+  function topicsHTML(){
+    var list=TOPICS.filter(function(t){ return t.built || SHOW_SOON; });
+    return '<nav class="cwtopics'+(SHOW_SOON?"":" big")+'" aria-label="Topics">'+list.map(function(t,i){
+      return t.built
+        ? '<a class="cwtile live" href="'+t.href+'"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="go">Open \u2192</span></a>'
+        : '<div class="cwtile soon" aria-disabled="true"><span class="num">'+(i+1)+'</span><span class="tname">'+
+            esc(t.label)+'</span><span class="pill">Coming soon</span></div>';
+    }).join("")+'</nav>';
+  }
+
+  /* the "you are here" row.
+     o.title   the topic
+     o.steps   [{id, opts:[[key,label,soon?]], cur}] — buttons with ▾
+     o.segs    [{id, opts, cur, right?}] — joined controls, the last choice
+     o.next    {id, ask, opts} — the next unchosen step, as big buttons */
+  var OPEN=null, H=null, freshRow=false;
+  function labelOf(opts,k){ for(var i=0;i<opts.length;i++) if(opts[i][0]===k) return opts[i][1]; return ""; }
+  function pathHTML(o){
+    var h='<nav class="cwpath" aria-label="You are here"><h1 class="cwttl">'+esc(o.title)+'</h1>';
+    o.steps.forEach(function(s,i){
+      if(i && !s.nosep) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      /* a plain choice beside a drop-down, the same shape (Polyatomic) */
+      if(s.btn){
+        h+='<div class="cwstep"><button class="cwbtn'+(s.sel?" sel":"")+'" data-cwpick="'+s.id+'" data-cwval="'+esc(s.val)+'"'+
+          (s.sel?' aria-pressed="true"':'')+'>'+esc(s.label)+'</button></div>';
+        return;
+      }
+      var open=OPEN===s.id;
+      h+='<div class="cwstep"><button class="cwbtn'+(open?" open":"")+(s.sel?" sel":"")+'" data-cwopen="'+s.id+'" aria-expanded="'+open+
+        '" aria-haspopup="true">'+esc(s.label||labelOf(s.opts,s.cur))+CHEV+'</button>';
+      if(open) h+='<div class="cwmenu" role="menu">'+s.opts.map(function(x){
+        var cur=x[0]===s.cur;
+        return '<button class="cwmi'+(cur?" cur":"")+'" role="menuitem" data-cwpick="'+s.id+'" data-cwval="'+esc(x[0])+'"'+
+          (cur?' aria-current="true"':"")+(x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+
+          (cur?'<span aria-hidden="true">\u2713</span>':"")+'</button>';
+      }).join("")+'</div>';
+      h+='</div>';
+    });
+    (o.segs||[]).forEach(function(g,i){
+      if(!i && o.steps.length && !g.right) h+='<span class="cwsep" aria-hidden="true">\u203a</span>';
+      h+='<div class="cwseg'+(g.right?" right":"")+'" role="group">'+g.opts.map(function(x){
+        var on=x[0]===g.cur;
+        return '<button data-cwpick="'+g.id+'" data-cwval="'+esc(x[0])+'"'+(on?' class="on" aria-pressed="true"':"")+
+          (x[2]?" disabled":"")+'>'+esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div>';
+    });
+    h+='</nav>';
+    if(o.next) h+='<div class="cwfirst">'+(o.next.ask?'<p>'+esc(o.next.ask)+'</p>':'')+'<div class="cwbig cwnavrow'+(freshRow?" fresh":"")+'">'+
+      o.next.opts.map(function(x){
+        return '<button data-cwpick="'+o.next.id+'" data-cwval="'+esc(x[0])+'"'+(x[2]?" disabled":"")+'>'+
+          esc(x[1])+(x[2]?" \u00b7 soon":"")+'</button>';
+      }).join("")+'</div></div>';
+    freshRow=false;
+    return h;
+  }
+  /* h = {draw(), pick(step, value)} from the page */
+  function init(h){ H=h; }
+  function draw(){ if(H) H.draw(); }
+  document.addEventListener("click",function(ev){
+    var t=ev.target.closest("[data-cwopen],[data-cwpick]");
+    if(t && t.dataset.cwopen){
+      OPEN = OPEN===t.dataset.cwopen ? null : t.dataset.cwopen; draw(); return;
+    }
+    if(t && t.dataset.cwpick && !t.disabled){
+      var wasBig=!!t.closest(".cwbig");
+      OPEN=null; freshRow=wasBig;
+      if(H) H.pick(t.dataset.cwpick, t.dataset.cwval);
+      return;
+    }
+    if(OPEN && !ev.target.closest(".cwmenu")){ OPEN=null; draw(); }
+  });
+  document.addEventListener("keydown",function(ev){
+    if(ev.key==="Escape" && OPEN){ OPEN=null; draw(); }
+  });
+
+  /* where a student was in a topic, so coming back reopens it */
+  function save(k,v){ try{ localStorage.setItem("cw_"+k, JSON.stringify(v)); }catch(e){} }
+  function load(k){ try{ return JSON.parse(localStorage.getItem("cw_"+k)||"null"); }catch(e){ return null; } }
+
+  /* 29 Sept: while working on an assigned section, the whole assignment's
+     progress in one line under the top bar — "Naming review: 5/20 complete".
+     list = the page's ASG rows (one per section, id "<assignment>:<i>").
+     1 Oct: an assignment runs as one. Once the section on screen is done, a
+     "Next: <section>" link opens the next unfinished one (any page); when
+     every section is done the line reads "Assignment complete". The student
+     follows it themselves — nothing jumps on its own. */
+  var BAL_T={syn:["Synthesis",3], sr:["Single replacement",3], dr:["Double replacement",3],
+    pp:["From formulas \u00b7 Single replacement",2], pdr:["From formulas \u00b7 Double replacement",2],
+    pn:["From names \u00b7 Single replacement",2], pdn:["From names \u00b7 Double replacement",2]};
+  var ION_T={charges:"Single-charge ions", nf_id:"Polyatomic ions", build:"Building \u00b7 binary",
+    sc_f2n:"Naming \u00b7 binary \u00b7 single-charge \u00b7 formula \u2192 name",
+    sc_n2f:"Naming \u00b7 binary \u00b7 single-charge \u00b7 name \u2192 formula",
+    mv_f2n:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 formula \u2192 name",
+    mv_n2f:"Naming \u00b7 binary \u00b7 multi-charge \u00b7 name \u2192 formula",
+    poly_f2n:"Naming \u00b7 polyatomic \u00b7 formula \u2192 name",
+    poly_n2f:"Naming \u00b7 polyatomic \u00b7 name \u2192 formula"};
+  var MOL_T={mol_1b:"Counting Atoms \u00b7 Beginner", mol_1a:"Counting Atoms \u00b7 Advanced",
+    mol_2:"Molar Mass", mol_3:"Moles \u2194 Grams"};
+  var DRILL_D={n2s:"Name \u2192 symbol", s2n:"Symbol \u2192 name", mix:"Mixed"};
+  function partAct(r){ return r.act||r.a; }
+  function partName(r){
+    var a=partAct(r), m=/^bal_([a-z]+)(\d)$/.exec(a);
+    if(r.o) return "Element symbols \u00b7 "+(DRILL_D[r.o.dir]||"")+" \u00b7 "+(r.o.sec/60)+" min";
+    if(m && BAL_T[m[1]]) return BAL_T[m[1]][0]+" \u00b7 "+
+      (BAL_T[m[1]][1]===2?["Beginner","Advanced"]:["Beginner","Intermediate","Advanced"])[+m[2]-1];
+    return ION_T[a]||MOL_T[a]||a;
+  }
+  function partHref(r){
+    var a=partAct(r);
+    if(r.o) return "periodic.html#dir="+r.o.dir+"&g="+r.o.g+"&sec="+r.o.sec+"&asg="+encodeURIComponent(r.id);
+    if(ION_T[a]) return "index.html#go="+a;
+    if(MOL_T[a]) return "moles.html#go="+a;
+    return "balance.html#go="+a;
+  }
+  function asgNow(list, cur){
+    var box=document.getElementById("cwasg");
+    if(!box){
+      var top=document.getElementById("cwtop"); if(!top) return;
+      box=document.createElement("div"); box.id="cwasg"; box.setAttribute("role","status");
+      top.parentNode.insertBefore(box, top.nextSibling);
+      var st=document.createElement("style");
+      st.textContent="#cwasg{text-align:center;font:800 19px var(--font,system-ui);margin:10px 0 0}"+
+        "#cwasg .aline{display:inline-block;border:3px solid var(--line);border-radius:12px;padding:6px 16px;margin:0 6px 6px;background:var(--panel)}"+
+        "#cwasg .aline.full{border-color:var(--good);color:var(--good)}"+
+        "#cwasg .anext{display:inline-block;margin:0 6px 6px;padding:8px 18px;border-radius:12px;background:var(--line);color:var(--panel);"+
+          "text-decoration:none;font:800 19px var(--font,system-ui);min-height:44px;box-sizing:border-box}"+
+        "#cwasg .anext:hover{background:var(--good)}";
+      document.head.appendChild(st);
+    }
+    var groups={}, order=[];
+    (list||[]).forEach(function(x){
+      var g=String(x.id).split(":")[0];
+      if(!groups[g]){ groups[g]={t:x.t, k:0, n:0, cur:null, rows:[]}; order.push(g); }
+      groups[g].k+=Math.min(x.k,x.n); groups[g].n+=x.n; groups[g].rows.push(x);
+      if(cur && x.a===cur && !groups[g].cur) groups[g].cur=x;
+    });
+    var esc=function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); };
+    box.innerHTML=order.filter(function(g){ return groups[g].cur; }).map(function(g){
+      var o=groups[g], name=esc(o.t||"Assignment");
+      if(o.k>=o.n) return '<span class="aline full">'+name+": Assignment complete</span>";
+      var h='<span class="aline">'+name+": "+o.k+"/"+o.n+" complete</span>";
+      if(o.cur.k<o.cur.n) return h;
+      var rows=o.rows.slice().sort(function(x,y){ return +String(x.id).split(":")[1]-String(y.id).split(":")[1]; });
+      var at=rows.indexOf(o.cur), next=null;
+      for(var i=1;i<=rows.length && !next;i++){ var r=rows[(at+i)%rows.length]; if(r.k<r.n) next=r; }
+      return h+(next?'<a class="anext" href="'+partHref(next)+'">Next: '+esc(partName(next))+"</a>":"");
+    }).join("");
+  }
+
+  return {TOPICS:TOPICS, barHTML:barHTML, homeBarHTML:homeBarHTML, topicsHTML:topicsHTML,
+    pathHTML:pathHTML, init:init, asgNow:asgNow, partName:partName, partHref:partHref, save:save, load:load, practicing:practicing, setPractice:setPractice};
+})();
+/* ═══════════════════════════════════════════════════════════════
+   SHARED HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function gcd(a,b){return b?gcd(b,a%b):a;}
+function chargeText(q){return (q>0?"+":"−")+Math.abs(q);}
+function ionHTML(sym,q){return sym+"<sup>"+chargeText(q)+"</sup>";}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function plural(n,w){return n+" "+w+(n===1?"":"s");}
+var NUMWORD=["zero","one","two","three","four","five","six","seven","eight"];
+function numWord(n){return NUMWORD[n]||String(n);}
+
+/* The question that turns the anion's charge into the metal's. The number of
+   metal ions decides "the" against "each"; the number of anions decides
+   whether that charge belongs to one ion or is a total across several. */
+function balanceAsk(mn, nm, anName, na, tot){
+  return 'What would the charge on '+(nm===1?"the":"each")+' <b>'+mn+'</b> ion have to be '+
+    'to balance the '+(na===1?"":"total ")+'<b class="mono">'+chargeText(tot)+'</b> charge '+
+    (na===1 ? 'on the <b>'+anName+'</b> ion?'
+            : 'from the '+numWord(na)+' <b>'+anName+'</b> ions?');
+}
+/* "How many hydroxide ions are present in the formula?" */
+function countAsk(name){
+  return 'How many <b>'+name+'</b> ions are present in the formula?';
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");}
+function subDigits(t){return esc(t).replace(/\d+/g,function(m){return "<sub>"+m+"</sub>";});}
+function subTag(n){return n===1?"":"<sub>"+n+"</sub>";}
+
+/* Same live subscripts, but the numbers that count ions are tagged
+   separately from the digits that belong inside a polyatomic ion —
+   so only the counts get ringed when a formula comes back wrong. */
+function subDigitsMarked(t,poly){
+  t=String(t||"");
+  var out="", i=0, n=t.length, depth=0, seenParen=false, prev="";
+  while(i<n){
+    var ch=t.charAt(i);
+    if(/\d/.test(ch)){
+      var j=i;
+      while(j<n && /\d/.test(t.charAt(j))) j++;
+      var run=t.slice(i,j), isCount;
+      if(!poly) isCount=true;
+      else if(prev===")") isCount=true;
+      else if(!seenParen && depth===0 && /^[A-Z][a-z]?$/.test(t.slice(0,i))) isCount=true;
+      else isCount=false;
+      out+='<sub'+(isCount?' class="cnt"':'')+'>'+esc(run)+'</sub>';
+      prev=run.charAt(run.length-1);
+      i=j;
+      continue;
+    }
+    if(ch==="("){ depth++; seenParen=true; }
+    if(ch===")") depth--;
+    out+=esc(ch);
+    prev=ch;
+    i++;
+  }
+  return out;
+}
+
+function shuffle(a){
+  var i,j,t;
+  for(i=a.length-1;i>0;i--){
+    j=Math.floor(Math.random()*(i+1));
+    t=a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+
+/* charge entry. A bare number comes back as a prompt for the sign,
+   which is the one piece of feedback the naming sections give. */
+function parseCharge(raw){
+  var s=(raw||"").trim().replace(/−/g,"-").replace(/\s+/g,"");
+  if(!s) return {err:"Enter the charge."};
+  /* the 1 is always written, +1 or -1 — a bare sign is not enough (25 Sept) */
+  if(s==="+"||s==="-") return {err:"Write the 1 too: "+(s==="+"?"+1":"\u22121")+".", bare:true};
+  var m=s.match(/^(?:([+-])(\d)|(\d)([+-]))$/);
+  if(!m){
+    if(/^\d+$/.test(s)) return {err:"Add a sign too — +"+s+" or −"+s, noSign:true};
+    return {err:"Write a sign and a number, like +1"};
+  }
+  var d=+(m[2]||m[3]), sg=(m[1]||m[4])==="+"?1:-1;
+  if(d===0) return {err:"An ion can't have a charge of zero."};
+  return {q:d*sg};
+}
+
+var ROMAN={1:"I",2:"II",3:"III",4:"IV",5:"V",6:"VI",7:"VII"};
+
+/* A list of charges read off the periodic table: "+2, +3" in any order, with
+   commas, spaces or "and" between them. Returns {qs} sorted, or {err}. */
+function parseChargeList(raw){
+  var s=(raw||"").trim().replace(/[\u2212\u2013\u2014]/g,"-");
+  if(!s) return {err:"List the charges, separated by commas."};
+  var parts=s.split(/[,;/]|\s+and\s+|\s+/).filter(function(t){ return t; });
+  var qs=[], i, r, unsigned=false;
+  for(i=0;i<parts.length;i++){
+    r=parseCharge(parts[i]);
+    if(r.err){
+      if(r.noSign) unsigned=true;
+      else return {err:r.err};
+    } else if(qs.indexOf(r.q)<0) qs.push(r.q);
+  }
+  if(unsigned) return {err:"Write a sign on each one, like +2.", noSign:true};
+  if(!qs.length) return {err:"List the charges, separated by commas."};
+  qs.sort(function(a,b){ return a-b; });
+  return {qs:qs};
+}
+function chargeListText(qs){
+  return qs.slice().sort(function(a,b){ return a-b; })
+    .map(chargeText).join(" and ");
+}
+/* the charges this metal is listed with, as the app's own table has them */
+function metalCharges(sym){ return (METALS[sym]||{qs:[]}).qs.slice().sort(function(a,b){ return a-b; }); }
+function sameCharges(a,b){
+  return a.length===b.length && a.every(function(v,i){ return v===b[i]; });
+}
+/* the shared wording for the "what charges can it form?" step */
+function chargeListAsk(name){
+  return 'Check your periodic table. What charges can <b>'+name+'</b> form? '+
+    '<span style="font-weight:600;color:var(--muted)">List them all, separated by commas.</span>';
+}
+function chargeListFault(got, want, name){
+  if(got.length<want.length)
+    return "Your periodic table lists more charges than that under <b>"+name+"</b>.";
+  if(got.length>want.length)
+    return "That is more charges than <b>"+name+"</b> is listed with. Read them straight off the table.";
+  return "Check the charges listed under <b>"+name+"</b> on your periodic table.";
+}
+
+/* live-subscript field: caret bookkeeping */
+function textOffset(root){
+  var sel=window.getSelection();
+  if(!sel.rangeCount) return 0;
+  var rg=sel.getRangeAt(0), r=document.createRange();
+  r.selectNodeContents(root);
+  try{ r.setEnd(rg.endContainer, rg.endOffset); }catch(e){ return root.textContent.length; }
+  return r.toString().length;
+}
+function setOffset(root,off){
+  var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), n, seen=0, r, s;
+  while((n=w.nextNode())){
+    var len=n.nodeValue.length;
+    if(seen+len>=off){
+      r=document.createRange(); r.setStart(n,off-seen); r.collapse(true);
+      s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      return;
+    }
+    seen+=len;
+  }
+  caretToEnd(root);
+}
+function caretToEnd(root){
+  var r=document.createRange(); r.selectNodeContents(root); r.collapse(false);
+  var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED CHEMISTRY DATA
+   Polyatomic ions slot into ANION as extra entries carrying
+   poly:true — the formula builder already brackets a poly ion
+   whose subscript is greater than one.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* main-group elements, with the group and valence count the
+   first section asks for. No noble gases, no group 14. */
+var MAIN=[
+  {s:"Li",n:"Lithium",   g:1, v:1, q: 1, ion:"lithium ion"},
+  {s:"Na",n:"Sodium",    g:1, v:1, q: 1, ion:"sodium ion"},
+  {s:"K", n:"Potassium", g:1, v:1, q: 1, ion:"potassium ion"},
+  {s:"Rb",n:"Rubidium",  g:1, v:1, q: 1, ion:"rubidium ion"},
+  {s:"Cs",n:"Cesium",    g:1, v:1, q: 1, ion:"cesium ion"},
+  {s:"Be",n:"Beryllium", g:2, v:2, q: 2, ion:"beryllium ion"},
+  {s:"Mg",n:"Magnesium", g:2, v:2, q: 2, ion:"magnesium ion"},
+  {s:"Ca",n:"Calcium",   g:2, v:2, q: 2, ion:"calcium ion"},
+  {s:"Sr",n:"Strontium", g:2, v:2, q: 2, ion:"strontium ion"},
+  {s:"Ba",n:"Barium",    g:2, v:2, q: 2, ion:"barium ion"},
+  {s:"Al",n:"Aluminum",  g:13,v:3, q: 3, ion:"aluminum ion"},
+  {s:"Ga",n:"Gallium",   g:13,v:3, q: 3, ion:"gallium ion"},
+  {s:"N", n:"Nitrogen",  g:15,v:5, q:-3, ion:"nitride ion"},
+  {s:"P", n:"Phosphorus",g:15,v:5, q:-3, ion:"phosphide ion"},
+  {s:"As",n:"Arsenic",   g:15,v:5, q:-3, ion:"arsenide ion"},
+  {s:"O", n:"Oxygen",    g:16,v:6, q:-2, ion:"oxide ion"},
+  {s:"S", n:"Sulfur",    g:16,v:6, q:-2, ion:"sulfide ion"},
+  {s:"Se",n:"Selenium",  g:16,v:6, q:-2, ion:"selenide ion"},
+  {s:"F", n:"Fluorine",  g:17,v:7, q:-1, ion:"fluoride ion"},
+  {s:"Cl",n:"Chlorine",  g:17,v:7, q:-1, ion:"chloride ion"},
+  {s:"Br",n:"Bromine",   g:17,v:7, q:-1, ion:"bromide ion"},
+  {s:"I", n:"Iodine",    g:17,v:7, q:-1, ion:"iodide ion"}
+];
+
+/* the same elements again, keyed by symbol, so an explanation can reach
+   for a group number without searching the list every time */
+var MAINBY=(function(){ var o={}; MAIN.forEach(function(e){ o[e.s]=e; }); return o; })();
+
+/* anions used by the two naming sections */
+var ANION={
+  F :{name:"fluoride", el:"fluorine",   q:-1},
+  Cl:{name:"chloride", el:"chlorine",   q:-1},
+  Br:{name:"bromide",  el:"bromine",    q:-1},
+  I :{name:"iodide",   el:"iodine",     q:-1},
+  O :{name:"oxide",    el:"oxygen",     q:-2},
+  S :{name:"sulfide",  el:"sulfur",     q:-2},
+  N :{name:"nitride",  el:"nitrogen",   q:-3}
+};
+
+/* Every metal used anywhere in the app, with the charges exactly as they
+   appear on the class periodic table. `qs.length>1` is the only test for
+   "this one needs a Roman numeral" — nothing else in the app decides it. */
+var METALS={
+  /* one charge only */
+  Sc:{n:"scandium", qs:[3]},   Y :{n:"yttrium",  qs:[3]},
+  Zr:{n:"zirconium",qs:[4]},   Zn:{n:"zinc",     qs:[2]},
+  Ag:{n:"silver",   qs:[1]},   Cd:{n:"cadmium",  qs:[2]},
+  Al:{n:"aluminum", qs:[3], g:13},
+  Ga:{n:"gallium",  qs:[3], g:13},
+  In:{n:"indium",   qs:[3], g:13},
+  Li:{n:"lithium",  qs:[1], g:1},  Na:{n:"sodium",    qs:[1], g:1},
+  K :{n:"potassium",qs:[1], g:1},
+  Mg:{n:"magnesium",qs:[2], g:2},  Ca:{n:"calcium",   qs:[2], g:2},
+  Sr:{n:"strontium",qs:[2], g:2},  Ba:{n:"barium",    qs:[2], g:2},
+  /* more than one charge */
+  Ti:{n:"titanium", qs:[3,4]},   V :{n:"vanadium", qs:[3,4,5]},
+  Cr:{n:"chromium", qs:[2,3]},   Mn:{n:"manganese",qs:[2,4]},
+  Fe:{n:"iron",     qs:[2,3]},   Co:{n:"cobalt",   qs:[2,3]},
+  Ni:{n:"nickel",   qs:[2,3]},   Cu:{n:"copper",   qs:[1,2,3]},
+  Sn:{n:"tin",      qs:[2,4]},   Pb:{n:"lead",     qs:[2,4]}
+};
+function mName(s){ return (METALS[s]||{n:s}).n; }
+function mMulti(s){ return !!METALS[s] && METALS[s].qs.length>1; }
+function mGroup(s){ return METALS[s] && METALS[s].g; }
+/* Only groups 1 and 2 are predictable enough to state as a rule. Everything
+   else — group 13 included — gets sent to the table. */
+function mRuleGroup(s){ var g=mGroup(s); return (g===1||g===2) ? g : null; }
+
+/* Why a metal does or does not need a Roman numeral, in the words the
+   student can check against their own table. */
+function mWhyOne(s){
+  var g=mRuleGroup(s);
+  return cap(mName(s))+(g
+    ? " is in group "+g+", so it forms only one ion."
+    : " has only one charge on your periodic table, so it forms only one ion.");
+}
+function mWhyMany(s){
+  return cap(mName(s))+" has more than one charge on your periodic table, so "+
+    "the name has to say which ion it is.";
+}
+function mGateDone(s){
+  return mMulti(s)
+    ? '<b class="word">Yes</b> — '+mName(s)+" forms more than one ion, so we have to "+
+      "figure out its charge."
+    : '<b class="word">No</b> — '+mName(s)+" forms only one ion, so we can go straight "+
+      "to naming it.";
+}
+
+/* subscripts follow from the two charges, so a compound only has
+   to name its metal, that metal's charge, and its anion */
+function subscripts(mq,aq){
+  var g=gcd(mq,Math.abs(aq));
+  return {nm:Math.abs(aq)/g, na:mq/g};
+}
+function formulaOf(c){
+  var k=subscripts(c.q,ANION[c.a].q);
+  return c.m+(k.nm>1?k.nm:"")+c.a+(k.na>1?k.na:"");
+}
+function formulaHTML(c){
+  var k=subscripts(c.q,ANION[c.a].q);
+  return c.m+subTag(k.nm)+c.a+subTag(k.na);
+}
+function nameOf(c){
+  return mName(c.m)+(mMulti(c.m)?"("+ROMAN[c.q]+")":"")+" "+ANION[c.a].name;
+}
+
+/* Which metal-charge/anion pairings are allowed to be generated. Every
+   combination listed below is a compound that really exists, so a student
+   never meets an invented one. Metals with a single charge sit in the same
+   pool as the rest — that is the whole point: the activity cannot be
+   answered without first checking the table. */
+var PAIRS={
+  Sc3:"F Cl Br I O N",   Y3 :"F Cl Br I O N",  Zr4:"F Cl Br I O S",
+  Zn2:"F Cl Br I O S",   Ag1:"F Cl Br I O S",  Cd2:"F Cl Br I O S",
+  Al3:"F Cl Br I O S N", Ga3:"F Cl Br I O S N",In3:"F Cl Br I O S N",
+  Ti3:"F Cl Br I O",     Ti4:"F Cl Br I O S",
+  V3 :"F Cl Br I O",     V4 :"F Cl O",         V5 :"F O",
+  Cr2:"F Cl Br I O S",   Cr3:"F Cl Br I O S N",
+  Mn2:"F Cl Br I O S",   Mn4:"F O",
+  Fe2:"F Cl Br I O S",   Fe3:"F Cl Br I O S",
+  Co2:"F Cl Br I O S",   Co3:"F O",
+  Ni2:"F Cl Br I O S",   Ni3:"O",
+  Cu1:"Cl Br I O S",     Cu2:"F Cl Br O S",    Cu3:"O",
+  Sn2:"F Cl Br I O S",   Sn4:"F Cl O S",
+  Pb2:"F Cl Br I O S",   Pb4:"O"
+};
+function C(m,q,a){return {m:m,q:q,a:a};}
+var MULTI=(function(){
+  var out=[];
+  Object.keys(PAIRS).forEach(function(key){
+    var m=key.replace(/\d+$/,""), q=+key.slice(m.length);
+    PAIRS[key].split(" ").forEach(function(a){ out.push(C(m,q,a)); });
+  });
+  return out;
+})();
+var MULTI_MANY = MULTI.filter(function(c){ return mMulti(c.m); });
+var MULTI_ONE  = MULTI.filter(function(c){ return !mMulti(c.m); });
+
+/* formula → name keeps to formulas with a single metal atom, since
+   its arithmetic runs straight from the anion count */
+function oneMetal(c){ return subscripts(c.q,ANION[c.a].q).nm===1; }
+var SINGLE_MANY = MULTI_MANY.filter(oneMetal);
+var SINGLE_ONE  = MULTI_ONE.filter(oneMetal);
+
+/* Naming · Binary · Single-charge (28 Sept): main-group metals only —
+   groups 1 and 2 and aluminum. Zinc, silver and the other one-charge
+   transition metals stay in Multi-charge.
+   Its own list, since the main pool above is built around the transition
+   metals; every pair is a compound that really exists. */
+var MAIN_PAIRS={
+  Li1:"F Cl Br I O S N", Na1:"F Cl Br I O S",   K1:"F Cl Br I O S",
+  Mg2:"F Cl Br I O S N", Ca2:"F Cl Br I O S N", Sr2:"F Cl Br I O S N",
+  Ba2:"F Cl Br I O S N", Al3:"F Cl Br I O S N"
+};
+var SC_N2F=(function(){
+  var out=[];
+  Object.keys(MAIN_PAIRS).forEach(function(key){
+    var m=key.replace(/\d+$/,""), q=+key.slice(m.length);
+    MAIN_PAIRS[key].split(" ").forEach(function(a){ out.push(C(m,q,a)); });
+  });
+  return out;
+})();
+var SC_F2N = SC_N2F.filter(oneMetal);
+
+/* Draw alternately-ish from two decks so a run of items is a genuine mix of
+   metals that need a Roman numeral and metals that do not. */
+function mixDeck(a,b,n){
+  var A=shuffle(a.slice()), B=shuffle(b.slice()), out=[];
+  while(out.length<n && (A.length||B.length))
+    out.push((!B.length || (A.length && Math.random()<0.5) ? A : B).pop());
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION SWITCHING
+   ═══════════════════════════════════════════════════════════════ */
+/* Two parts, each a group in the nav. A section can be split into
+   subsections, drawn as a row of pills under its heading. Direction —
+   formula → name against name → formula — is never a subsection: it stays
+   a toggle inside a panel. ACTIVE is the panel on screen, not the section,
+   so every activity's own ACTIVE==="…" test still works unchanged. */
+var SECTIONS=[
+  {id:"ionic",    label:"Ionic charges",            grp:"Introduction to Ions",
+   subs:[{id:"charges",   label:"Single-charge ions"},
+         {id:"multi",     label:"Multi-charge ions", soon:true}]},
+  {id:"polyid",   label:"Polyatomic ions",          grp:"Introduction to Ions",
+   subs:[{id:"ions"}]},
+  {id:"building", label:"Building ionic compounds", grp:"Ionic compounds",
+   subs:[{id:"build",     label:"Binary ionic compounds"},
+         {id:"buildpoly", label:"Polyatomic ionic compounds", soon:true}]},
+  {id:"naming",   label:"Naming ionic compounds",   grp:"Ionic compounds",
+   subs:[{id:"simple",    label:"Binary ionic compounds"},
+         {id:"poly",      label:"Polyatomic ionic compounds"}]}
+];
+var ACTIVE=null;      /* nothing open until a section is picked */
+/* the subsection each section was last left on */
+var LASTSUB={};
+function sectionOf(panel){
+  for(var i=0;i<SECTIONS.length;i++)
+    for(var j=0;j<SECTIONS[i].subs.length;j++)
+      if(SECTIONS[i].subs[j].id===panel) return SECTIONS[i];
+  return null;
+}
+/* which direction the Simple ions section is showing */
+/* lvl: "one" = Single-charge (main group), "multi" = Multi-charge, the
+   mixed set with the "more than one ion?" question (28 Sept) */
+var SM={mode:"f2n", lvl:"one"};
+function smId(dir){ return (SM.lvl==="one"?"sc_":"mv_")+dir; }
+function setLvl(v){
+  if(v===SM.lvl || (v!=="one"&&v!=="multi")) return;
+  SM.lvl=v; FN.queue=[]; NF.queue=[]; fnNew(); nfNew();
+}
+function onF2N(){ return ACTIVE==="simple" && SM.mode==="f2n"; }
+function onN2F(){ return ACTIVE==="simple" && SM.mode==="n2f"; }
+
+/* the "you are here" row (27 Sept, Class Live practice): the section as a
+   button that drops down the others, then the subsection and, for naming,
+   the direction as joined controls. Before a section is picked the
+   sections show as big buttons under the row. */
+var SHORT={ionic:"Ionic charges", polyid:"Polyatomic ions", building:"Building", naming:"Naming"};
+var SUBSHORT={build:"Binary", buildpoly:"Polyatomic", simple:"Binary", poly:"Polyatomic"};
+var PICKED=false;      /* has a section been opened yet */
+function drawPath(){
+  asgNow();
+  var o={title:"Ionic compounds", steps:[], segs:[], next:null};
+  var secs=SECTIONS.map(function(s){ return [s.id, SHORT[s.id]]; });
+  if(!PICKED) o.next={id:"sec", opts:secs};
+  else{
+    var sec=sectionOf(ACTIVE);
+    o.steps.push({id:"sec", opts:secs, cur:sec.id});
+    var subs=sec.subs.filter(function(u){ return SUBSHORT[u.id]; });
+    if(sec.id==="naming"){
+      /* Binary is a drop-down of its two levels; Polyatomic its own button */
+      o.steps.push({id:"lvl", cur:ACTIVE==="simple"?SM.lvl:null, sel:ACTIVE==="simple", nosep:false,
+        label:ACTIVE==="simple"?null:"Binary",
+        opts:[["one","Binary \u00b7 Single-charge"],["multi","Binary \u00b7 Multi-charge"]]});
+      o.steps.push({id:"sub", btn:true, val:"poly", label:"Polyatomic", sel:ACTIVE==="poly", nosep:true});
+    }
+    else if(subs.length>1) o.segs.push({id:"sub", cur:ACTIVE,
+      opts:subs.map(function(u){ return [u.id, SUBSHORT[u.id], u.soon]; })});
+    if(ACTIVE==="simple"||ACTIVE==="poly") o.segs.push({id:"dir", right:true,
+      cur: ACTIVE==="simple" ? SM.mode : PX.mode,
+      opts:[["f2n","Formula \u2192 name"],["n2f","Name \u2192 formula"]]});
+    CW.save("ion",{panel:ACTIVE, sm:SM.mode, px:PX.mode, lvl:SM.lvl});
+  }
+  var el=document.getElementById("cwpath");
+  if(el) el.innerHTML=CW.pathHTML(o);
+}
+function ionPick(id, v){
+  if(id==="lvl"){ setLvl(v); if(ACTIVE!=="simple") showSection("simple"); else drawPath(); return; }
+  if(id==="dir"){
+    if(ACTIVE==="simple"){ SM.mode=v; drawSeg(); v==="f2n" ? fnRender() : nfRender(); }
+    else { PX.mode=v; pxSync(false); }
+    drawPath(); return;
+  }
+  if(PICKED && v===ACTIVE) return drawPath();
+  showSection(v);
+}
+CW.init({draw:drawPath, pick:ionPick});
+
+/* shows the direction's own panel inside Naming · Binary */
+function drawSeg(){
+  document.getElementById("sec-f2n").hidden = SM.mode!=="f2n";
+  document.getElementById("sec-n2f").hidden = SM.mode!=="n2f";
+}
+/* takes a section id or a panel id (a subsection, or the puzzle's
+   tutorial replay) */
+function showSection(id){
+  var sec=null;
+  SECTIONS.forEach(function(s){ if(s.id===id) sec=s; });
+  if(sec){
+    var open=sec.subs.filter(function(u){ return !u.soon; });
+    id=LASTSUB[sec.id]||open[0].id;
+  }
+  ACTIVE=id; PICKED=true;
+  LASTSUB[sectionOf(id).id]=id;
+  SECTIONS.forEach(function(s){ s.subs.forEach(function(u){
+    var n=document.getElementById("sec-"+u.id);
+    if(n) n.classList.toggle("on",u.id===id);
+  }); });
+  drawPath();
+  if(id==="simple"){ drawSeg(); SM.mode==="f2n"?fnRender():nfRender(); }
+  var rep=document.getElementById("tutReplay");
+  if(id==="build"){ rep.hidden=!tut; drawTut(); }
+  else{ rep.hidden=true; document.getElementById("tutLayer").hidden=true; }
+}
+/* coming back to the topic reopens where they left off */
+function restoreIon(){
+  var s=CW.load("ion");
+  if(!s || !sectionOf(s.panel)) return false;
+  if(s.sm==="f2n"||s.sm==="n2f") SM.mode=s.sm;
+  if(s.px==="f2n"||s.px==="n2f") PX.mode=s.px;
+  if(s.lvl) setLvl(s.lvl);
+  showSection(s.panel);
+  if(s.panel==="poly") pxSync(false);
+  return true;
+}
+/* ═══════════════════════════════════════════════════════════════
+   REPORTING EVERY ANSWER
+   The dashboard's own counters still run through track(). This adds
+   a second, fuller record — one row per attempt, with what was typed
+   and which fault it was — queued locally and posted in batches.
+   ═══════════════════════════════════════════════════════════════ */
+var LKEY="ionlog", lflushing=false;
+function lqRead(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"[]"); }catch(e){ return []; } }
+function lqWrite(q){ try{ localStorage.setItem(LKEY,JSON.stringify(q.slice(-1500))); }catch(e){} }
+
+function logAttempt(act, step, prompt, typed, ok, fault, tryNo, detail){
+  if(!TRACKING || !ST.n) return;
+  var q=lqRead();
+  var row={n:ST.n, a:act, s:step, p:String(prompt).slice(0,60),
+          y:String(typed).slice(0,40), k:ok?1:0, f:fault||"", r:tryNo, t:Date.now()};
+  if(detail) row.d=String(detail).slice(0,180);
+  q.push(row);
+  lqWrite(q);
+}
+/* build a detail string from [{l:label, k:right-or-wrong}, ...] — same shape
+   the balancing page uses, so the dashboard's pill rendering needs no change */
+function detailStr(parts){
+  return parts.map(function(p){ return String(p.l).replace(/[|=]/g,"")+"="+(p.k?1:0); }).join("|");
+}
+function lqFlush(leaving){
+  if(!TRACKING || lflushing) return;
+  var q=lqRead().slice(0,200);   /* the Worker takes 200 at a time */
+  if(!q.length) return;
+  lflushing=true;
+  fetch(API+"/attempt",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({items:q}), keepalive:!!leaving})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r); })
+    .then(function(){ lqWrite(lqRead().slice(q.length)); lflushing=false;
+      if(lqRead().length) lqFlush(leaving); })
+    .catch(function(){ lflushing=false; });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ASSIGNMENTS (25 Sept)
+   the ionic page has no fixed levels — a "level" here is just a panel
+   (and, for the two naming sections, which direction). The assignable
+   ids are exactly the ids the results table already tracks: charges,
+   build, nf_id, sc_f2n, sc_n2f, mv_f2n, mv_n2f, poly_f2n, poly_n2f.
+   ═══════════════════════════════════════════════════════════════ */
+var ASG_WHERE={
+  charges:  {panel:"charges"},
+  build:    {panel:"build"},
+  nf_id:    {panel:"ions"},
+  sc_f2n:   {panel:"simple", mode:"f2n", lvl:"one"},
+  sc_n2f:   {panel:"simple", mode:"n2f", lvl:"one"},
+  mv_f2n:   {panel:"simple", mode:"f2n", lvl:"multi"},
+  mv_n2f:   {panel:"simple", mode:"n2f", lvl:"multi"},
+  poly_f2n: {panel:"poly",   mode:"f2n"},
+  poly_n2f: {panel:"poly",   mode:"n2f"}
+};
+function asgWhere(a){ return ASG_WHERE[a]||null; }
+/* open one panel by its results id — an assignment, or later a link from
+   the progress page, the same way the balancing page's openAct works */
+function openAct(a){
+  var w=asgWhere(a);
+  if(!w) return;
+  if(w.panel==="simple" && w.mode) SM.mode=w.mode;
+  if(w.lvl) setLvl(w.lvl);
+  if(w.panel==="poly" && w.mode) PX.mode=w.mode;
+  showSection(w.panel);
+  if(w.panel==="poly") pxSync(false);
+}
+
+/* 29 Sept: which assignable id is on screen now, for the progress line */
+function curAsgId(){
+  if(typeof PICKED!=="undefined" && !PICKED) return null;
+  for(var a in ASG_WHERE){
+    var w=ASG_WHERE[a];
+    if(w.panel!==ACTIVE) continue;
+    if(w.panel==="simple" && (w.mode!==SM.mode || w.lvl!==SM.lvl)) continue;
+    if(w.panel==="poly" && w.mode!==PX.mode) continue;
+    return a;
+  }
+  return null;
+}
+function asgNow(){ var id=null; try{ id=curAsgId(); }catch(e){} CW.asgNow(ASG, id); }
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 1 — ION CHARGES
+   Three questions, one at a time. A wrong answer marks the field
+   and nothing else; the only written prompt is the missing sign.
+   ═══════════════════════════════════════════════════════════════ */
+var MG={queue:[],e:null,step:1,verb:null,n:"",q:"",bad:{},hint:null,
+        done:0,clean:0,misses:0,solved:false};
+
+function mgNew(){
+  if(!MG.queue.length) MG.queue=shuffle(MAIN.slice());
+  MG.e=MG.queue.pop();
+  MG.step=1; MG.verb=null; MG.n=""; MG.q="";
+  MG.g=""; MG.val="";
+  MG.bad={}; MG.hint=null; MG.misses=0; MG.solved=false; MG.shown=false; MG.tip=null; MG.run=0;
+  MG.tries={};
+  mgRender();
+}
+
+function mgSync(){
+  var f;
+  if((f=document.getElementById("mgG")))   MG.g=f.value;
+  if((f=document.getElementById("mgV")))   MG.val=f.value;
+  if((f=document.getElementById("mgN")))   MG.n=f.value;
+  if((f=document.getElementById("mgQ")))   MG.q=f.value;
+}
+
+function mgRender(){
+  var e=MG.e, s=MG.step, h;
+  var solved=MG.solved;
+
+  h='<p class="lede">Use your periodic table, then fill in the blanks.</p>'+
+    '<div class="subject'+(solved?" solved":"")+'">'+
+      '<div class="big'+(solved?(e.q>0?" p":" n"):"")+'">'+e.s+
+        (solved?'<sup>'+chargeText(e.q)+'</sup>':'')+'</div>'+
+      '<div class="cap">'+e.n+'</div>'+
+      '<div class="ionline"></div>'+
+    '</div><div class="qsteps">';
+
+  /* a miss says so in words, not only a red box (28 Sept) */
+  var NOTQ='<p class="ferr mgno" role="alert">Not quite.</p>';
+
+  /* step 1 */
+  h+=qstep(1,s,
+    'What group is '+e.n.toLowerCase()+' in?',
+    'It is in group <b>'+e.g+'</b>.',
+    '<input class="blank num'+(MG.bad.g?" bad":"")+'" id="mgG" value="'+esc(MG.g||"")+
+      '" inputmode="numeric" autocomplete="off" aria-label="Group number">'+
+    (MG.bad.g?NOTQ:''));
+
+  /* step 2 */
+  h+=qstep(2,s,
+    'How many valence electrons does it have?',
+    'It has <b>'+e.v+'</b> valence electron'+(e.v===1?'':'s')+'.',
+    '<input class="blank num'+(MG.bad.v?" bad":"")+'" id="mgV" value="'+esc(MG.val||"")+
+      '" inputmode="numeric" autocomplete="off" aria-label="Valence electrons">'+
+    (MG.bad.v?NOTQ:''));
+
+  /* step 3 */
+  var sentence=
+    '<div class="fill">To have a filled outer energy level, it must '+
+      '<span class="verbs'+(MG.bad.verb?" err":"")+'" id="mgVerbs" '+
+        'style="display:inline-flex;gap:6px;vertical-align:middle">'+
+        '<button data-mgverb="gain" class="'+(MG.verb==="gain"?"on":"")+'">gain</button>'+
+        '<button data-mgverb="lose" class="'+(MG.verb==="lose"?"on":"")+'">lose</button>'+
+      '</span> '+
+      '<input class="blank num'+(MG.bad.n?" bad":"")+'" id="mgN" value="'+esc(MG.n)+
+        '" inputmode="numeric" autocomplete="off" aria-label="Number of electrons">'+
+      ' electrons to form a '+
+      '<input class="blank chg'+(MG.bad.q?" bad":"")+'" id="mgQ" value="'+esc(MG.q)+
+        '" placeholder="enter charge" autocomplete="off" spellcheck="false" aria-label="Ion charge">'+
+      ' ion.</div>'+
+    (MG.hint?'<p class="hint">'+MG.hint+'</p>':
+      (MG.bad.verb||MG.bad.n||MG.bad.q)?NOTQ:'');
+
+  h+=qstep(3,s,'Fill in the blanks.',
+    'To have a filled outer energy level, it must '+(e.q>0?"lose":"gain")+" "+
+      Math.abs(e.q)+" electron"+(Math.abs(e.q)===1?"":"s")+" to form a <b>"+
+      chargeText(e.q)+"</b> ion.",
+    sentence);
+
+  h+='</div>';
+
+  if(!solved)
+    h+=hintBox(MG.tip)+actionBlock('<button data-mg="'+s+'">Check</button>',"mg");
+  if(MG.shown) h+=revealBox(ionHTML(e.s,e.q), mgWhy(e));
+
+  if(MG.shown)
+    h+='<div class="showrow"><button data-mg="next">New element</button></div>';
+  else if(solved)
+    h+='<div class="win slim"><div class="f">'+ionHTML(e.s,e.q)+'</div>'+
+       '<div class="c">'+e.ion+'</div>'+
+       '<button data-mg="next">New element</button></div>';
+
+  h+='<p class="counter"><b>'+MG.done+'</b> done · <b>'+MG.clean+'</b> with no misses</p>';
+
+  document.getElementById("sec-charges").innerHTML=h;
+  var f=document.getElementById(s===1?"mgG":s===2?"mgV":"mgN");
+  if(f && ACTIVE==="charges" && !solved) f.focus();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHOW ME THE ANSWER
+   Every activity can give up its answer. Doing so counts as a miss, so
+   the item still finishes but never counts as clean. Each explanation is
+   worked out from the same values the checker uses, so the two can never
+   disagree with each other.
+   ═══════════════════════════════════════════════════════════════ */
+/* The three controls, always in the same shape: what advances the step on
+   top at full width, the two ways out beneath it. Every button carries the
+   same padding, so only the type size differs. */
+function actionBlock(topHTML, tag){
+  return '<div class="actions">'+
+    '<div class="wide">'+topHTML+'</div>'+
+    '<button class="act" data-'+tag+'="hint">Give me a hint</button>'+
+    '<button class="act" data-'+tag+'="reveal">Show me the answer</button>'+
+  '</div>';
+}
+function hintBox(text){
+  return text ? '<p class="hintbox">'+text+'</p>' : '';
+}
+
+/* ── hints ──────────────────────────────────────────────────────
+   A hint says what to do next and where to look for it. It never
+   states the value being asked for, so a student who takes every hint
+   still has to read their own table. ────────────────────────────── */
+var GROUPHINT = "The group number sits at the top of each column.";
+var CAPHINT   = "A symbol starts with a capital letter; a second letter is lowercase.";
+var ZEROHINT  = "A compound is neutral — the positives and negatives have to add up to zero.";
+
+function valenceHint(g){
+  return "For the main groups the last digit of the group number is the number of "+
+    "valence electrons — group 1 has 1, group 16 has 6. This one is group <b>"+g+"</b>.";
+}
+function anionChargeHint(name){
+  return "Count how far <b>"+name+"</b> is from a full outer level of 8. Group 17 is "+
+    "one short, group 16 is two short, group 15 is three short — and each missing "+
+    "electron it takes in is one more negative charge.";
+}
+function metalChargeHint(sym){
+  if(mMulti(sym))
+    return cap(mName(sym))+" has more than one charge on your periodic table, so the "+
+      "Roman numeral in the name is the one to use.";
+  return mRuleGroup(sym)
+    ? cap(mName(sym))+" is in group <b>"+mRuleGroup(sym)+"</b> — group 1 metals make "+
+      "+1 and group 2 make +2."
+    : "Check your periodic table for the charge on the <b>"+mName(sym)+"</b> ion.";
+}
+function polyHint(){
+  return "The polyatomic ion is everything in the formula after the metal. Its "+
+    "formula and charge are both on your ion sheet.";
+}
+function boardHint(st){
+  var pos=st.nc, neg=st.na;
+  if(pos+neg===0) return "Put one of each on the board and see how far off it is.";
+  return "The two stacks have to end up the same height. Keep adding to whichever "+
+    "side is short, and use the smallest numbers that work.";
+}
+function formulaHint(parens){
+  return "Write the positive ion first, then the negative one. A subscript says how "+
+    "many of that ion, and a subscript of 1 is never written."+
+    (parens ? " If there is more than one polyatomic ion, wrap it in parentheses and "+
+      "put the number outside." : "");
+}
+
+/* Ion charges */
+function mgHint(){
+  var e=MG.e;
+  if(MG.step===1) return "Find <b>"+e.s+"</b> on your periodic table. "+GROUPHINT;
+  if(MG.step===2) return valenceHint(e.g);
+  return "A full outer level holds 8. It has <b>"+e.v+"</b>. Getting rid of "+e.v+
+    " or collecting "+(8-e.v)+" — whichever is fewer is what it does. Losing electrons "+
+    "makes the charge positive, gaining them makes it negative.";
+}
+
+/* Build the compound */
+function buildHint(){
+  if(S.phase==="charge"){
+    var k=S.side, sym=(k==="C"?S.c:S.a), e=EL[sym], m=MAINBY[sym];
+    return "<b>"+e.name+"</b> is in group <b>"+m.g+"</b>, so it has <b>"+m.v+
+      "</b> valence electrons. A full level is 8 — is it fewer to give those away or "+
+      "to collect the rest?";
+  }
+  if(S.phase==="build")   return boardHint(S);
+  if(S.phase==="formula") return formulaHint(false);
+  return "Press New pair to move on.";
+}
+
+/* Simple ions, formula → name */
+function fnHint(){
+  var c=FN.c, an=ANION[c.a], k=subscripts(c.q,an.q);
+  if(FN.step===1) return "Look up <b>"+c.m+"</b> on your periodic table. Does it list "+
+    "one charge or more than one?";
+  if(FN.step===7) return "Find <b>"+c.m+"</b> on your periodic table and copy down every "+
+    "charge printed with it, each with its sign, separated by commas.";
+  if(FN.step===2) return "Read the subscript straight after <b>"+c.a+"</b> in the "+
+    "formula. No subscript means one.";
+  if(FN.step===3) return anionChargeHint(ANION[c.a].el);
+  if(FN.step===4) return "Multiply how many "+an.name+" ions there are by the charge "+
+    "on each one.";
+  if(FN.step===5) return ZEROHINT+" You need that much positive charge, shared out "+
+    "over "+(k.nm===1?"the one":"all "+k.nm)+" "+mName(c.m)+" ion"+(k.nm===1?"":"s")+".";
+  return "Metal name first, then the anion name. A Roman numeral goes in only when the "+
+    "metal makes more than one ion.";
+}
+
+/* Simple ions, name → formula */
+function nfHint(){
+  var c=NF.c, i=NF.ci;
+  if(NF.phase==="sym")
+    return i===0
+      ? "Find <b>"+mName(c.m)+"</b> on your periodic table and copy its symbol. "+CAPHINT
+      : "Find <b>"+ANION[c.a].el+"</b> — the <i>-ide</i> ending is the element's own "+
+        "name shortened. "+CAPHINT;
+  if(NF.phase==="chg")
+    return i===0 ? metalChargeHint(c.m) : anionChargeHint(ANION[c.a].el);
+  if(NF.phase==="build")   return boardHint(NF);
+  if(NF.phase==="formula") return formulaHint(false);
+  return "Press New name to move on.";
+}
+
+/* Polyatomic, formula → name */
+function pfHint(){
+  var x=PF.x, p=POLY[x.p], k=pxCounts(x), st=pfStep();
+  if(st.k==="gate")     return "Look up <b>"+x.m+"</b> on your periodic table. Does it "+
+    "list one charge or more than one?";
+  if(st.k==="charges")  return "Find <b>"+x.m+"</b> on your periodic table and copy down "+
+    "every charge printed with it, each with its sign, separated by commas.";
+  if(st.k==="ionentry") return polyHint();
+  if(st.k==="name" || st.k==="pname")
+    return "That one is on your ion sheet — the ions there each have a name of their own.";
+  if(st.k==="pcount")   return "Read the subscript just outside the parentheses. No "+
+    "parentheses at all means there is only one of them.";
+  if(st.k==="total")    return "Multiply how many "+p.name+" ions there are by the <b>"+
+    chargeText(p.q)+"</b> charge on each one.";
+  if(st.k==="mcount")   return "Read the subscript straight after <b>"+x.m+"</b>. No "+
+    "subscript means one.";
+  if(st.k==="mchg")     return ZEROHINT+" Share that much positive charge out over "+
+    (k.nm===1?"the one":"all "+k.nm)+" "+x.mn+" ion"+(k.nm===1?"":"s")+".";
+  return "Metal name, then a Roman numeral if the metal makes more than one ion, then "+
+    "the polyatomic ion's own name. It never takes an <i>-ide</i> ending.";
+}
+
+/* Polyatomic, name → formula */
+function pnHint(){
+  var x=PN.x;
+  if(PN.phase==="entry")
+    return PN.slot===0
+      ? "Find <b>"+x.mn+"</b> on your periodic table. "+CAPHINT+" "+metalChargeHint(x.m)
+      : polyHint()+" "+CAPHINT;
+  if(PN.phase==="build")   return boardHint(PN);
+  if(PN.phase==="formula") return formulaHint(true);
+  return "Press New name to move on.";
+}
+function revealBtn(attr){
+  return '<button class="act" data-'+attr+'="reveal">Show me the answer</button>';
+}
+function revealBox(answer, lines){
+  return '<div class="reveal"><p class="rlab">The answer</p>'+
+    '<div class="rans">'+answer+'</div><ol class="rwhy">'+
+    lines.map(function(t){ return '<li>'+t+'</li>'; }).join("")+'</ol></div>';
+}
+/* group 17 has one electron missing, 16 has two, 15 has three */
+function anGroup(q){ return 18+q; }
+function eWord(n){ return n+" electron"+(n===1?"":"s"); }
+
+/* what an atom does with its electrons and why — the sentence shared by
+   Ion charges and Build the compound */
+function whyIon(name, group, val, q){
+  var all = val===1 ? "its one outer electron"
+          : val===2 ? "both of them" : "all "+val+" of them";
+  var out=[cap(name)+" is in group <b>"+group+"</b>, so it has <b>"+
+           eWord(val)+"</b> in its outer level."];
+  if(q>0)
+    out.push("Letting go of "+all+" leaves the full level underneath, which is "+
+      "less work than gaining the "+eWord(8-val)+" it would take to fill this one.",
+      "Losing "+eWord(val)+" leaves "+val+" more proton"+(val===1?"":"s")+
+      " than electrons, so the charge is <b>"+chargeText(q)+"</b>.");
+  else
+    out.push("It needs "+eWord(8-val)+" more to fill the level, which is less work "+
+      "than giving up "+all+".",
+      "Gaining "+eWord(-q)+" leaves "+(-q)+" more electron"+(q===-1?"":"s")+
+      " than protons, so the charge is <b>"+chargeText(q)+"</b>.");
+  return out;
+}
+/* how the two charges settle on a ratio */
+function whyRatio(cs, cq, nc, as, aq, na){
+  var cat='<b class="mono">'+cs+chargeSup(cq)+"</b>";
+  var ani='<b class="mono">'+as+chargeSup(aq)+"</b>";
+  if(nc===1 && na===1)
+    return "One "+cat+" and one "+ani+" balance out on their own, so one of each "+
+      "is enough.";
+  return "It takes <b>"+na+"</b> "+ani+(na===1?" ion":" ions")+" to balance the <b>"+
+    nc+"</b> "+cat+(nc===1?" ion":" ions")+".";
+}
+function chargeSup(q){ return "<sup>"+chargeText(q)+"</sup>"; }
+/* a metal with a single charge: say what it makes, not that it "forms one ion" */
+function onlyMakes(sym, q){
+  var g=mRuleGroup(sym);
+  return cap(mName(sym))+(g ? " is in group <b>"+g+"</b>, so it only makes a <b>" :
+    " only makes a <b>")+chargeText(q)+"</b> ion.";
+}
+
+/* ── Ion charges ── */
+function mgWhy(e){
+  return whyIon(e.n.toLowerCase(), e.g, e.v, e.q);
+}
+function mgReveal(){
+  if(MG.solved || MG.shown) return;
+  MG.shown=true; MG.misses++;
+  MG.step=4; MG.solved=true; MG.done++;
+  track("charges", false);
+  mgRender();
+}
+
+function qstep(n,cur,question,doneText,inputs){
+  if(n>cur) return "";
+  if(n<cur)
+    return '<div class="qstep"><div class="no">'+n+'</div><div class="dn">'+doneText+'</div></div>';
+  return '<div class="qstep cur"><div class="no">'+n+'</div><div>'+
+    '<div class="qt">'+question+'</div><div class="in">'+inputs+'</div></div></div>';
+}
+
+/* three misses in a row on one step bring up the hint (28 Sept) */
+function mgMissRun(){
+  MG.run=(MG.run||0)+1;
+  if(MG.run>=3) MG.tip=mgHint();
+}
+function mgCheck(which){
+  mgSync();
+  var e=MG.e, wasStep=MG.step;
+  MG.bad={}; MG.hint=null;
+  MG.tries=MG.tries||{};
+
+  if(which===1){
+    MG.tries.group=(MG.tries.group||0)+1;
+    var ok1=/^\d+$/.test((MG.g||"").trim()) && +MG.g===e.g;
+    if(ok1){ MG.step=2; MG.run=0; } else { MG.bad.g=true; MG.misses++; mgMissRun(); }
+    logAttempt("charges","group",e.s,MG.g,ok1,ok1?"":"group",MG.tries.group);
+    if(MG.step!==wasStep) MG.tip=null;
+    mgRender(); return;
+  }
+  if(which===2){
+    MG.tries.valence=(MG.tries.valence||0)+1;
+    var ok2=/^\d+$/.test((MG.val||"").trim()) && +MG.val===e.v;
+    if(ok2){ MG.step=3; MG.run=0; } else { MG.bad.v=true; MG.misses++; mgMissRun(); }
+    logAttempt("charges","valence",e.s,MG.val,ok2,ok2?"":"valence",MG.tries.valence);
+    if(MG.step!==wasStep) MG.tip=null;
+    mgRender(); return;
+  }
+
+  var wantVerb=e.q>0?"lose":"gain", wantN=Math.abs(e.q);
+  var okVerb=MG.verb===wantVerb;
+  var okN=/^\d+$/.test((MG.n||"").trim()) && +MG.n===wantN;
+  var r=parseCharge(MG.q), okQ=false;
+
+  if(r.err){
+    MG.hint = r.noSign
+      ? "Does "+e.n.toLowerCase()+" form a positive or a negative ion?"
+      : r.err;
+    MG.bad.q=true;
+  }
+  else if(r.q===e.q){ okQ=true; }
+  else MG.bad.q=true;
+
+  MG.tries.charge=(MG.tries.charge||0)+1;
+  var typed3=(MG.verb||"?")+" "+(MG.n||"?")+" electrons \u2192 "+(MG.q||"?");
+  if(okVerb&&okN&&okQ){
+    MG.solved=true; MG.step=4; MG.done++; if(!MG.misses) MG.clean++;
+    track("charges", MG.misses===0);
+    logAttempt("charges","charge",e.s,typed3,true,"",MG.tries.charge);
+    mgRender(); return;
+  }
+  if(!okVerb) MG.bad.verb=true;
+  if(!okN) MG.bad.n=true;
+  /* a right number missing only its sign is a format slip, not a miss */
+  var formatSlip=okVerb&&okN&&r.err&&/^\d+$/.test((MG.q||"").trim())&&+MG.q===Math.abs(e.q);
+  if(!formatSlip){ MG.misses++; mgMissRun(); }
+  logAttempt("charges","charge",e.s,typed3,false,
+    r.err&&!formatSlip?"format":"charge",MG.tries.charge,
+    detailStr([{l:"direction",k:okVerb},{l:"count",k:okN},{l:"sign",k:okQ}]));
+  mgRender();
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-mg],[data-mgverb]");
+  if(!t) return;
+  if(t.dataset.mgverb){
+    mgSync(); MG.verb=t.dataset.mgverb; MG.bad.verb=false; mgRender();
+    var f=document.getElementById("mgN"); if(f) f.focus();
+    return;
+  }
+  if(t.dataset.mg==="next") mgNew();
+  else if(t.dataset.mg==="reveal") mgReveal();
+  else if(t.dataset.mg==="hint"){ MG.tip=mgHint(); mgRender(); }
+  else mgCheck(+t.dataset.mg);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   POLYATOMIC IONS — which one is this ion?
+   Moved here from the old the ionic page page. An ion's name, five
+   formula-and-charge options, one Check. The answer is never shown.
+   Its results keep the id nf_id, so earlier results stay in the same
+   dashboard column, and every pick goes to the answer log.
+   ═══════════════════════════════════════════════════════════════ */
+/* From the ion sheet, restricted to the families where the endings are the
+   whole difficulty. Nothing is invented. */
+var PI_ION={
+  sulfate:     {f:"SO4",  q:-2, fam:"S"},
+  sulfite:     {f:"SO3",  q:-2, fam:"S"},
+  sulfide:     {f:"S",    q:-2, fam:"S", one:1},
+  nitrate:     {f:"NO3",  q:-1, fam:"N"},
+  nitrite:     {f:"NO2",  q:-1, fam:"N"},
+  nitride:     {f:"N",    q:-3, fam:"N", one:1},
+  phosphate:   {f:"PO4",  q:-3, fam:"P"},
+  phosphite:   {f:"PO3",  q:-3, fam:"P"},
+  phosphide:   {f:"P",    q:-3, fam:"P", one:1},
+  perchlorate: {f:"ClO4", q:-1, fam:"Cl"},
+  chlorate:    {f:"ClO3", q:-1, fam:"Cl"},
+  chlorite:    {f:"ClO2", q:-1, fam:"Cl"},
+  hypochlorite:{f:"ClO",  q:-1, fam:"Cl"},
+  chloride:    {f:"Cl",   q:-1, fam:"Cl", one:1},
+  carbonate:   {f:"CO3",  q:-2, fam:"C"},
+  hydroxide:   {f:"OH",   q:-1, fam:"OH"},
+  oxide:       {f:"O",    q:-2, fam:"OH", one:1}
+};
+var PI_KEYS=Object.keys(PI_ION);
+var PI={target:null, opts:[], picked:null, tries:0, hint:null, done:false,
+        recent:[], n:0, clean:0};
+
+/* charges written the way the ion sheet writes them: SO₄²⁻, not SO₄⁻² */
+function piCharge(q){ var n=Math.abs(q); return "<sup>"+(n>1?n:"")+(q<0?"−":"+")+"</sup>"; }
+/* the answer log's own spelling, unchanged, so old and new rows match */
+function piLogCharge(q){ return (q<0?"":"+")+q; }
+function piEnding(name){ return esc(name).replace(/(ate|ite|ide)$/, '<span class="sfx">$1</span>'); }
+function piLookItUp(key){
+  return PI_ION[key].one
+    ? "Check your periodic table for the charge on the <b>"+piEnding(key)+"</b> ion."
+    : "Check your ion sheet for the formula and charge of the <b>"+piEnding(key)+"</b> ion.";
+}
+
+function piOptions(target){
+  var t=PI_ION[target], right={f:t.f, q:t.q, key:target};
+  var fam=PI_KEYS.filter(function(k){ return PI_ION[k].fam===t.fam && k!==target; });
+  var far=PI_KEYS.filter(function(k){ return PI_ION[k].fam!==t.fam; });
+  shuffle(fam); shuffle(far);
+  var wrongCharges=shuffle([-1,-2,-3].filter(function(q){ return q!==t.q; }));
+
+  var pile=[{f:t.f, q:wrongCharges[0], key:target, badq:true}];
+  fam.slice(0,3).forEach(function(k){ pile.push({f:PI_ION[k].f, q:PI_ION[k].q, key:k}); });
+  if(fam.length){
+    var k=fam[0], wq=shuffle([-1,-2,-3].filter(function(q){ return q!==PI_ION[k].q; }));
+    pile.push({f:PI_ION[k].f, q:wq[0], key:k, badq:true});
+  }
+  if(wrongCharges.length>1) pile.push({f:t.f, q:wrongCharges[1], key:target, badq:true});
+  far.slice(0,3).forEach(function(k){ pile.push({f:PI_ION[k].f, q:PI_ION[k].q, key:k}); });
+
+  var seen={}, opts=[right];
+  seen[right.f+"|"+right.q]=1;
+  for(var i=0;i<pile.length && opts.length<5;i++){
+    var sig=pile[i].f+"|"+pile[i].q;
+    if(seen[sig]) continue;
+    seen[sig]=1; opts.push(pile[i]);
+  }
+  return shuffle(opts);
+}
+
+function piNew(){
+  var keys=PI_KEYS.filter(function(k){ return PI.recent.indexOf(k)<0; });
+  if(!keys.length){ PI.recent=[]; keys=PI_KEYS.slice(); }
+  var target=keys[Math.floor(Math.random()*keys.length)];
+  PI.recent.push(target); if(PI.recent.length>8) PI.recent.shift();
+  PI.target=target; PI.opts=piOptions(target); PI.picked=null;
+  PI.tries=0; PI.hint=null; PI.done=false;
+  piRender();
+}
+
+function piRender(){
+  var t=PI_ION[PI.target], h;
+  if(PI.done){
+    h='<div class="win slim"><div class="f">'+subDigits(t.f)+piCharge(t.q)+'</div>'+
+      '<div class="c">'+esc(PI.target)+'</div>'+
+      (PI.tries===0 ? '<p class="okmsg">Correct!</p>' : '<div style="height:10px"></div>')+
+      '<button data-pi="next">New ion</button></div>';
+  } else {
+    h='<div class="subject"><div class="bigname">'+esc(PI.target)+'</div>'+
+        '<div class="cap">which one is this ion?</div></div>'+
+      '<div class="opts">'+PI.opts.map(function(o,i){
+        return '<button class="opt'+(PI.picked===i?" on":"")+'" data-piopt="'+i+'">'+
+          subDigits(o.f)+piCharge(o.q)+'</button>';
+      }).join("")+'</div>'+
+      '<p class="correction'+(PI.hint?"":" blank")+'">'+(PI.hint||"&nbsp;")+'</p>'+
+      '<button class="check" data-pi="check">Check</button>';
+  }
+  h+='<p class="counter"><b>'+PI.n+'</b> done · <b>'+PI.clean+'</b> with no misses</p>';
+  document.getElementById("sec-ions").innerHTML=h;
+}
+
+function piCheck(){
+  if(PI.picked==null) return;
+  var o=PI.opts[PI.picked], t=PI_ION[PI.target], typed=o.f+piLogCharge(o.q);
+  if(o.f===t.f && o.q===t.q){
+    logAttempt("nf_id", "pick", PI.target, typed, true, "", PI.tries+1);
+    PI.n++; if(PI.tries===0) PI.clean++;
+    track("nf_id", PI.tries===0);
+    PI.done=true; piRender(); return;
+  }
+  PI.tries++;
+  logAttempt("nf_id", "pick", PI.target, typed, false, o.f===t.f ? "charge" : "ion", PI.tries);
+  PI.hint = o.f===t.f
+    ? "The formula is right, the charge is not. "+piLookItUp(PI.target)
+    : (o.badq
+       ? "Neither the formula nor the charge. "+piLookItUp(PI.target)
+       : "That is the <b>"+piEnding(o.key)+"</b> ion. "+piLookItUp(PI.target));
+  PI.picked=null; shuffle(PI.opts);
+  piRender();
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-piopt],[data-pi]");
+  if(!t) return;
+  if(t.dataset.piopt!=null){ PI.picked=+t.dataset.piopt; piRender(); return; }
+  if(t.dataset.pi==="next") piNew(); else piCheck();
+});
+document.addEventListener("keydown",function(ev){
+  if(ev.key!=="Enter" || ACTIVE!=="ions") return;
+  ev.preventDefault();
+  PI.done ? piNew() : piCheck();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 3 — FORMULA → NAME
+   ═══════════════════════════════════════════════════════════════ */
+/* Steps: 1 gate · 2 anion charge · 3 how many anions · 4 total negative ·
+   5 metal charge · 6 the whole name. The gate comes first so the table is
+   checked before any arithmetic, and the name is typed in full so the shape
+   of the answer never gives away whether a numeral belongs in it. */
+var FN={queue:[],c:null,step:1,v:["","","",""],bad:{},hint:null,
+        cname:"",ring:false,done:0,clean:0,misses:0,solved:false};
+
+function fnNew(){
+  if(!FN.queue.length) FN.queue = SM.lvl==="one"
+    ? shuffle(SC_F2N.slice()).slice(0,40) : mixDeck(SINGLE_MANY,SINGLE_ONE,40);
+  FN.c=FN.queue.pop();
+  FN.step=fnPlan()[0]; FN.v=["","","",""]; FN.cname=""; FN.qlist=""; FN.bad={}; FN.hint=null;
+  FN.ring=false; FN.misses=0; FN.solved=false; FN.shown=false; FN.tip=null;
+  FN.tries={};
+  fnRender();
+}
+function fnSync(){
+  [2,3,4,5].forEach(function(i){
+    var f=document.getElementById("fn"+i);
+    if(f) FN.v[i-2]=f.value;
+  });
+  var r=document.getElementById("fnName");
+  if(r) FN.cname=r.value;
+  var q=document.getElementById("fn7");
+  if(q) FN.qlist=q.value;
+}
+
+/* The steps this compound actually asks. Everything between the gate and
+   the name is there to work out the metal's charge, so a metal with only
+   one charge skips straight from the gate to naming the compound. */
+function fnPlan(){
+  if(SM.lvl==="one") return [6];     /* every metal has one charge: no gate */
+  return mMulti(FN.c.m) ? [1,7,2,3,4,5,6] : [1,6];
+}
+function fnPos(step){ return fnPlan().indexOf(step)+1; }
+function fnNext(step){
+  var plan=fnPlan(), i=plan.indexOf(step);
+  return (i<0 || i===plan.length-1) ? 7 : plan[i+1];
+}
+
+function fnRender(){
+  var c=FN.c, an=ANION[c.a], k=subscripts(c.q,an.q);
+  var solved=FN.solved;
+  var plan=fnPlan();
+  /* `s` is the position in the plan, so the numbers a student sees run
+     1, 2, … with no gaps where a step was skipped */
+  var s = solved ? plan.length+1 : fnPos(FN.step);
+  var at = function(step){ return plan.indexOf(step)>=0 ? fnPos(step) : 99; };
+
+  var h=(SM.lvl==="one" ? '' :
+      '<p class="lede">Some of these metals form more than one ion and some do not. '+
+      'Check your periodic table before you name anything.</p>')+
+    '<div class="subject'+(solved?" solved":"")+'">'+
+      '<div class="big">'+formulaHTML(c)+'</div>'+
+      '<div class="cap">compound</div>'+
+      '<div class="ionline"></div>'+
+    '</div><div class="qsteps">';
+
+  h+=qstep(at(1),s,'Does <b class="mono">'+c.m+'</b> form more than one ion?',
+    mGateDone(c.m),
+    (FN.step===1&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+=qstep(at(7),s,chargeListAsk(mName(c.m)),
+    'Your periodic table lists <b>'+chargeListText(metalCharges(c.m))+'</b>.',
+    '<input class="blank wordin'+(FN.bad[7]?" bad":"")+'" id="fn7" value="'+esc(FN.qlist||"")+
+      '" placeholder="for example  +1, +2" autocomplete="off" spellcheck="false" '+
+      'aria-label="Charges this metal can form">'+
+    (FN.step===7&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+=qstep(at(2),s,countAsk(an.name),
+    (k.na===1?'There is 1 '+an.name+' ion.':'There are <b>'+k.na+'</b> '+an.name+' ions.'),
+    '<input class="blank num'+(FN.bad[2]?" bad":"")+'" id="fn2" value="'+esc(FN.v[0])+
+      '" inputmode="numeric" autocomplete="off" aria-label="Number of anions">'+
+    '<button class="check slim" data-fn="2">Check</button>');
+
+  h+=qstep(at(3),s,'What is the charge on the <b>'+an.name+'</b> ion?',
+    'Each '+an.name+' ion has a charge of <b>'+chargeText(an.q)+'</b>.',
+    '<input class="blank chg'+(FN.bad[3]?" bad":"")+'" id="fn3" value="'+esc(FN.v[1])+
+      '" placeholder="enter charge" autocomplete="off" spellcheck="false" aria-label="Anion charge">'+
+    (FN.step===3&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+=qstep(at(4),s,'What is the <u style="color:var(--note)">total</u> negative charge in the formula?',
+    'The total negative charge is <b>'+chargeText(k.na*an.q)+'</b>.',
+    '<input class="blank chg'+(FN.bad[4]?" bad":"")+'" id="fn4" value="'+esc(FN.v[2])+
+      '" placeholder="enter charge" autocomplete="off" spellcheck="false" aria-label="Total negative charge">'+
+    (FN.step===4&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+=qstep(at(5),s,balanceAsk(mName(c.m), k.nm, an.name, k.na, k.na*an.q),
+    'The '+mName(c.m)+' ion must be <b>'+chargeText(c.q)+'</b>.',
+    '<input class="blank chg'+(FN.bad[5]?" bad":"")+'" id="fn5" value="'+esc(FN.v[3])+
+      '" placeholder="enter charge" autocomplete="off" spellcheck="false" aria-label="Metal charge">'+
+    (FN.step===5&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+=qstep(at(6),s,'Now write the name of the <b>whole compound</b>.',
+    'It is '+nameOf(c)+'.',
+    '<input class="blank wordin'+(FN.bad[6]?" bad":"")+'" id="fnName" value="'+esc(FN.cname||"")+
+      '" placeholder="name of the compound" autocomplete="off" spellcheck="false" '+
+      'aria-label="Name of the compound">'+
+    (FN.step===6&&FN.hint?'<p class="hint">'+FN.hint+'</p>':''));
+
+  h+='</div>';
+  if(!solved)
+    h+=actionBlock(FN.step===1
+        ? '<button data-fn="gy">Yes</button><button data-fn="gn">No</button>'
+        : '<button data-fn="'+FN.step+'">Check</button>', "fn")+hintBox(FN.tip);
+  if(FN.shown) h+=revealBox(nameOf(c), fnWhy(c));
+  if(solved && !FN.shown)
+    h+='<div class="win slim"><div class="fname">'+nameOf(c)+'</div>'+
+       '<p><b class="mono">'+c.m+'<sup>'+chargeText(c.q)+'</sup></b> balanced by '+
+         k.na+' × <b class="mono">'+c.a+'<sup>'+chargeText(an.q)+'</sup></b></p>'+
+       '<button data-fn="next">New compound</button></div>';
+  if(FN.shown)
+    h+='<div class="showrow"><button data-fn="next">New compound</button></div>';
+  h+='<p class="counter"><b>'+FN.done+'</b> done · <b>'+FN.clean+'</b> with no misses</p>';
+
+  document.getElementById("sec-f2n").innerHTML=h;
+  var f=document.getElementById(FN.step===6?"fnName":"fn"+FN.step);
+  if(FN.step===7) f=document.getElementById("fn7");
+  if(f && onF2N() && !solved) f.focus();
+}
+
+function fnGate(said){
+  fnSync();
+  FN.bad={}; FN.hint=null;
+  FN.tries=FN.tries||{};
+  FN.tries.gate=(FN.tries.gate||0)+1;
+  var ok=said===mMulti(FN.c.m);
+  if(ok){ FN.step=fnNext(1); FN.tip=null; }
+  else {
+    FN.misses++;
+    FN.hint = said ? mWhyOne(FN.c.m) : mWhyMany(FN.c.m);
+  }
+  logAttempt(smId("f2n"),"gate",FN.c.m,said?"yes":"no",ok,ok?"":"gate",FN.tries.gate);
+  fnRender();
+}
+
+function fnCheck(step){
+  fnSync();
+  var c=FN.c, an=ANION[c.a], k=subscripts(c.q,an.q), wasStep=FN.step;
+  FN.bad={}; FN.hint=null; FN.ring=false;
+  FN.tries=FN.tries||{};
+  var STEPKEY={2:"count",3:"anioncharge",4:"total",5:"metalcharge",6:"name",7:"charges"};
+  var sk=STEPKEY[step]||("step"+step);
+  FN.tries[sk]=(FN.tries[sk]||0)+1;
+
+  if(step===7){
+    var rl=parseChargeList(FN.qlist), want=metalCharges(c.m);
+    var ok7=!rl.err && sameCharges(rl.qs, want);
+    if(rl.err){ FN.bad[7]=true; FN.hint=rl.err; FN.misses++; }
+    else if(ok7) FN.step=fnNext(7);
+    else { FN.bad[7]=true; FN.hint=chargeListFault(rl.qs, want, mName(c.m)); FN.misses++; }
+    logAttempt(smId("f2n"),"charges",c.m,FN.qlist,ok7,ok7?"":(rl.err?"format":"charge"),FN.tries[sk]);
+    if(FN.step!==wasStep) FN.tip=null;
+    fnRender(); return;
+  }
+  if(step===2){
+    var ok2=/^\d+$/.test((FN.v[0]||"").trim()) && +FN.v[0]===k.na;
+    if(ok2) FN.step=fnNext(2);
+    else { FN.bad[2]=true; FN.misses++; }
+    logAttempt(smId("f2n"),"count",an.name,FN.v[0],ok2,ok2?"":"count",FN.tries[sk]);
+    if(FN.step!==wasStep) FN.tip=null;
+    fnRender(); return;
+  }
+  if(step===6){
+    var res=nameCheck(FN.cname, nameOf(c), c.m);
+    if(res.ok){
+      FN.solved=true; FN.step=99; FN.done++; if(!FN.misses) FN.clean++;
+      track(smId("f2n"), FN.misses===0);
+    } else {
+      FN.bad[6]=true; FN.hint=res.hint; FN.ring=res.ring; FN.misses++;
+    }
+    logAttempt(smId("f2n"),"name",formulaOf(c),FN.cname,res.ok,res.ok?"":(res.code||"other"),FN.tries[sk]);
+    fnRender(); return;
+  }
+
+  var want = step===3 ? an.q : step===4 ? k.na*an.q : c.q;
+  var raw  = FN.v[step-2];
+  var r    = parseCharge(raw);
+  var formatSlip = r.err && /^\d+$/.test((raw||"").trim()) && +raw===Math.abs(want);
+  var ok = !r.err && r.q===want;
+
+  if(r.err){
+    FN.hint = !r.noSign ? r.err
+      : step===3 ? "Is the <b>"+an.name+"</b> ion positive or negative?"
+      : step===4 ? "Are those charges positive or negative?"
+      : "Does the <b>"+mName(c.m)+"</b> ion come out positive or negative?";
+    FN.bad[step]=true;
+    /* the right number lacking only its sign is a format slip */
+    if(!formatSlip) FN.misses++;
+  } else if(ok){
+    FN.step=fnNext(step);
+  } else {
+    if(step===3) FN.hint="Check which group "+an.el+" is in.";
+    FN.bad[step]=true; FN.misses++;
+  }
+  logAttempt(smId("f2n"),sk,step===3?an.name:step===4?"total":mName(c.m),raw,ok,
+    ok?"":(r.err?(formatSlip?"format":"format"):"charge"),FN.tries[sk]);
+  if(FN.step!==wasStep) FN.tip=null;
+  fnRender();
+}
+
+/* ── Simple ions, formula \u2192 name ── */
+function fnWhy(c){
+  var an=ANION[c.a], k=subscripts(c.q,an.q), tot=k.na*an.q, out=[];
+  /* a metal with one charge needs none of the working out, so its
+     explanation is the short one the activity now asks for */
+  if(!mMulti(c.m))
+    return [
+      onlyMakes(c.m, c.q)+" A metal like that takes no Roman numeral.",
+      "<b>"+cap(an.el)+"</b> as a negative ion is <b>"+an.name+"</b> \u2014 negative "+
+        "ions take an <i>-ide</i> ending.",
+      "So the name is <b>"+nameOf(c)+"</b>."
+    ];
+  out.push(cap(mName(c.m))+" is listed on your periodic table as <b>"+
+    chargeListText(metalCharges(c.m))+"</b>, so the name has to say which one this is.");
+  out.push("There "+(k.na===1?"is <b>1</b> "+an.name+" ion":"are <b>"+k.na+"</b> "+
+    an.name+" ions")+", and each one is <b>"+chargeText(an.q)+"</b>.");
+  out.push("That is <b>"+totText(tot)+"</b> of negative charge to balance.");
+  out.push(k.nm===1
+    ? "The one "+mName(c.m)+" ion has to be <b>"+chargeText(c.q)+
+      "</b> so the whole formula adds up to zero."
+    : "The <b>"+k.nm+"</b> "+mName(c.m)+" ions share that out, so each is <b>"+
+      chargeText(c.q)+"</b>.");
+  out.push("So the name is <b>"+nameOf(c)+"</b> \u2014 the numeral is the metal\u2019s "+
+    "charge, not how many there are.");
+  return out;
+}
+function fnReveal(){
+  if(FN.solved) return;
+  FN.shown=true; FN.misses++;
+  FN.step=99; FN.solved=true; FN.done++;
+  track(smId("f2n"), false);
+  fnRender();
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-fn]");
+  if(!t) return;
+  var d=t.dataset.fn;
+  if(d==="next") fnNew();
+  else if(d==="hint"){ FN.tip=fnHint(); fnRender(); }
+  else if(d==="reveal") fnReveal();
+  else if(d==="gy") fnGate(true);
+  else if(d==="gn") fnGate(false);
+  else fnCheck(+d);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 4 — NAME → FORMULA
+   The name is laid out as two ions. Under each one the student
+   writes the symbol, then the charge, then how many are needed —
+   shown as  charge × count = total  so the balance is visible.
+   ═══════════════════════════════════════════════════════════════ */
+var NF={queue:[],c:null,phase:"sym",ci:0,sym:["",""],chg:["",""],
+        nc:0,na:0,prevGap:26,shakeBoard:false,
+        ftext:"",bad:{},hint:null,ferr:null,done:0,clean:0,misses:0};
+
+function totText(t){ return t===0 ? "0" : chargeText(t); }
+function nfParts(){
+  var c=NF.c;
+  return [{lab:mName(c.m), sym:c.m, q:c.q},
+          {lab:ANION[c.a].name, sym:c.a, q:ANION[c.a].q}];
+}
+function nfCounts(){ return [NF.nc, NF.na]; }
+
+function nfNew(){
+  if(!NF.queue.length) NF.queue = SM.lvl==="one"
+    ? shuffle(SC_N2F.slice()).slice(0,40) : mixDeck(MULTI_MANY,MULTI_ONE,40);
+  NF.c=NF.queue.pop();
+  NF.phase="sym"; NF.ci=0; NF.sym=["",""]; NF.chg=["",""];
+  NF.nc=0; NF.na=0; NF.prevGap=26; NF.shakeBoard=false;
+  NF.ftext=""; NF.bad={}; NF.hint=null; NF.ferr=null; NF.markNum=false; NF.misses=0;
+  NF.shown=false; NF.tip=null; NF.tries={};
+  nfRender();
+}
+function nfSync(){
+  var f,i;
+  for(i=0;i<2;i++){
+    if((f=document.getElementById("nfS"+i))) NF.sym[i]=f.textContent;
+    if((f=document.getElementById("nfC"+i))) NF.chg[i]=f.value;
+  }
+  if((f=document.getElementById("nfin"))) NF.ftext=f.textContent;
+}
+
+function nfAsk(i,phase){
+  var c=NF.c, pt=nfParts()[i];
+  if(phase==="sym") return "Type the symbol for "+pt.lab+".";
+  if(phase==="chg")
+    return i===0
+      ? "What is the charge on the <b>"+mName(c.m)+
+        (mMulti(c.m)?"("+ROMAN[c.q]+")":"")+"</b> ion?"
+      : "What is the charge on the <b>"+ANION[c.a].name+"</b> ion?";
+  return "How many "+pt.sym+" ions?";
+}
+
+function nfChargeKnown(i){
+  var ph=NF.phase;
+  if(ph==="sym") return false;
+  if(ph==="chg") return i<NF.ci;
+  return true;
+}
+
+function nfCol(i){
+  var pt=nfParts()[i], ph=NF.phase;
+  /* one ion at a time in both phases: NF.ci is the column being worked on,
+     so a wrong answer is only ever about that ion */
+  var symSet = ph!=="sym" || i<NF.ci;
+  var chgSet = nfChargeKnown(i);
+  var waiting = i>NF.ci;
+  var h='<div class="ioncol'+(symSet?(pt.q>0?" p":" n"):"")+
+        (i===NF.ci?" live":"")+(waiting?" dim":"")+'">'+
+        '<p class="cap">'+pt.lab+'</p>';
+
+  if(ph==="sym") h+='<p class="ask">'+(i===NF.ci?nfAsk(i,"sym"):"&nbsp;")+'</p>';
+  h+= symSet
+    ? '<div class="val">'+pt.sym+
+        (chgSet?'<sup class="qsup '+(pt.q>0?"pp":"nn")+'">'+chargeText(pt.q)+'</sup>':'')+
+      '</div>'
+    : (waiting
+       ? '<div class="val"><span style="opacity:.25">?</span></div>'
+       : '<div class="blank symin'+(NF.bad["s"+i]?" bad":"")+'" id="nfS'+i+
+         '" contenteditable="true" spellcheck="false" role="textbox" '+
+         'aria-label="Symbol of the '+pt.lab+' ion">'+subDigitsMarked(NF.sym[i],false)+'</div>');
+
+  /* only the ion being worked on shows a charge box; the other is greyed out */
+  if(ph==="chg" && i===NF.ci){
+    h+='<p class="ask">'+nfAsk(i,"chg")+'</p>'+
+       '<input class="blank chg'+(NF.bad["c"+i]?" bad":"")+'" id="nfC'+i+
+       '" value="'+esc(NF.chg[i])+'" autocomplete="off" spellcheck="false" '+
+       'aria-label="Charge on the '+pt.lab+' ion">';
+  }
+
+  return h+'</div>';
+}
+
+/* what sits beside the board: the steppers while it is being built, then
+   the formula box, then the finished compound — the whole of the second
+   half of the activity happens on the one page */
+function nfSide(){
+  if(NF.phase==="formula")
+    return '<div class="fbox"><p class="lbl">It fits. Now write the formula.</p>'+
+      '<div class="finput'+(NF.markNum?" marknum":"")+'" id="nfin" '+
+        'contenteditable="true" spellcheck="false" '+
+        'role="textbox" aria-label="Chemical formula">'+
+        subDigitsMarked(NF.ftext,false)+'</div>'+
+      (NF.ferr?'<p class="ferr">'+NF.ferr+'</p>':'')+'</div>'+
+      actionBlock('<button data-nf="formula">Check formula</button>',"nf")+hintBox(NF.tip);
+
+  if(NF.phase==="done")
+    return NF.shown
+      ? revealBox(formulaHTML(NF.c), nfWhy(NF.c))+
+        '<div class="showrow"><button data-nf="next">New name</button></div>'
+      : '<div class="win"><div class="f">'+formulaHTML(NF.c)+'</div>'+
+        '<div class="c">'+nameOf(NF.c)+'</div>'+
+        '<div style="height:10px"></div>'+
+        '<button data-nf="next">New name</button></div>';
+
+  return boardSteppers(NF,nfParts(),"nf");
+}
+
+/* \u2500\u2500 Simple ions, name \u2192 formula \u2500\u2500 */
+function nfWhy(c){
+  var an=ANION[c.a], k=subscripts(c.q,an.q), out=[];
+  out.push(mMulti(c.m)
+    ? 'The <b>(' +ROMAN[c.q]+ ')</b> in the name is the charge, so the metal ion is '+
+      '<b class="mono">'+c.m+chargeSup(c.q)+"</b>."
+    : onlyMakes(c.m, c.q));
+  out.push(cap(an.name)+' is <b class="mono">'+c.a+chargeSup(an.q)+"</b>.");
+  out.push(whyRatio(c.m,c.q,k.nm,c.a,an.q,k.na));
+  out.push('So the formula is <b class="mono">'+subDigits(formulaOf(c))+
+    "</b>"+(k.nm>1||k.na>1
+      ? " \u2014 the subscript says how many of that ion, and a subscript of 1 is never written."
+      : ".")); 
+  return out;
+}
+function nfReveal(){
+  if(NF.phase==="done") return;
+  var c=NF.c, k=subscripts(c.q,ANION[c.a].q);
+  NF.shown=true; NF.misses++;
+  NF.nc=k.nm; NF.na=k.na; NF.phase="done"; NF.done++;
+  track(smId("n2f"), false);
+  nfRender();
+}
+
+function nfRender(){
+  var c=NF.c, an=ANION[c.a], k=subscripts(c.q,an.q), ph=NF.phase;
+
+  var h=(SM.lvl==="one" ? '' :
+      '<p class="lede">A Roman numeral in the name is the metal\'s charge. '+
+      'No numeral means the metal forms only one ion — look it up on your periodic table.</p>')+
+    '<div class="subject'+(ph==="done"?" solved":"")+'">'+
+      '<div class="bigname">'+nameOf(c)+'</div>'+
+    '</div>';
+
+  /* the board replaces typing the counts: the pieces only interlock when
+     the charges cancel, so the ratio is something they see rather than
+     something they are told — and the formula is written right there
+     beside it rather than on a page of its own */
+  if(ph==="build"||ph==="formula"||ph==="done"){
+    h+='<p class="nflead">How many of each ion is needed to balance out?</p>'+
+       '<div class="ionrecap">'+nfParts().map(function(o){
+         return '<div><p class="cap">'+o.lab+'</p>'+
+           '<div class="rval '+(o.q>0?"p":"n")+'">'+o.sym+
+           '<sup>'+chargeText(o.q)+'</sup></div></div>';
+       }).join("")+'</div>'+
+       '<div class="buildrow">'+boardSVG(NF,nfParts(),"nf")+
+       '<div class="buildside">'+nfSide()+'</div></div>'+
+       '<p class="counter"><b>'+NF.done+'</b> done · <b>'+NF.clean+'</b> with no misses</p>';
+    document.getElementById("sec-n2f").innerHTML=h;
+    boardSlide(NF,nfParts(),"nf");
+    if(onN2F() && ph==="formula"){
+      var fi=document.getElementById("nfin");
+      if(fi){ fi.focus(); caretToEnd(fi); }
+    }
+    return;
+  }
+
+  var lead = ph==="sym" ? "Write the symbol for the "+nfParts()[NF.ci].lab+" ion."
+           : "Type the charge on the "+nfParts()[NF.ci].lab+" ion, then press Enter.";
+  h+='<p class="nflead">'+lead+'</p>'+
+     '<div class="ionpair">'+nfCol(0)+nfCol(1)+'</div>';
+
+  h+=actionBlock('<button data-nf="'+ph+'">Check</button>',"nf");
+
+  if(NF.hint) h+='<p class="nfhint">'+NF.hint+'</p>';
+  h+=hintBox(NF.tip);
+
+  h+='<p class="counter"><b>'+NF.done+'</b> done · <b>'+NF.clean+'</b> with no misses</p>';
+
+  document.getElementById("sec-n2f").innerHTML=h;
+
+  if(!onN2F()) return;
+  var f = document.getElementById((ph==="sym"?"nfS":"nfC")+NF.ci);
+  if(f) f.focus();
+}
+
+function nfCheckBuild(){
+  boardCheck(NF,nfParts(),nfRender,function(){
+    NF.phase="formula"; NF.ftext=""; NF.ferr=null; NF.tip=null; nfRender();
+  },smId("n2f"));
+}
+
+function nfCheck(phase){
+  nfSync();
+  var c=NF.c, an=ANION[c.a], k=subscripts(c.q,an.q), pt=nfParts();
+  var was=NF.phase+"/"+NF.ci;
+  NF.bad={}; NF.hint=null; NF.ferr=null;
+  NF.tries=NF.tries||{};
+  var moved=function(){ if(was!==NF.phase+"/"+NF.ci) NF.tip=null; };
+
+  if(phase==="sym"){
+    var i=NF.ci, ok=(NF.sym[i]||"").trim()===pt[i].sym;
+    NF.tries.sym=(NF.tries.sym||0)+1;
+    if(!ok){ NF.bad["s"+i]=true; NF.misses++; }
+    else if(++NF.ci>1){ NF.ci=0; NF.phase="chg"; }
+    logAttempt(smId("n2f"),"sym",pt[i].lab,NF.sym[i],ok,ok?"":"symbol",NF.tries.sym);
+    moved(); nfRender(); return;
+  }
+
+  if(phase==="chg"){
+    var i=NF.ci, want=pt[i].q, r=parseCharge(NF.chg[i]);
+    NF.tries.chg=(NF.tries.chg||0)+1;
+    var okChg=false, formatSlip=false;
+    if(r.err){
+      NF.bad["c"+i]=true;
+      NF.hint = r.noSign
+        ? (i===0 ? "Does the <b>"+mName(c.m)+"</b> ion come out positive or negative?"
+                 : "Is the <b>"+an.name+"</b> ion positive or negative?")
+        : r.err;
+      /* the right number missing only its sign is a format slip, not a miss */
+      formatSlip = +((NF.chg[i]||"").trim())===Math.abs(want) && r.noSign;
+      if(!formatSlip) NF.misses++;
+    } else if(r.q===want){
+      okChg=true;
+      if(i===0){ NF.ci=1; }
+      else { NF.phase="build"; NF.nc=0; NF.na=0; NF.prevGap=26; }
+    } else {
+      NF.bad["c"+i]=true; NF.misses++;
+      if(i===1) NF.hint="Check which group <b>"+an.el+"</b> is in.";
+      else NF.hint = mMulti(c.m)
+        ? "The Roman numeral in the name is the charge."
+        : (mRuleGroup(c.m)
+            ? "Check which group <b>"+mName(c.m)+"</b> is in."
+            : "Check your periodic table for the charge on the <b>"+mName(c.m)+"</b> ion.");
+    }
+    logAttempt(smId("n2f"),"chg",pt[i].lab,NF.chg[i],okChg,
+      okChg?"":(r.err?"format":"charge"),NF.tries.chg);
+    moved(); nfRender(); return;
+  }
+
+  if(phase==="build"){ nfCheckBuild(); return; }
+
+  /* the formula itself */
+  var got=(NF.ftext||"").replace(/\s+/g,"");
+  var want=formulaOf(c);
+  var flipped=c.a+(k.na>1?k.na:"")+c.m+(k.nm>1?k.nm:"");
+  NF.tries.formula=(NF.tries.formula||0)+1;
+  var fault="count";
+
+  /* the ring goes on only when the ion counts are what went wrong */
+  NF.markNum=true;
+  if(!got){ NF.ferr="Type the formula."; NF.markNum=false; fault="other"; }
+  else if(got===want){
+    NF.markNum=false;
+    NF.phase="done"; NF.done++; if(!NF.misses) NF.clean++;
+    track(smId("n2f"), NF.misses===0);
+    logAttempt(smId("n2f"),"formula",formulaOf(c),got,true,"",NF.tries.formula);
+    nfRender(); return;
+  }
+  else if(got.toLowerCase()===want.toLowerCase()){
+    NF.ferr="Check the capitals. A symbol starts with a capital letter, and a second letter is always lowercase.";
+    NF.markNum=false; fault="caps";
+  }
+  else if(got.replace(/1(?!\d)/g,"")===want){
+    NF.ferr="Drop the 1. When there is only one ion, no number is written.";
+    fault="one";
+  }
+  else if(got===flipped){
+    NF.ferr="The metal is always written first."; NF.markNum=false; fault="order";
+  }
+  else if(got===c.m+ROMAN[c.q]+c.a){
+    NF.ferr="The Roman numeral is the charge, not a subscript. It never appears in the formula.";
+    NF.markNum=false; fault="roman";
+  }
+  else
+    NF.ferr="Not quite. Count the pieces on each side and write that number after the ion.";
+  NF.misses++;
+  logAttempt(smId("n2f"),"formula",formulaOf(c),got,false,fault,NF.tries.formula);
+  nfRender();
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-nf]");
+  if(!t) return;
+  if(t.dataset.nf==="next") nfNew();
+  else if(t.dataset.nf==="hint"){ NF.tip=nfHint(); nfRender(); }
+  else if(t.dataset.nf==="reveal") nfReveal();
+  else if(t.dataset.nf==="build") nfCheckBuild();
+  else nfCheck(t.dataset.nf);
+});
+
+document.addEventListener("input",function(ev){
+  var t=ev.target;
+  if(t.id==="nfin"){
+    var off=textOffset(t), txt=t.textContent;
+    NF.ftext=txt;
+    t.innerHTML=subDigitsMarked(txt,false);
+    setOffset(t,off);
+    return;
+  }
+  /* the ion-symbol box, e.g. "SO4" while typing it (24 Sept) */
+  var m=/^nfS(\d)$/.exec(t.id);
+  if(!m) return;
+  var off2=textOffset(t), txt2=t.textContent;
+  NF.sym[+m[1]]=txt2;
+  t.innerHTML=subDigitsMarked(txt2,false);
+  setOffset(t,off2);
+});
+document.addEventListener("paste",function(ev){
+  if(ev.target.id!=="nfin") return;
+  ev.preventDefault();
+  var txt=(ev.clipboardData||window.clipboardData).getData("text").replace(/\s+/g,"");
+  document.execCommand("insertText",false,txt);
+});
+
+/* Enter advances whichever naming section is open */
+document.addEventListener("keydown",function(ev){
+  if(ev.key!=="Enter") return;
+  if(ACTIVE==="charges"){ ev.preventDefault(); MG.solved?mgNew():mgCheck(MG.step); }
+  else if(onF2N()){
+    ev.preventDefault();
+    if(FN.solved) fnNew(); else if(FN.step>1) fnCheck(FN.step);
+  }
+  else if(onN2F()){
+    ev.preventDefault();
+    NF.phase==="done" ? nfNew() : nfCheck(NF.phase);
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 2 — BUILD THE COMPOUND  (the puzzle, unchanged in
+   behaviour; it now renders into its own section and its tutorial
+   only runs while that section is open)
+   ═══════════════════════════════════════════════════════════════ */
+var EL = {
+  Li:{name:"lithium",   q:1},
+  Na:{name:"sodium",    q:1},
+  K :{name:"potassium", q:1},
+  Mg:{name:"magnesium", q:2},
+  Ca:{name:"calcium",   q:2},
+  Ba:{name:"barium",    q:2},
+  Al:{name:"aluminum",  q:3},
+  F :{name:"fluorine",  q:-1, ion:"fluoride"},
+  Cl:{name:"chlorine",  q:-1, ion:"chloride"},
+  Br:{name:"bromine",   q:-1, ion:"bromide"},
+  I :{name:"iodine",    q:-1, ion:"iodide"},
+  O :{name:"oxygen",    q:-2, ion:"oxide"},
+  S :{name:"sulfur",    q:-2, ion:"sulfide"},
+  N :{name:"nitrogen",  q:-3, ion:"nitride"}
+};
+var CATIONS = ["Li","Na","K","Mg","Ca","Ba","Al"];
+var ANIONS  = ["F","Cl","Br","I","O","S","N"];
+
+
+/* puzzle piece geometry */
+var U=54, PW=140, R=18, SEAM=185, VW=370;
+function tabPath(n){
+  var h=n*U, d="M 0 0 L "+PW+" 0", i, cy;
+  for(i=0;i<n;i++){cy=i*U+U/2;
+    d+=" L "+PW+" "+(cy-R)+" A "+R+" "+R+" 0 0 1 "+PW+" "+(cy+R);}
+  return d+" L "+PW+" "+h+" L 0 "+h+" Z";
+}
+function slotPath(n){
+  var h=n*U, d="M 0 0 L "+PW+" 0 L "+PW+" "+h+" L 0 "+h, i, cy;
+  for(i=n-1;i>=0;i--){cy=i*U+U/2;
+    d+=" L 0 "+(cy+R)+" A "+R+" "+R+" 0 0 0 0 "+(cy-R);}
+  return d+" Z";
+}
+function piece(sym,q,x,y,removable){
+  var n=Math.abs(q), up=q>0, h=n*U;
+  var fill=up?"var(--posFill)":"var(--negFill)", edge=up?"var(--posEdge)":"var(--negEdge)";
+  var ink=up?"var(--posInk)":"var(--negInk)", tx=PW/2+R/4;
+  return '<g class="piece" transform="translate('+x+','+y+')"'+
+    (removable?' data-remove="'+removable+'"':'')+'>'+
+    '<path d="'+(up?tabPath(n):slotPath(n))+'" fill="'+fill+'" stroke="'+edge+
+      '" stroke-width="3" stroke-linejoin="round"/>'+
+    '<text x="'+tx+'" y="'+(h/2+4)+'" text-anchor="middle" dominant-baseline="central" '+
+      'fill="'+ink+'" style="font:700 38px var(--mono)">'+sym+
+      '<tspan dy="-14" style="font-size:22px">'+chargeText(q)+'</tspan></text></g>';
+}
+
+var TIERS=[
+  [[1,-1],[2,-1],[1,-2]],
+  [[3,-2],[2,-3]],
+  [[3,-1],[2,-2],[1,-3],[3,-3]]
+];
+function buildSchedule(){
+  var out=[];
+  TIERS.forEach(function(tier){
+    shuffle(tier.slice()).forEach(function(p){ out.push(p); });
+  });
+  return out;
+}
+var SCHEDULE=buildSchedule();
+var round=0, used={};
+
+function pickPair(){
+  var pat = round<SCHEDULE.length ? SCHEDULE[round] : null;
+  var all=[], fit=[];
+  CATIONS.forEach(function(c){
+    ANIONS.forEach(function(a){
+      if(used[c+a]) return;
+      all.push([c,a]);
+      if(pat && EL[c].q===pat[0] && EL[a].q===pat[1]) fit.push([c,a]);
+    });
+  });
+  var pool = fit.length ? fit : all;
+  if(!pool.length){ used={}; round=0; SCHEDULE=buildSchedule(); return pickPair(); }
+  var p = pool[Math.floor(Math.random()*pool.length)];
+  used[p[0]+p[1]]=true;
+  round++;
+  return p;
+}
+
+var tut=true, tutUsed=false, tutIntro=true;
+
+var TUT={
+  intro:{sel:null, next:true, text:
+    "<p>Each ion here is a puzzle piece. A <b>tab</b> is an electron given away, a "+
+    "<b>slot</b> is one taken in, and the compound is right when every tab meets a slot.</p>"},
+
+  first:{sel:"#cardC", text:
+    "<p>Magnesium is a metal, and metal atoms lose electrons to nonmetals.</p>"+
+    "<p>Fill in the whole sentence: it <b>loses</b> <b>2</b> electrons and forms a <b>2+</b> ion.</p>"},
+
+  second:{sel:"#cardA", text:
+    "<p>Now chlorine. It is a nonmetal, so it gains rather than loses — and it needs "+
+    "just one electron to fill its outer shell.</p>"},
+
+  check:{sel:"#check", text:"<p>Both done. Check your answers.</p>"},
+
+  add:{sel:"#rightcol", text:
+    "<p>Your pieces are ready. Put one magnesium and one chlorine on the board.</p>"},
+
+  fit:{sel:"#rightcol", text:
+    "<p>Magnesium has two tabs, but chlorine only brings one slot, so a tab is left with "+
+    "nothing to hold. Add a second chlorine.</p>"},
+
+  fits:{sel:"#bcheck", text:"<p>Every tab is filled. Check it.</p>"},
+
+  formula:{sel:"#fbox", text:
+    "<p>Count the pieces — one Mg and two Cl.</p>"+
+    "<p>Type <b>MgCl2</b>. The number turns into a subscript by itself.</p>"},
+
+  finish:{sel:"#winbox", text:
+    "<p>That is the whole loop, and every round works the same way.</p>"}
+};
+
+function sideDone(k){ return S[k].ok || judge(k)===null; }
+
+function tutStep(){
+  if(!tut || ACTIVE!=="build") return null;
+  if(tutIntro) return "intro";
+  if(S.phase==="charge"){
+    if(!sideDone(S.order[0])) return "first";
+    if(!sideDone(S.order[1])) return "second";
+    return "check";
+  }
+  if(S.phase==="build")   return (S.nc+S.na===0) ? "add" : (buildFits() ? "fits" : "fit");
+  if(S.phase==="formula") return "formula";
+  if(S.phase==="done")    return "finish";
+  return null;
+}
+
+function drawTut(){
+  var layer=document.getElementById("tutLayer");
+  var step=tutStep();
+  if(!step){ layer.hidden=true; return; }
+  var t=TUT[step];
+  var box=document.getElementById("tutBox");
+  var hole=document.getElementById("tutHole");
+
+  layer.hidden=false;
+  box.innerHTML=t.text+'<div id="tutBtns">'+
+    (t.next?'<button id="tutNext">Next</button>':'')+
+    '<button id="tutSkip">Skip tutorial</button></div>';
+
+  if(!t.sel){
+    hole.style.cssText="left:50%;top:50%;width:0;height:0;border-color:transparent";
+    box.className="center";
+    box.style.width=Math.min(400,window.innerWidth-32)+"px";
+    box.style.left=""; box.style.top="";
+    return;
+  }
+
+  var el=document.querySelector(t.sel);
+  if(!el){ layer.hidden=true; return; }
+  box.className="";
+  var bw=Math.min(290,window.innerWidth-24);
+  box.style.width=bw+"px";
+  var bh=box.offsetHeight;
+
+  var r=el.getBoundingClientRect(), pad=7, gap=10;
+  hole.style.cssText="";
+  hole.style.left=(r.left-pad)+"px";
+  hole.style.top=(r.top-pad)+"px";
+  hole.style.width=(r.width+pad*2)+"px";
+  hole.style.height=(r.height+pad*2)+"px";
+
+  var W=window.innerWidth, H=window.innerHeight, m=10, i, c, pick=null;
+  var cands=[
+    {l:r.left+r.width/2-bw/2, t:r.bottom+pad+gap},
+    {l:r.left+r.width/2-bw/2, t:r.top-pad-gap-bh},
+    {l:r.right+pad+gap,       t:r.top},
+    {l:r.left-pad-gap-bw,     t:r.top}
+  ];
+  for(i=0;i<cands.length;i++){
+    c=cands[i];
+    if(c.t>=m && c.t+bh<=H-m && c.l>=m && c.l+bw<=W-m){ pick=c; break; }
+  }
+  if(!pick) pick=cands[0];
+  box.style.left=Math.max(m,Math.min(pick.l,W-bw-m))+"px";
+  box.style.top =Math.max(m,Math.min(pick.t,H-bh-m))+"px";
+}
+
+function endTut(){
+  tut=false;
+  document.getElementById("tutLayer").hidden=true;
+  document.getElementById("tutReplay").hidden=true;
+}
+
+window.addEventListener("resize",function(){ if(ACTIVE==="build") drawTut(); });
+window.addEventListener("scroll",function(){ if(ACTIVE==="build") drawTut(); },true);
+
+var S={}, prevGap=26;
+function blankSide(){return {verb:null,n:"",q:"",err:null,ok:false};}
+
+function newRound(){
+  var p;
+  var walking = tut && !tutUsed;
+  if(walking){ p=["Mg","Cl"]; used.MgCl=true; tutUsed=true; }
+  else p=pickPair();
+  /* which card the metal sits on is a coin toss, so telling a metal from a
+     nonmetal is part of the work rather than something position gives away.
+     The questions follow the order on screen, left card first. */
+  /* the walkthrough talks about magnesium first, so it always runs unflipped */
+  var order = (walking || Math.random()<0.5) ? ["C","A"] : ["A","C"];
+  S={c:p[0],a:p[1],C:blankSide(),A:blankSide(),shake:null,
+     order:order, side:order[0], tip:null,
+     phase:"charge",nc:0,na:0,ftext:"",ferr:null,markNum:false,misses:0,shown:false,tries:{}};
+  prevGap=26;
+  render();
+}
+
+function sync(){
+  ["C","A"].forEach(function(k){
+    var n=document.getElementById("n"+k), q=document.getElementById("q"+k);
+    if(n) S[k].n=n.value;
+    if(q) S[k].q=q.value;
+  });
+  var f=document.getElementById("fin");
+  if(f) S.ftext=f.textContent;
+}
+
+function render(){
+  var cat=EL[S.c], ani=EL[S.a];
+  var pos=S.nc*cat.q, neg=S.na*-ani.q, net=pos-neg;
+  var balanced=S.nc>0&&S.na>0&&net===0;
+  var reduced=balanced&&gcd(S.nc,S.na)===1;
+  var built=S.phase==="formula"||S.phase==="done";
+
+  var h;
+  if(S.phase==="charge"){
+    h='<p class="lede">Work out what each atom does with its electrons.</p>'+
+      '<div class="pair">'+S.order.map(function(k){
+         return elBlock(k, k==="C"?S.c:S.a, false); }).join("")+'</div>'+
+      actionBlock('<button id="check">Check</button>',"bd")+hintBox(S.tip);
+  } else {
+    h='';
+
+    var units=Math.max(4,pos,neg), vh=units*U+50, i;
+    var grid="";
+    for(i=0;i<=units;i++)
+      grid+='<line x1="16" x2="'+(VW-16)+'" y1="'+(25+i*U)+'" y2="'+(25+i*U)+
+        '" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5" opacity=".5"/>';
+    var cs="",as="";
+    for(i=0;i<S.nc;i++) cs+=piece(S.c,cat.q,SEAM-PW,25+i*cat.q*U,built?null:"c");
+    for(i=0;i<S.na;i++) as+=piece(S.a,ani.q,SEAM,25+i*-ani.q*U,built?null:"a");
+
+    var col='<div class="board'+(built?' solved':'')+(S.shakeBoard?' shake':'')+'" id="board">'+
+       '<svg width="'+VW+'" height="'+vh+'" viewBox="0 0 '+VW+' '+vh+'">'+grid+
+       '<line x1="'+SEAM+'" x2="'+SEAM+'" y1="16" y2="'+(vh-16)+
+         '" stroke="var(--line)" stroke-width="1"/>'+
+       '<g>'+cs+'</g><g id="anionStack">'+as+'</g></svg></div>';
+
+    if(!built){
+      col+='<div class="steppers" id="steppers">'+stepper("c",S.c,S.nc)+stepper("a",S.a,S.na)+'</div>';
+      var cls="", txt;
+      if(S.nc+S.na===0) txt="Add ions until the two sides fit together.";
+      else if(net>0)
+        txt=plural(net,"tab")+" on the left "+(net===1?"has":"have")+
+            ' nothing to connect to. Add another <b class="mono">'+S.a+'</b>.';
+      else if(net<0)
+        txt=plural(-net,"slot")+" on the right "+(-net===1?"is":"are")+
+            ' still empty. Add another <b class="mono">'+S.c+'</b>.';
+      else if(!reduced){
+        var k=gcd(S.nc,S.na); cls=" note";
+        txt="The charges balance, but that is the same pair built "+k+
+            " times over. A formula uses the smallest set that works — take "+
+            (k-1)+" of each back off.";
+      } else { cls=" good"; txt="Every tab is filled."; }
+      col+='<p class="status'+cls+'">'+txt+'</p>'+
+        actionBlock('<button id="bcheck">Check</button>',"bd")+hintBox(S.tip);
+    }
+
+    if(S.phase==="formula"){
+      col+='<div class="fbox" id="fbox"><p class="lbl">It fits. Now write the formula.</p>'+
+        '<div class="finput'+(S.markNum?" marknum":"")+'" id="fin" '+
+        'contenteditable="true" spellcheck="false" '+
+        'role="textbox" aria-label="Chemical formula">'+
+        subDigitsMarked(S.ftext,false)+'</div>'+
+        (S.ferr?'<p class="ferr">'+S.ferr+'</p>':'')+'</div>'+
+        actionBlock('<button id="fcheck">Check formula</button>',"bd")+hintBox(S.tip);
+    }
+
+    if(S.phase==="done"){
+      if(S.shown)
+        col+=revealBox(subDigits(S.c+(S.nc>1?S.nc:"")+S.a+(S.na>1?S.na:"")), buildWhy())+
+          '<div class="showrow"><button id="next">New pair</button></div>';
+      else
+        col+='<div class="win" id="winbox">'+
+          '<div class="f">'+S.c+subTag(S.nc)+S.a+subTag(S.na)+'</div>'+
+          '<div class="c">'+cat.name+" "+ani.ion+'</div>'+
+          '<div style="height:14px"></div>'+
+          '<button id="next">New pair</button></div>';
+    }
+
+    h+='<div class="layout"><div class="ions">'+
+        S.order.map(function(k){ return elBlock(k, k==="C"?S.c:S.a, true); }).join("")+
+       '</div><div class="rightcol" id="rightcol">'+col+'</div></div>';
+  }
+
+  document.getElementById("sec-build").innerHTML=h;
+
+  var stack=document.getElementById("anionStack");
+  if(stack){
+    var gap=balanced?0:26;
+    stack.style.transform="translate("+prevGap+"px,0)";
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      stack.style.transform="translate("+gap+"px,0)";
+    });});
+    prevGap=gap;
+  }
+  var fin=document.getElementById("fin");
+  if(fin && S.phase==="formula" && ACTIVE==="build"){ fin.focus(); caretToEnd(fin); }
+  if(ACTIVE==="build") drawTut();
+}
+
+function elBlock(side,sym,compact){
+  var e=EL[sym], st=S[side];
+  /* not their turn yet: the atom is named, but nothing to fill in */
+  var waiting = !compact && S.phase==="charge" && !st.ok && S.side!==side;
+  var cls="el"+(compact?" small":"")+(st.ok?(e.q>0?" ok-pos":" ok-neg"):"")+
+          (st.err?" err":"")+(S.shake===side?" shake":"")+(waiting?" dim":"");
+
+  if(waiting)
+    return '<div class="'+cls+'" id="card'+side+'"><div class="sym">'+sym+'</div>'+
+      '<div class="nm">'+e.name+'</div>'+
+      '<div class="said" style="opacity:.45">waits its turn</div></div>';
+
+  if(st.ok){
+    var verb=e.q>0?"loses":"gains", n=Math.abs(e.q);
+    return '<div class="'+cls+'" id="card'+side+'"><div class="sym">'+sym+'</div><div>'+
+      '<div class="nm">'+e.name+'</div>'+
+      '<div class="said '+(e.q>0?"p":"n")+'">'+verb+" "+n+" electron"+(n===1?"":"s")+
+      ' → <span class="hl">'+ionHTML(sym,e.q)+'</span></div></div></div>';
+  }
+
+  var body='<div class="verbs" id="verbs'+side+'">'+
+      '<button data-verb="'+side+'|lose" class="'+(st.verb==="lose"?"on":"")+'">loses</button>'+
+      '<button data-verb="'+side+'|gain" class="'+(st.verb==="gain"?"on":"")+'">gains</button>'+
+    '</div>'+
+    '<div class="ln"><input class="blank num" id="n'+side+'" value="'+esc(st.n)+
+      '" autocomplete="off" inputmode="numeric" aria-label="Number of electrons">'+
+      '<span>electrons</span></div>'+
+    '<div class="ln"><span>to form a</span><input class="blank chg" id="q'+side+
+      '" value="'+esc(st.q)+'" placeholder="enter charge" autocomplete="off" '+
+      'spellcheck="false" aria-label="Charge of the ion"><span>ion</span></div>'+
+    (st.err?'<p class="why err">'+st.err+'</p>':'');
+
+  return '<div class="'+cls+'" id="card'+side+'"><div class="sym">'+sym+'</div>'+
+    '<div class="nm">'+e.name+'</div>'+body+'</div>';
+}
+
+function stepper(side,sym,n){
+  return '<div class="step">'+
+    '<button data-remove="'+side+'" aria-label="Remove one '+sym+'"'+(n?"":" disabled")+
+      '>−</button>'+
+    '<span>'+n+' <b class="mono">'+sym+'</b></span>'+
+    '<button data-add="'+side+'" aria-label="Add one '+sym+'">+</button></div>';
+}
+
+function judge(side){
+  var e=EL[side==="C"?S.c:S.a], st=S[side];
+  var wantVerb=e.q>0?"lose":"gain", wantN=Math.abs(e.q);
+
+  if(!st.verb) return "Choose whether it gains or loses electrons.";
+  if(st.verb!==wantVerb)
+    return e.q>0
+      ? cap(e.name)+" is a metal, and metals lose electrons."
+      : cap(e.name)+" is a nonmetal, and nonmetals gain electrons.";
+
+  var n=(st.n||"").trim();
+  if(!/^\d+$/.test(n)) return "Enter how many electrons it transfers.";
+  n=+n;
+  if(n===0) return "An ion has to transfer at least one electron.";
+  if(n!==wantN)
+    return e.q>0
+      ? "Not that many. Check the periodic table — a metal loses every electron in its outer shell."
+      : "Not that many. A nonmetal gains only enough to fill its outer shell to eight.";
+
+  var r=parseCharge(st.q);
+  if(r.err) return r.noSign
+    ? "Does "+e.name+" form a positive or a negative ion?"
+    : r.err;
+  if(Math.sign(r.q)!==Math.sign(e.q))
+    return e.q>0
+      ? "Losing electrons leaves extra protons behind, so the ion comes out positive."
+      : "Gaining electrons adds negative charge, so the ion comes out negative.";
+  if(r.q!==e.q)
+    return "Each electron transferred is worth one unit of charge, so the number should match.";
+  return null;
+}
+
+function buildWhy(){
+  var cat=EL[S.c], ani=EL[S.a], k=subscripts(cat.q,ani.q);
+  var mc=MAINBY[S.c], ma=MAINBY[S.a];
+  return [
+    cap(cat.name)+" is in group <b>"+mc.g+"</b>, so it loses "+eWord(mc.v)+
+      ' and forms <b class="mono">'+S.c+chargeSup(cat.q)+"</b>.",
+    cap(ani.name)+" is in group <b>"+ma.g+"</b>, so it gains "+eWord(-ani.q)+
+      ' and forms <b class="mono">'+S.a+chargeSup(ani.q)+"</b>.",
+    whyRatio(S.c,cat.q,k.nm,S.a,ani.q,k.na),
+    'So the formula is <b class="mono">'+
+      subDigits(S.c+(k.nm>1?k.nm:"")+S.a+(k.na>1?k.na:""))+"</b>."
+  ];
+}
+function buildReveal(){
+  if(S.phase==="done") return;
+  var cat=EL[S.c], ani=EL[S.a], k=subscripts(cat.q,ani.q);
+  S.shown=true; S.misses=(S.misses||0)+1;
+  S.C.ok=true; S.A.ok=true; S.C.err=null; S.A.err=null;
+  S.nc=k.nm; S.na=k.na; S.ftext=""; S.ferr=null;
+  S.phase="done";
+  track("build", false);
+  render();
+}
+
+/* One atom at a time. `S.side` is the card being worked on; the other one
+   waits, so a wrong answer is only ever about the atom in front of them. */
+function check(){
+  sync();
+  var k=S.side, e=EL[k==="C"?S.c:S.a], problem=judge(k);
+  S.tries=S.tries||{};
+  var slotKey="charge"+k;
+  S.tries[slotKey]=(S.tries[slotKey]||0)+1;
+  var typed=(S[k].verb||"?")+" "+(S[k].n||"?")+" electrons \u2192 "+(S[k].q||"?");
+  if(problem){
+    S[k].err=problem; S.shake=k;
+    S.misses=(S.misses||0)+1;
+    /* the same order judge() checks in, so the fault matches what actually failed */
+    var wantVerb=e.q>0?"lose":"gain", wantN=Math.abs(e.q);
+    var fault;
+    if(!S[k].verb || S[k].verb!==wantVerb) fault="direction";
+    else if(!/^\d+$/.test((S[k].n||"").trim()) || +S[k].n!==wantN) fault="count";
+    else fault = parseCharge(S[k].q).err ? "format" : "charge";
+    logAttempt("build","charge",e.name,typed,false,fault,S.tries[slotKey]);
+    render();
+    setTimeout(function(){
+      S.shake=null; render();
+      var f=document.getElementById("n"+k)||document.getElementById("q"+k);
+      if(f) f.focus();
+    },440);
+    return;
+  }
+  logAttempt("build","charge",e.name,typed,true,"",S.tries[slotKey]);
+  S[k].ok=true; S[k].err=null; S.shake=null; S.tip=null;
+  if(k===S.order[0]) S.side=S.order[1];
+  if(S.C.ok&&S.A.ok) S.phase="build";
+  render();
+  var nxt=document.getElementById("n"+S.side);
+  if(S.phase==="charge" && nxt) nxt.focus();
+}
+
+function changeCount(side,delta){
+  if(S.phase!=="build") return;
+  if(side==="c") S.nc=Math.max(0,S.nc+delta);
+  else S.na=Math.max(0,S.na+delta);
+  S.shakeBoard=false;
+  render();
+}
+function buildFits(){
+  var cat=EL[S.c], ani=EL[S.a];
+  return S.nc>0 && S.na>0 && S.nc*cat.q===S.na*-ani.q && gcd(S.nc,S.na)===1;
+}
+function checkBuild(){
+  if(S.phase!=="build") return;
+  S.tries=S.tries||{};
+  S.tries.board=(S.tries.board||0)+1;
+  var typed=S.nc+":"+S.na;
+  if(buildFits()){
+    logAttempt("build","board",S.c+"/"+S.a,typed,true,"",S.tries.board);
+    S.shakeBoard=false; render();
+    setTimeout(function(){ S.phase="formula"; S.ftext=""; S.ferr=null; S.tip=null;
+      render(); },320);
+    return;
+  }
+  logAttempt("build","board",S.c+"/"+S.a,typed,false,"ratio",S.tries.board);
+  S.misses=(S.misses||0)+1;
+  S.shakeBoard=true; render();
+  setTimeout(function(){ S.shakeBoard=false; render(); },440);
+}
+
+function checkFormula(){
+  var fin=document.getElementById("fin");
+  var got=(fin?fin.textContent:"").replace(/\s+/g,"");
+  S.ftext=got;
+  var want=S.c+(S.nc>1?S.nc:"")+S.a+(S.na>1?S.na:"");
+  var flipped=S.a+(S.na>1?S.na:"")+S.c+(S.nc>1?S.nc:"");
+  S.tries=S.tries||{};
+  S.tries.formula=(S.tries.formula||0)+1;
+
+  var fault="count";
+  S.markNum=true;
+  if(!got){ S.ferr="Type the formula."; fault="blank"; }
+  else if(got===want){ S.phase="done"; S.ferr=null; S.markNum=false; }
+  else if(got.toLowerCase()===want.toLowerCase()){
+    S.ferr="Check the capitals. A symbol starts with a capital letter, and a second letter is always lowercase.";
+    fault="caps";
+  }
+  else if(got.replace(/1(?!\d)/g,"")===want){
+    S.ferr="Drop the 1. When there is only one ion, no number is written.";
+    fault="one";
+  }
+  else if(got===flipped){
+    S.ferr="The metal is always written first.";
+    fault="order";
+  }
+  else
+    S.ferr="Not quite. Count the pieces on each side and write that number after the symbol.";
+  var ok=S.phase==="done";
+  logAttempt("build","formula",S.c+"/"+S.a,got,ok,ok?"":fault,S.tries.formula);
+  if(ok) track("build", (S.misses||0)===0);
+  else S.misses=(S.misses||0)+1;
+  render();
+}
+
+document.addEventListener("input",function(ev){
+  if(ACTIVE!=="build") return;
+  var t=ev.target;
+  if(t.id==="fin"){
+    var off=textOffset(t), txt=t.textContent;
+    S.ftext=txt;
+    t.innerHTML=subDigitsMarked(txt,false);
+    setOffset(t,off);
+    return;
+  }
+  if(t.id==="nC") S.C.n=t.value;
+  else if(t.id==="qC") S.C.q=t.value;
+  else if(t.id==="nA") S.A.n=t.value;
+  else if(t.id==="qA") S.A.q=t.value;
+  if(tut) drawTut();
+});
+
+document.addEventListener("paste",function(ev){
+  if(ev.target.id!=="fin") return;
+  ev.preventDefault();
+  var txt=(ev.clipboardData||window.clipboardData).getData("text").replace(/\s+/g,"");
+  document.execCommand("insertText",false,txt);
+});
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("#check,#next,#fcheck,#bcheck,#tutSkip,#tutNext,#tutReplay,[data-bd],[data-verb],[data-add],[data-remove]");
+  if(!t) return;
+  if(t.id==="tutReplay"){ showSection("build"); tut=true; tutUsed=false; tutIntro=true; newRound(); return; }
+  if(ACTIVE!=="build") return;
+  if(t.id==="tutSkip"){ endTut(); return; }
+  if(t.id==="tutNext"){ tutIntro=false; drawTut(); return; }
+  if(t.dataset.bd==="reveal") buildReveal();
+  else if(t.dataset.bd==="hint"){ S.tip=buildHint(); render(); }
+  else if(t.id==="check") check();
+  else if(t.id==="bcheck") checkBuild();
+  else if(t.id==="fcheck") checkFormula();
+  else if(t.id==="next"){ if(tut) endTut(); newRound(); }
+  else if(t.dataset.verb){
+    sync();
+    var p=t.dataset.verb.split("|");
+    S[p[0]].verb=p[1]; S[p[0]].err=null;
+    render();
+  }
+  else if(t.dataset.add) changeCount(t.dataset.add,1);
+  else if(t.dataset.remove) changeCount(t.dataset.remove,-1);
+});
+
+document.addEventListener("keydown",function(ev){
+  if(ACTIVE!=="build" || ev.key!=="Enter") return;
+  ev.preventDefault();
+  if(tut && tutIntro){ tutIntro=false; drawTut(); return; }
+  if(S.phase==="charge") check();
+  else if(S.phase==="build") checkBuild();
+  else if(S.phase==="formula") checkFormula();
+  else if(S.phase==="done") newRound();
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 5 — POLYATOMIC IONS
+   Level 1 uses fixed-charge main group metals, level 2 uses
+   multivalent metals. Each level runs both directions: a name is
+   turned into a formula on the puzzle board, and a formula is
+   turned back into a name.
+   ═══════════════════════════════════════════════════════════════ */
+var POLY={
+  NO3:{name:"nitrate",   q:-1},
+  OH :{name:"hydroxide", q:-1},
+  SO4:{name:"sulfate",   q:-2},
+  CO3:{name:"carbonate", q:-2},
+  PO4:{name:"phosphate", q:-3}
+};
+
+/* One pool. Main group and transition metals are shuffled together, some
+   forming a single ion and some several, so the table has to be checked
+   every time rather than being implied by which level you are on. */
+var POLYM={ Li:[1], Na:[1], K:[1], Mg:[2], Ca:[2], Sr:[2], Ba:[2], Al:[3],
+            Zn:[2], Ag:[1], Cd:[2], Sc:[3], Y:[3],
+            Fe:[2,3], Co:[2,3], Cr:[2,3], Ni:[2], Cu:[2], Mn:[2] };
+/* carbonates that do not survive in the bottle */
+var NOPE={"Al3-CO3":1,"Cr2-CO3":1,"Cr3-CO3":1,"Fe3-CO3":1,"Co3-CO3":1,
+          "Sc3-CO3":1,"Y3-CO3":1};
+
+var PXPOOL=(function(){
+  var out=[];
+  Object.keys(POLYM).forEach(function(sym){
+    POLYM[sym].forEach(function(q){
+      Object.keys(POLY).forEach(function(p){
+        if(NOPE[sym+q+"-"+p]) return;
+        out.push({m:sym,mn:mName(sym),mq:q,p:p,multi:mMulti(sym)});
+      });
+    });
+  });
+  return out;
+})();
+/* One pool. Fixed-charge and multivalent metals are shuffled together, which
+   is the point: the table has to be checked every time rather than being
+   implied by which section you are in. */
+var PXMANY=PXPOOL.filter(function(x){ return x.multi; });
+var PXONE =PXPOOL.filter(function(x){ return !x.multi; });
+
+function pxCounts(x){
+  var aq=POLY[x.p].q, g=gcd(x.mq,Math.abs(aq));
+  return {nm:Math.abs(aq)/g, na:x.mq/g};
+}
+function pxFormula(x,parens){
+  var k=pxCounts(x);
+  var a = (parens!==false && k.na>1) ? "("+x.p+")"+k.na : x.p+(k.na>1?k.na:"");
+  return x.m+(k.nm>1?k.nm:"")+a;
+}
+function pxFormulaHTML(x){ return subDigits(pxFormula(x)); }
+function pxName(x){
+  return x.mn+(x.multi?"("+ROMAN[x.mq]+")":"")+" "+POLY[x.p].name;
+}
+var POLYNAMES=Object.keys(POLY).map(function(k){return POLY[k].name;});
+/* real ion names beyond the ones in play, so that answering with a
+   different ion is not mistaken for a misspelling */
+var KNOWNIONS=["nitrate","nitrite","sulfate","sulfite","carbonate","bicarbonate",
+  "hydrogen carbonate","phosphate","phosphite","hydroxide","chlorate","chlorite",
+  "perchlorate","hypochlorite","acetate","ammonium","cyanide","permanganate",
+  "chromate","dichromate","peroxide","oxalate","thiosulfate",
+  "oxide","sulfide","chloride","fluoride","bromide","iodide","nitride","phosphide"];
+var METALNAMES=Object.keys(METALS).map(function(s){return METALS[s].n;});
+
+/* edit distance, used only to tell a typo from a different answer */
+function pxLev(a,b){
+  var m=a.length,n=b.length,i,j,prev,tmp,row=[];
+  for(j=0;j<=n;j++) row[j]=j;
+  for(i=1;i<=m;i++){
+    prev=row[0]; row[0]=i;
+    for(j=1;j<=n;j++){
+      tmp=row[j];
+      row[j]=Math.min(row[j]+1, row[j-1]+1,
+        prev + (a.charAt(i-1)===b.charAt(j-1)?0:1));
+      prev=tmp;
+    }
+  }
+  return row[n];
+}
+/* a near miss is only a spelling problem if it isn't some other real name */
+function pxTypo(got,want,pool){
+  if(!got || got===want) return false;
+  if(pool && pool.indexOf(got)>=0) return false;
+  var d=pxLev(got,want);
+  return d>0 && d<=Math.max(2,Math.floor(want.length/4));
+}
+
+function pxNorm(t){
+  return String(t||"").toLowerCase().replace(/\s*\(\s*/g,"(").replace(/\s*\)\s*/g,") ")
+    .replace(/\s+/g," ").trim();
+}
+
+/* ── puzzle pieces that can carry a subscripted label ─────────── */
+function svgLabel(sym,fs){
+  var out="", i, ch, sub=false, d=(fs*0.20).toFixed(1), small=(fs*0.64).toFixed(1);
+  for(i=0;i<sym.length;i++){
+    ch=sym.charAt(i);
+    if(/\d/.test(ch)){
+      out += sub ? '<tspan font-size="'+small+'">'+ch+'</tspan>'
+                 : '<tspan dy="'+d+'" font-size="'+small+'">'+ch+'</tspan>';
+      sub=true;
+    } else {
+      out += sub ? '<tspan dy="-'+d+'">'+ch+'</tspan>' : ch;
+      sub=false;
+    }
+  }
+  return {html:out, sub:sub, back:d};
+}
+function pxPiece(label,q,x,y,removable){
+  var n=Math.abs(q), up=q>0, h=n*U;
+  var fill=up?"var(--posFill)":"var(--negFill)", edge=up?"var(--posEdge)":"var(--negEdge)";
+  var ink=up?"var(--posInk)":"var(--negInk)", tx=PW/2+R/4;
+  var fs = label.length<=2 ? 38 : label.length<=4 ? 30 : 24;
+  var L=svgLabel(label,fs);
+  var chDy = (L.sub ? (-14 - parseFloat(L.back)) : -14).toFixed(1);
+  return '<g class="piece" transform="translate('+x+','+y+')"'+
+    (removable?' data-pxremove="'+removable+'"':'')+'>'+
+    '<path d="'+(up?tabPath(n):slotPath(n))+'" fill="'+fill+'" stroke="'+edge+
+      '" stroke-width="3" stroke-linejoin="round"/>'+
+    '<text x="'+tx+'" y="'+(h/2+4)+'" text-anchor="middle" dominant-baseline="central" '+
+      'fill="'+ink+'" style="font:700 '+fs+'px var(--mono)">'+L.html+
+      '<tspan dy="'+chDy+'" style="font-size:'+Math.round(fs*0.58)+'px">'+
+      chargeText(q)+'</tspan></text></g>';
+}
+
+/* ── shared state ────────────────────────────────────────────── */
+var PX={mode:"f2n"};
+
+/* ── name → formula (the puzzle, simplified) ─────────────────── */
+var PN={x:null,last:null,phase:"entry",sym:["",""],chg:["",""],
+        nc:0,na:0,ftext:"",bad:{},hint:null,ferr:null,
+        done:0,clean:0,misses:0,prevGap:26,simple:0};
+
+function pnParts(){
+  var x=PN.x;
+  return [{lab:x.mn+(x.multi?"("+ROMAN[x.mq]+")":""), sym:x.m, q:x.mq},
+          {lab:POLY[x.p].name, sym:x.p, q:POLY[x.p].q}];
+}
+
+/* 0 is a 1:1 ratio, 1 is 1:2, 2 is everything harder. Once the
+   simple ones are coming out clean, the harder ratios come up more. */
+function pnTier(x){
+  var k=pxCounts(x), hi=Math.max(k.nm,k.na), lo=Math.min(k.nm,k.na);
+  if(hi===1) return 0;
+  if(lo===1 && hi===2) return 1;
+  return 2;
+}
+/* weighted by ratio difficulty, and never three of the same kind in a row */
+function pxKey(x){ return x.m+"|"+x.p+"|"+x.mq; }
+
+function pxPick(pool, st){
+  var earned=st.simple||0;
+  var wt = earned<3 ? [2,3,2] : earned<6 ? [1,3,4] : [1,2,6];
+  var run=st.run||{t:-1,n:0};
+  /* every compound already served in this section, so a long set of rounds
+     works through the pool instead of circling back over a handful */
+  var used = st.used || (st.used={});
+  function bagUp(blockTier, skipUsed){
+    var bag=[];
+    pool.forEach(function(x){
+      var t=pnTier(x);
+      if(t===blockTier) return;
+      if(skipUsed && used[pxKey(x)]) return;
+      if(st.last && x.m===st.last.m && x.p===st.last.p && x.mq===st.last.mq) return;
+      var n=wt[t], i;
+      for(i=0;i<n;i++) bag.push(x);
+    });
+    return bag;
+  }
+  /* tier variety first, then anything unseen; only once the whole pool has
+     been served does it start over */
+  var bag = bagUp(run.n>=2 ? run.t : -1, true);
+  if(!bag.length) bag = bagUp(-1, true);
+  if(!bag.length){                       /* pool exhausted — begin a new pass */
+    st.used = used = {};
+    bag = bagUp(run.n>=2 ? run.t : -1, true);
+    if(!bag.length) bag = bagUp(-1, true);
+  }
+  if(!bag.length) bag = pool;
+  var pick=bag[Math.floor(Math.random()*bag.length)], pt=pnTier(pick);
+  used[pxKey(pick)]=1;
+  st.run = (run.t===pt) ? {t:pt,n:run.n+1} : {t:pt,n:1};
+  st.last=pick;
+  return pick;
+}
+function pxHalf(st){ return PXPOOL; }
+function pnPick(){ return pxPick(pxHalf(PN), PN); }
+
+function pnNew(){
+  PN.x=pnPick();
+  /* no "does it form more than one ion?" gate here — the name on screen
+     already answers it, numeral or no numeral */
+  PN.phase="entry"; PN.slot=0; PN.shown=false; PN.tip=null; PN.sym=["",""]; PN.chg=["",""];
+  PN.nc=0; PN.na=0; PN.ftext=""; PN.bad={}; PN.hint=null; PN.ferr=null; PN.markNum=false;
+  PN.misses=0; PN.prevGap=26; PN.tries={};
+  pxRender();
+}
+function pnSync(){
+  var f,i;
+  for(i=0;i<2;i++){
+    if((f=document.getElementById("pnS"+i))) PN.sym[i]=f.textContent;
+    if((f=document.getElementById("pnC"+i))) PN.chg[i]=f.value;
+  }
+  if((f=document.getElementById("pnin"))) PN.ftext=f.textContent;
+}
+
+/* One ion at a time. `PN.slot` says which column is being worked on: the
+   one before it is settled and shows its answer, the one after it waits.
+   Checking one ion at a time means a wrong answer is only ever about the
+   ion in front of them. */
+function pnCol(i){
+  var pt=pnParts()[i];
+  var live = i===PN.slot;
+  var done = i<PN.slot;
+  var tone = pt.q>0 ? "p" : "n";
+
+  var ask = live
+    ? (i===0
+        ? (PN.x.multi
+           ? "Type the symbol for <b>"+PN.x.mn+"</b> and the charge on the <b>"+
+             pt.lab+"</b> ion."
+           : "Type the symbol for <b>"+PN.x.mn+"</b> and the charge of the ion it makes.")
+        : "Type the formula for the <b>"+pt.lab+"</b> ion and its charge.")
+    : "&nbsp;";
+
+  var body;
+  if(done)
+    body='<div class="val">'+subDigits(pt.sym)+
+         '<sup class="qsup '+(pt.q>0?"pp":"nn")+'">'+chargeText(pt.q)+'</sup></div>';
+  else if(live)
+    body='<div class="symfield'+(PN.bad["s"+i]?" bad":"")+'" id="pnS'+i+
+      '" contenteditable="true" spellcheck="false" role="textbox" '+
+      'data-ph="'+(i===0?"symbol":"formula")+'" '+
+      'aria-label="Symbol of the '+pt.lab+' ion">'+subDigits(PN.sym[i])+'</div>'+
+      '<input class="qfield'+(PN.bad["c"+i]?" bad":"")+'" id="pnC'+i+
+      '" value="'+esc(PN.chg[i])+'" placeholder="charge" autocomplete="off" '+
+      'spellcheck="false" aria-label="Charge on the '+pt.lab+' ion">';
+  else
+    body='<div class="val"><span style="opacity:.25">?</span></div>';
+
+  /* only what has not been reached yet is dimmed — an ion already settled
+     stays readable, because they need it to work out the next one */
+  return '<div class="ioncol'+(live?" live":"")+(done?" "+tone:"")+
+      (!live && !done ? " dim" : "")+'">'+
+    '<p class="cap">'+pt.lab+'</p>'+
+    '<p class="ask">'+ask+'</p>'+
+    '<div class="ionentry">'+body+'</div>'+
+  '</div>';
+}
+
+function pnRecap(){
+  var pt=pnParts();
+  return '<div class="ionrecap">'+pt.map(function(o){
+    return '<div><p class="cap">'+o.lab+'</p>'+
+      '<div class="rval '+(o.q>0?"p":"n")+'">'+subDigits(o.sym)+
+      '<sup>'+chargeText(o.q)+'</sup></div></div>';
+  }).join("")+'</div>';
+}
+
+/* ── the tab-and-slot board, shared by both name → formula activities ──
+   `st` supplies nc / na / phase / shakeBoard and `tag` is the data-
+   attribute its Check button answers to. Nothing here knows or cares
+   whether the second ion is a single element or a polyatomic one. */
+function boardSVG(st,pt,tag){
+  var cat=pt[0], ani=pt[1];
+  var pos=st.nc*cat.q, neg=st.na*-ani.q;
+  var built=st.phase==="formula"||st.phase==="done";
+  var units=Math.max(4,pos,neg), vh=units*U+50, i, grid="";
+  for(i=0;i<=units;i++)
+    grid+='<line x1="16" x2="'+(VW-16)+'" y1="'+(25+i*U)+'" y2="'+(25+i*U)+
+      '" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5" opacity=".5"/>';
+  var cs="",as="";
+  for(i=0;i<st.nc;i++) cs+=pxPiece(cat.sym,cat.q,SEAM-PW,25+i*cat.q*U,built?null:"c");
+  for(i=0;i<st.na;i++) as+=pxPiece(ani.sym,ani.q,SEAM,25+i*-ani.q*U,built?null:"a");
+  return '<div class="board'+(built?" solved":"")+(st.shakeBoard?" shake":"")+'">'+
+    '<svg width="'+VW+'" height="'+vh+'" viewBox="0 0 '+VW+' '+vh+'">'+grid+
+    '<line x1="'+SEAM+'" x2="'+SEAM+'" y1="16" y2="'+(vh-16)+
+      '" stroke="var(--line)" stroke-width="1"/>'+
+    '<g>'+cs+'</g><g id="'+tag+'Stack">'+as+'</g></svg></div>';
+}
+function boardSteppers(st,pt,tag){
+  var cat=pt[0], ani=pt[1];
+  var net=st.nc*cat.q - st.na*-ani.q;
+  var reduced=st.nc>0&&st.na>0&&net===0&&gcd(st.nc,st.na)===1;
+  var h='<div class="steppers">'+
+    pxStepper("c",cat.sym,st.nc)+pxStepper("a",ani.sym,st.na)+'</div>';
+  var cls="", txt;
+  if(st.nc+st.na===0) txt="Add ions until the two sides fit together.";
+  else if(net>0) txt=plural(net,"tab")+" on the left "+(net===1?"has":"have")+
+    ' nothing to connect to. Add another <b class="mono">'+subDigits(ani.sym)+'</b>.';
+  else if(net<0) txt=plural(-net,"slot")+" on the right "+(-net===1?"is":"are")+
+    ' still empty. Add another <b class="mono">'+cat.sym+'</b>.';
+  else if(!reduced){
+    var g=gcd(st.nc,st.na); cls=" note";
+    txt="The charges balance, but that is the same pair built "+g+
+        " times over. A formula uses the smallest set that works — take "+
+        (g-1)+" of each back off.";
+  } else { cls=" good"; txt="Every tab is filled."; }
+  return h+'<p class="status'+cls+'">'+txt+'</p>'+
+    actionBlock('<button data-'+tag+'="build">Check</button>', tag)+hintBox(st.tip);
+}
+function boardFits(st,pt){
+  return st.nc>0 && st.na>0 && st.nc*pt[0].q===st.na*-pt[1].q && gcd(st.nc,st.na)===1;
+}
+function boardCount(st,side,delta,draw){
+  if(st.phase!=="build") return;
+  if(side==="c") st.nc=Math.max(0,st.nc+delta); else st.na=Math.max(0,st.na+delta);
+  st.shakeBoard=false; draw();
+}
+function boardCheck(st,pt,draw,onFit,act){
+  if(st.phase!=="build") return;
+  st.tries=st.tries||{};
+  st.tries.board=(st.tries.board||0)+1;
+  var typed=st.nc+":"+st.na, prompt=pt[0].sym+"/"+pt[1].sym, fits=boardFits(st,pt);
+  if(act) logAttempt(act,"board",prompt,typed,fits,fits?"":"ratio",st.tries.board);
+  if(fits){ st.shakeBoard=false; draw(); setTimeout(onFit,320); return; }
+  st.shakeBoard=true; draw();
+  setTimeout(function(){ st.shakeBoard=false; draw(); },440);
+}
+/* the stack of anions slides in to meet the cations once they balance */
+function boardSlide(st,pt,tag){
+  var stack=document.getElementById(tag+"Stack");
+  if(!stack) return;
+  var gap=(st.nc>0&&st.na>0&&(st.nc*pt[0].q-st.na*-pt[1].q)===0)?0:26;
+  stack.style.transform="translate("+st.prevGap+"px,0)";
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    stack.style.transform="translate("+gap+"px,0)";
+  });});
+  st.prevGap=gap;
+}
+
+function pnBoardSVG(){ return boardSVG(PN,pnParts(),"pn"); }
+
+function pnSide(){
+  if(PN.phase==="formula")
+    return '<div class="fbox"><p class="lbl">It fits. Now write the formula.</p>'+
+      '<div class="finput'+(PN.markNum?" marknum":"")+'" id="pnin" '+
+        'contenteditable="true" spellcheck="false" '+
+        'role="textbox" aria-label="Chemical formula">'+
+        subDigitsMarked(PN.ftext,true)+'</div>'+
+      (PN.ferr?'<p class="ferr">'+PN.ferr+'</p>':'')+'</div>'+
+      actionBlock('<button data-pn="formula">Check formula</button>',"pn")+hintBox(PN.tip);
+
+  if(PN.phase==="done"){
+    var x=PN.x;
+    return PN.shown
+      ? revealBox(pxFormulaHTML(x), pnWhy(x))+
+        '<div class="showrow"><button data-pn="next">New name</button></div>'
+      : '<div class="win"><div class="f">'+pxFormulaHTML(x)+'</div>'+
+        '<div class="c">'+pxName(x)+'</div>'+
+        '<div style="height:10px"></div>'+
+        '<button data-pn="next">New name</button></div>';
+  }
+
+  return boardSteppers(PN,pnParts(),"pn");
+}
+function pxStepper(side,sym,n){
+  return '<div class="step">'+
+    '<button data-pxremove="'+side+'" aria-label="Remove one"'+(n?"":" disabled")+'>−</button>'+
+    '<span>'+n+' × <b>'+subDigits(sym)+'</b></span>'+
+    '<button data-pxadd="'+side+'" aria-label="Add one">+</button></div>';
+}
+
+function pnBody(){
+  var x=PN.x, ph=PN.phase;
+  var h='<div class="subject'+(ph==="done"?" solved":"")+'">'+
+        '<div class="bigname">'+pxName(x)+'</div>'+
+        (ph==="entry"?"":pnRecap())+'</div>';
+
+  if(ph==="entry"){
+    h+='<p class="correction'+(PN.hint?"":" blank")+'">'+(PN.hint||"&nbsp;")+'</p>'+
+       '<div class="ionpair">'+pnCol(0)+pnCol(1)+'</div>'+
+       actionBlock('<button data-pn="entry">Check</button>',"pn")+hintBox(PN.tip);
+    return h;
+  }
+
+  h+='<p class="nflead">How many of each ion is needed to balance out?</p>'+
+     '<div class="buildrow">'+pnBoardSVG()+
+     '<div class="buildside">'+pnSide()+'</div></div>'+
+     "";
+  return h;
+}
+
+function pnCheck(what){
+  pnSync();
+  var x=PN.x, pt=pnParts();
+  PN.bad={}; PN.hint=null; PN.ferr=null;
+  PN.tries=PN.tries||{};
+
+  if(what==="entry"){
+    var i=PN.slot, ok=true, okS=true, okQ=true;
+    PN.tries["entry"+i]=(PN.tries["entry"+i]||0)+1;
+    var got=(PN.sym[i]||"").replace(/\s+/g,"");
+    if(got!==pt[i].sym){
+      PN.bad["s"+i]=true; ok=false; okS=false;
+      if(got.toLowerCase()===pt[i].sym.toLowerCase())
+        PN.hint="Check the capitals. A symbol starts with a capital letter, and any letter after it is lowercase.";
+    }
+    var sheet="Check your ion sheet for the formula and charge of the <b>"+
+              pt[1].lab+"</b> ion.";
+    if(i===1 && PN.bad.s1 && !PN.hint) PN.hint=sheet;
+    var r=parseCharge(PN.chg[i]);
+    if(r.err){
+      PN.bad["c"+i]=true; ok=false; okQ=false;
+      if(!PN.hint) PN.hint = r.noSign
+        ? "Is the <b>"+pt[i].lab+"</b> ion positive or negative?" : r.err;
+    } else if(r.q!==pt[i].q){
+      PN.bad["c"+i]=true; ok=false; okQ=false;
+      if(!PN.hint) PN.hint = i===0
+        ? (x.multi ? "The Roman numeral in the name is the charge."
+           : mRuleGroup(x.m) ? "Check which group <b>"+x.mn+"</b> is in."
+           : "Check your periodic table for the charge on the <b>"+x.mn+"</b> ion.")
+        : sheet;
+    }
+    var entryFault = !okS && !okQ ? "both" : !okS ? "symbol" : "charge";
+    logAttempt("poly_n2f","entry",pt[i].lab,got+" "+(PN.chg[i]||""),ok,ok?"":entryFault,
+      PN.tries["entry"+i], detailStr([{l:"symbol",k:okS},{l:"charge",k:okQ}]));
+    if(!ok){ PN.misses++; pxRender(); return; }
+    /* that ion is settled — move to the next one, or on to the board */
+    PN.slot++; PN.tip=null;
+    if(PN.slot>1) PN.phase="build";
+    pxRender(); return;
+  }
+
+  var got2=(PN.ftext||"").replace(/\s+/g,"");
+  PN.tries.formula=(PN.tries.formula||0)+1;
+  if(got2===pxFormula(x)){
+    PN.markNum=false;
+    PN.phase="done"; PN.done++;
+    if(!PN.misses){ PN.clean++; if(pnTier(x)<2) PN.simple++; }
+    track("poly_n2f", PN.misses===0);
+    logAttempt("poly_n2f","formula",pxFormula(x),got2,true,"",PN.tries.formula);
+    pxRender(); return;
+  }
+  var fault=pnFormulaFault(got2,x);
+  PN.ferr=fault.msg;
+  PN.markNum=fault.ring;
+  PN.misses++;
+  logAttempt("poly_n2f","formula",pxFormula(x),got2,false,fault.code,PN.tries.formula);
+  pxRender();
+}
+
+/* what went wrong with a typed formula, parentheses first */
+/* Sorts a wrong formula into the one thing that actually went wrong. Each
+   answer carries `ring`: true only when the ion COUNTS are the fault, so a
+   formula whose counts are right but whose parentheses are missing does not
+   get a red box drawn round a digit that is perfectly correct. */
+function pnFormulaFault(got,x){
+  var k=pxCounts(x), want=pxFormula(x), bare=pxFormula(x,false);
+  var poly=x.p, m=x.m;
+  var shapeFault=function(t,code){ return {msg:t, ring:false, code:code||"parens"}; };
+  var countFault=function(t,code){ return {msg:t, ring:true, code:code||"count"}; };
+  if(!got) return shapeFault("Type the formula.","other");
+
+  var round=got.replace(/[\[{]/g,"(").replace(/[\]}]/g,")");
+  if(round!==got && round===want)
+    return shapeFault("Use round parentheses ( ), not square or curly brackets.");
+
+  var opens=(got.match(/\(/g)||[]).length, closes=(got.match(/\)/g)||[]).length;
+  if(opens!==closes)
+    return shapeFault("Your parentheses do not match up — there "+(opens===1?"is ":"are ")+opens+
+           (opens===1?" opening parenthesis":" opening parentheses")+" and "+closes+
+           (closes===1?" closing parenthesis":" closing parentheses")+".");
+
+  if(got.indexOf("("+m+")")>=0)
+    return shapeFault("Parentheses go around a polyatomic ion, never around a single element's symbol.");
+
+  if(k.na>1 && got.indexOf("("+poly+k.na+")")>=0)
+    return shapeFault("The number goes outside the parentheses, just after the closing parenthesis.");
+
+  var stripped=got.replace(/[()]/g,"");
+  if(opens>0 && k.na===1 &&
+     (stripped===want || stripped.replace(/1(?!\d)/g,"")===want))
+    return shapeFault("A polyatomic ion only takes parentheses when the formula needs more than one of it. "+
+           "With just one, write it plain.");
+
+  if(opens===0 && k.na>1 && got===bare)
+    return shapeFault("When a formula needs more than one of a polyatomic ion, the ion goes in "+
+           "parentheses and the number sits outside them.");
+
+  if(k.na>1 && got===want.replace(/\)\d+$/,")"))
+    return shapeFault("The number of polyatomic ions is missing. It goes just after the closing parenthesis.");
+
+  /* right shape, wrong count */
+  var shape=new RegExp("^"+m+"(\\d*)\\("+poly+"\\)(\\d+)$");
+  var mm=got.match(shape);
+  if(mm){
+    var gotM=mm[1]===""?1:+mm[1], gotA=+mm[2];
+    if(gotA!==k.na || gotM!==k.nm)
+      return countFault("The shape is right, but the numbers are not. Count the pieces on the board again.");
+  }
+
+  if(got.toLowerCase()===want.toLowerCase())
+    return shapeFault("Check the capitals. A symbol starts with a capital letter, and any letter after it is lowercase.","caps");
+  if(got.replace(/1(?!\d)/g,"")===want)
+    return countFault("Drop the 1. When there is only one ion, no number is written.","one");
+  return countFault("Not quite. Count the pieces on each side and write that number after the ion.");
+}
+
+/* the + / − buttons are the same markup in both activities, so they go to
+   whichever board is on screen */
+function pxAddRemove(side,delta){
+  if(onN2F()) boardCount(NF,side,delta,nfRender);
+  else boardCount(PN,side,delta,pxRender);
+}
+function pnCheckBuild(){
+  boardCheck(PN,pnParts(),pxRender,function(){
+    PN.phase="formula"; PN.ftext=""; PN.ferr=null; PN.tip=null; pxRender();
+  },"poly_n2f");
+}
+
+/* ── formula → name ─────────────────────────────────────────────
+   The two ion boxes are filled in place, one at a time, and only the
+   box being worked on is lit. A wrong Roman numeral at the end rings
+   the metal ion's charge so they can compare the two.
+   ─────────────────────────────────────────────────────────────── */
+var PF={x:null,last:null,run:null,step:1,f:{},bad:{},hint:null,ring:false,
+        done:0,clean:0,misses:0,solved:false,simple:0};
+
+function pfNew(){
+  PF.x=pxPick(pxHalf(PF), PF);
+  PF.step=1; PF.f={sym:"",chg:"",cnt:"",mcnt:"",mchg:"",txt:""};
+  PF.bad={}; PF.hint=null; PF.ring=false; PF.misses=0; PF.solved=false;
+  PF.shown=false; PF.tip=null; PF.tries={};
+  pxRender();
+}
+function pfSync(){
+  var f;
+  if((f=document.getElementById("pfSym")))  PF.f.sym=f.textContent;
+  if((f=document.getElementById("pfQ")))    PF.f[pfStep().k==="mchg"?"mchg":"chg"]=f.value;
+  if((f=document.getElementById("pfN")))    PF.f[pfStep().k==="mcount"?"mcnt":"cnt"]=f.value;
+  if((f=document.getElementById("pfIn")))   PF.f.txt=f.value;
+}
+
+function pfSteps(){
+  var x=PF.x, p=POLY[x.p], k=pxCounts(x), tot=k.na*p.q;
+  var s=[];
+  s.push({k:"gate", col:null,
+      q:'Does <b class="mono">'+x.m+'</b> form more than one ion?'});
+  if(x.multi){
+    /* the charge is not on the table as a single value, so the first thing to
+       do is read off every charge this metal is listed with */
+    s.push({k:"charges", col:null, ans:metalCharges(x.m),
+            q:chargeListAsk(x.mn)});
+    s.push(
+      /* formula and charge together — pulling the ion out of the compound
+         means naming both, so both are typed in one step */
+      {k:"ionentry", col:"a",
+       q:'What is the formula of the <b>polyatomic ion</b> in this compound, and its charge?'},
+      {k:"name", col:null, hi:"a", ans:p.name,
+       q:'What is the name of the <b class="mono">'+subDigits(x.p)+
+         '<sup>'+chargeText(p.q)+'</sup></b> ion?'},
+      {k:"pcount", col:"a", q:countAsk(p.name), ans:k.na},
+      {k:"total", col:null, hi:"a",
+       q:'What is the <u style="color:var(--note)">total</u> negative charge?', ans:tot},
+      {k:"mcount", col:"m", q:countAsk(x.mn), ans:k.nm},
+      {k:"mchg", col:"m", ans:x.mq,
+       q:balanceAsk(x.mn, k.nm, p.name, k.na, tot)});
+  } else {
+    /* one charge: nothing to work out, but the ion still has to be recognised,
+       so it is named without any mention of charge */
+    s.push({k:"pname", col:null, hi:"a", ans:p.name,
+            q:'What is the name of the <b class="mono">'+subDigits(x.p)+'</b> ion?'});
+  }
+  s.push({k:"cname", col:null, q:'Now write the name of the <b>whole compound</b>.',
+          ans:pxName(x)});
+  return s;
+}
+function pfStep(){ return pfSteps()[PF.step-1] || {k:"",col:null}; }
+function pfKnown(){
+  var steps=pfSteps(), i, seen={}, n=PF.solved?steps.length:PF.step-1;
+  for(i=0;i<n;i++) seen[steps[i].k]=true;
+  return seen;
+}
+
+function pfCol(side){
+  var x=PF.x, p=POLY[x.p], k=pxCounts(x), kn=pfKnown(), st=pfStep();
+  var metal = side==="m";
+  /* `col` says which column holds the answer box, `hi` says which column to
+     look at when the answer is typed below — so a question about the anion
+     keeps the eye on the anion even though nothing is typed into it */
+  var focus = st.col || st.hi;
+  var live  = !PF.solved && focus===side;
+  var cap   = metal ? x.mn : ((kn.name||kn.pname) ? p.name : "polyatomic ion");
+  /* with one charge there is nothing to deduce, so both ions are simply shown
+     from the start — and the anion never carries a charge on this path */
+  var plain = !x.multi;
+  var tone  = metal ? "p" : "n";
+
+  /* symbol */
+  var symHTML;
+  if(!metal && st.k==="ionentry")
+    symHTML='<div class="symfield'+(PF.bad.sym?" bad":"")+'" id="pfSym" '+
+      'contenteditable="true" spellcheck="false" role="textbox" data-ph="formula" '+
+      'aria-label="Polyatomic ion formula">'+subDigits(PF.f.sym)+'</div>';
+  else if(metal || kn.ionentry || plain)
+    symHTML='<div class="val">'+(metal?x.m:subDigits(x.p))+'</div>';
+  else
+    symHTML='<div class="val"><span style="opacity:.25">?</span></div>';
+
+  /* charge */
+  var q = plain ? null
+        : metal ? (kn.mchg ? x.mq : null) : (kn.ionentry ? p.q : null);
+  var chgHTML="";
+  if(!metal && st.k==="ionentry")
+    chgHTML='<input class="qfield'+(PF.bad.chg?" bad":"")+'" id="pfQ" value="'+
+      esc(PF.f.chg)+'" placeholder="charge" autocomplete="off" spellcheck="false" '+
+      'aria-label="Charge on the ion">';
+  else if(metal && st.k==="mchg")
+    chgHTML='<input class="qfield'+(PF.bad.mchg?" bad":"")+'" id="pfQ" value="'+
+      esc(PF.f.mchg)+'" placeholder="charge" autocomplete="off" spellcheck="false" '+
+      'aria-label="Charge on the metal ion">';
+  else if(q!==null)
+    chgHTML='<sup class="qsup '+(q>0?"pp":"nn")+(metal&&PF.ring?" ring":"")+'">'+
+      chargeText(q)+'</sup>';
+
+  /* how many */
+  var n = plain ? null
+        : metal ? (kn.mcount ? k.nm : null) : (kn.pcount ? k.na : null);
+  var cntHTML;
+  if((!metal && st.k==="pcount") || (metal && st.k==="mcount"))
+    cntHTML='× <input class="blank cnt'+(PF.bad.cnt?" bad":"")+'" id="pfN" value="'+
+      esc(metal?PF.f.mcnt:PF.f.cnt)+'" inputmode="numeric" autocomplete="off" '+
+      'aria-label="How many ions">';
+  else if(plain) cntHTML="";
+  else cntHTML = n===null ? '<span style="opacity:.3">× ?</span>' : '× '+n;
+
+  var cls = "ioncol"+(live?" live":"")+((metal||kn.ionentry||plain)?" "+tone:"")+
+            (!live && !PF.solved && focus ? " dim" : "");
+  return '<div class="'+cls+'">'+
+    '<p class="cap">'+cap+'</p>'+
+    '<div class="ionentry">'+symHTML+chgHTML+'</div>'+
+    '<div class="mult">'+cntHTML+'</div>'+
+  '</div>';
+}
+
+function pfBody(){
+  var x=PF.x, st=pfStep(), kn=pfKnown(), k=pxCounts(x), p=POLY[x.p];
+
+  var h='<div class="subject'+(PF.solved?" solved":"")+'">'+
+        '<div class="big">'+pxFormulaHTML(x)+'</div></div>';
+
+  if(!PF.solved)
+    h+='<p class="nflead">'+st.q+'</p>'+
+       (PF.hint?'<p class="correction">'+PF.hint+'</p>':'');
+
+  if(st.k==="gate" && !PF.solved)
+    return h+actionBlock('<button data-pf="gy">Yes</button>'+
+             '<button data-pf="gn">No</button>',"pf")+hintBox(PF.tip);
+
+  h+='<div class="ionpair">'+pfCol("m")+pfCol("a")+'</div>';
+
+  if(!PF.solved){
+    h+='<div class="pfrow">';
+    if(!st.col){
+      var wide = st.k==="name"||st.k==="pname"||st.k==="cname"||st.k==="charges";
+      var ph = st.k==="name" ? "name of the "+x.p+chargeText(POLY[x.p].q)+" ion"
+             : st.k==="pname" ? "name of the "+x.p+" ion"
+             : st.k==="charges" ? "for example  +1, +2"
+             : st.k==="cname" ? "name of the compound" : "";
+      h+='<input class="blank '+(wide?"wordin":"chg")+(PF.bad.txt?" bad":"")+
+         '" id="pfIn" value="'+esc(PF.f.txt)+'" autocomplete="off" spellcheck="false" '+
+         (ph?'placeholder="'+ph+'" ':'')+'aria-label="Answer">';
+    }
+    h+='</div>'+actionBlock('<button data-pf="go">Check</button>',"pf")+hintBox(PF.tip);
+  } else if(PF.shown){
+    h+=revealBox(pxName(x), pfWhy(x))+
+       '<div class="showrow"><button data-pf="next">New formula</button></div>';
+  } else {
+    h+='<div class="win slim"><div class="fname">'+pxName(x)+'</div>'+
+       '<div style="height:10px"></div>'+
+       '<button data-pf="next">New formula</button></div>';
+  }
+  return h;
+}
+
+/* \u2500\u2500 Polyatomic, formula \u2192 name \u2500\u2500 */
+function pfWhy(x){
+  var p=POLY[x.p], k=pxCounts(x), tot=k.na*p.q, out=[];
+  if(!x.multi)
+    return [
+      'The <b class="mono">'+subDigits(x.p)+"</b> in the formula is the <b>"+p.name+
+        '</b> ion \u2014 that name is on your ion sheet.',
+      onlyMakes(x.m, x.mq)+" A metal like that takes no Roman numeral.",
+      "So the name is <b>"+pxName(x)+"</b>. A polyatomic ion keeps its own name \u2014 "+
+        "it never takes an <i>-ide</i> ending."
+    ];
+  out.push('The <b class="mono">'+subDigits(x.p)+"</b> in the formula is the <b>"+
+    p.name+'</b> ion, <b class="mono">'+subDigits(x.p)+chargeSup(p.q)+"</b>.");
+  out.push("There "+(k.na===1?"is <b>1</b> of them":"are <b>"+k.na+"</b> of them")+
+    ", so the negative charge adds up to <b>"+totText(tot)+"</b>.");
+  if(x.multi){
+    out.push(k.nm===1
+      ? "The one "+x.mn+" ion has to be <b>"+chargeText(x.mq)+
+        "</b> so the whole formula adds up to zero."
+      : "The <b>"+k.nm+"</b> "+x.mn+" ions share it out, so each is <b>"+
+        chargeText(x.mq)+"</b>.");
+    out.push(cap(x.mn)+" is listed on your periodic table as <b>"+
+      chargeListText(metalCharges(x.m))+"</b>, so the name says which one it is here: "+
+      "<b>"+x.mn+"("+ROMAN[x.mq]+")</b>.");
+  } else {
+    out.push(cap(x.mn)+" forms only one ion, so the name takes no Roman numeral.");
+  }
+  out.push("So the name is <b>"+pxName(x)+"</b>. A polyatomic ion keeps its own "+
+    "name \u2014 it never takes an <i>-ide</i> ending.");
+  return out;
+}
+function pfReveal(){
+  if(PF.solved) return;
+  PF.shown=true; PF.misses++; PF.solved=true; PF.done++;
+  track("poly_f2n", false);
+  pxRender();
+}
+
+/* \u2500\u2500 Polyatomic, name \u2192 formula \u2500\u2500 */
+function pnWhy(x){
+  var p=POLY[x.p], k=pxCounts(x), out=[];
+  out.push(x.multi
+    ? 'The <b>('+ROMAN[x.mq]+")</b> in the name is the charge, so the metal ion is "+
+      '<b class="mono">'+x.m+chargeSup(x.mq)+"</b>."
+    : onlyMakes(x.m, x.mq));
+  out.push(cap(p.name)+' is <b class="mono">'+subDigits(x.p)+chargeSup(p.q)+"</b>.");
+  out.push(whyRatio(x.m,x.mq,k.nm,subDigits(x.p),p.q,k.na));
+  out.push(k.na>1
+    ? cap(p.name)+" is a polyatomic ion and there is more than one of it, so it goes "+
+      "in parentheses with the <b>"+k.na+"</b> outside: <b class=\"mono\">"+
+      pxFormulaHTML(x)+"</b>."
+    : "There is only one "+p.name+", so it needs no parentheses: "+
+      '<b class="mono">'+pxFormulaHTML(x)+"</b>.");
+  return out;
+}
+function pnReveal(){
+  if(PN.phase==="done") return;
+  var k=pxCounts(PN.x);
+  PN.shown=true; PN.misses++;
+  PN.nc=k.nm; PN.na=k.na; PN.phase="done"; PN.done++;
+  track("poly_n2f", false);
+  pxRender();
+}
+
+/* the compound name: separates a missing Roman numeral, a wrong one,
+   a different real ion, and a plain misspelling. `sym` is the metal's
+   symbol, which is all it takes to know whether a numeral belongs there. */
+/* the element's own name against the name its ion takes, so "barium
+   fluorine" can be told apart from a plain misspelling */
+var IDEFIX=(function(){
+  var m={};
+  MAIN.forEach(function(e){
+    if(e.q<0) m[e.n.toLowerCase()] = e.ion.replace(/ ion$/,"");
+  });
+  Object.keys(ANION).forEach(function(k){ m[ANION[k].el] = ANION[k].name; });
+  return m;
+})();
+/* returns the nudge if any word is an element name standing in for its ion */
+function ideSlip(text){
+  var hit=null;
+  pxNorm(text).replace(/\([^)]*\)/g," ").split(/\s+/).forEach(function(word){
+    if(IDEFIX[word]) hit=word;
+  });
+  return hit ? "That is the element's name. A negative ion takes an <i>-ide</i> "+
+    "ending — <b>"+hit+"</b> becomes <b>"+IDEFIX[hit]+"</b>." : null;
+}
+
+/* `code` sorts each miss into one of the fault words the dashboard already
+   knows (roman / ion / metal / other) so the Answers view can group these
+   the same way it groups every other fault. */
+function nameCheck(raw, want, sym){
+  var multi=mMulti(sym), mn=mName(sym);
+  var g=pxNorm(raw), w=pxNorm(want);
+  var no=function(hint,ring,code){ return {ok:false,hint:hint||null,ring:!!ring,code:code||"other"}; };
+  if(g===w) return {ok:true,hint:null,ring:false,code:""};
+  if(!g) return no("Type the name of the compound.",false,"other");
+  var slip=ideSlip(g);
+  if(slip) return no(slip,false,"ion");
+
+  var strip=function(t){ return t.replace(/\([^)]*\)/g,"").replace(/\s+/g," ").trim(); };
+  var gp=strip(g), wp=strip(w);
+  var gm=g.match(/\(([^)]*)\)/), wm=w.match(/\(([^)]*)\)/);
+
+  if(multi && gp===wp){
+    if(!gm)
+      return no(cap(mn)+" forms more than one ion, so the name has to say which one — "+
+        "put the Roman numeral in parentheses straight after the metal.", true, "roman");
+    if(wm && gm[1]!==wm[1])
+      return no("Check the Roman numeral against the charge on the "+mn+" ion.", true, "roman");
+  }
+  if(!multi && gm)
+    return no(mWhyOne(sym)+" Its name takes no Roman numeral.",false,"roman");
+
+  var gw=gp.split(" "), ww=wp.split(" ");
+  var gLast=gw[gw.length-1], wLast=ww[ww.length-1];
+  var gFirst=gw.slice(0,-1).join(" "), wFirst=ww.slice(0,-1).join(" ");
+  if(gLast!==wLast && KNOWNIONS.indexOf(gLast)>=0)
+    return no("That is a real ion, but not the one in this formula.",false,"ion");
+  if(gLast!==wLast && pxTypo(gLast,wLast,KNOWNIONS))
+    return no("Close — check the spelling of the ion's name.",false,"ion");
+  if(gFirst!==wFirst && METALNAMES.indexOf(gFirst)>=0)
+    return no("That is a different metal. Check the symbol in the formula.",false,"metal");
+  if(gFirst!==wFirst && pxTypo(gFirst,wFirst,METALNAMES))
+    return no("Close — check the spelling of the metal's name.",false,"metal");
+  if(pxTypo(gp,wp,null)) return no("Close — check your spelling.",false,"other");
+  return no(null,false,"other");
+}
+
+function pfNameCheck(raw, want){
+  var r=nameCheck(raw, want, PF.x.m);
+  PF.hint=r.hint; PF.ring=r.ring; PF.nameCode=r.code;
+  return r.ok;
+}
+
+function pfCheck(){
+  pfSync();
+  var steps=pfSteps(), st=steps[PF.step-1], x=PF.x, p=POLY[x.p];
+  if(st.k==="gate") return;   /* answered by its own buttons */
+  PF.bad={}; PF.hint=null; PF.ring=false;
+  PF.tries=PF.tries||{};
+  PF.tries[st.k]=(PF.tries[st.k]||0)+1;
+  var ok=false, typed="", fault="other";
+
+  if(st.k==="ionentry"){
+    typed=(PF.f.sym||"")+" "+(PF.f.chg||"");
+    var gs=(PF.f.sym||"").replace(/\s+/g,"");
+    var okS = gs===x.p;
+    if(!okS){
+      PF.bad.sym=true;
+      if(gs.toLowerCase()===x.p.toLowerCase())
+        PF.hint="Check the capitals. A symbol starts with a capital letter, and any letter after it is lowercase.";
+    }
+    var r=parseCharge(PF.f.chg), okQ=false;
+    if(r.err){
+      PF.bad.chg=true;
+      if(!PF.hint) PF.hint = r.noSign ? "Is the <b>"+p.name+"</b> ion positive or negative?" : r.err;
+    } else if(r.q===p.q) okQ=true;
+    else {
+      PF.bad.chg=true;
+      if(!PF.hint) PF.hint="Check your ion sheet for the charge on the <b>"+
+        p.name+"</b> ion.";
+    }
+    ok = okS && okQ;
+    fault = !okS && !okQ ? "both" : !okS ? "symbol" : "charge";
+    logAttempt("poly_f2n","ionentry",p.name,typed,ok,ok?"":fault,PF.tries[st.k],
+      detailStr([{l:"symbol",k:okS},{l:"charge",k:okQ}]));
+  } else if(st.k==="pcount" || st.k==="mcount"){
+    var raw=(st.k==="mcount"?PF.f.mcnt:PF.f.cnt||"").trim();
+    typed=raw;
+    ok = /^\d+$/.test(raw) && +raw===st.ans;
+    if(!ok){
+      PF.bad.cnt=true;
+      if(st.k==="mcount")
+        PF.hint="Read the subscript straight after the metal's symbol. No subscript means one.";
+    }
+    logAttempt("poly_f2n",st.k,st.k==="mcount"?x.mn:p.name,typed,ok,ok?"":"count",PF.tries[st.k]);
+  } else if(st.k==="mchg"){
+    typed=PF.f.mchg;
+    var rm=parseCharge(PF.f.mchg), skip=false;
+    if(rm.err){
+      PF.bad.mchg=true;
+      PF.hint = rm.noSign ? "Is that charge positive or negative?" : rm.err;
+      if(+((PF.f.mchg||"").trim())===Math.abs(st.ans) && rm.noSign){
+        logAttempt("poly_f2n","mchg",x.mn,typed,false,"format",PF.tries[st.k]);
+        pxRender(); return;
+      }
+    } else if(rm.q===st.ans) ok=true;
+    else {
+      PF.bad.mchg=true;
+      PF.hint="Share the total out. Every "+x.mn+" ion in the formula carries the same charge.";
+    }
+    logAttempt("poly_f2n","mchg",x.mn,typed,ok,ok?"":(rm.err?"format":"charge"),PF.tries[st.k]);
+  } else if(st.k==="name" || st.k==="pname"){
+    typed=PF.f.txt;
+    var gn=pxNorm(PF.f.txt), wn=pxNorm(st.ans);
+    ok = gn===wn;
+    if(!ok){
+      PF.bad.txt=true;
+      var slipN=ideSlip(gn);
+      if(slipN) PF.hint=slipN;
+      else if(KNOWNIONS.indexOf(gn)>=0) PF.hint="That is a real ion, but not the one in this formula.";
+      else if(pxTypo(gn,wn,KNOWNIONS)) PF.hint="Close — check your spelling.";
+    }
+    logAttempt("poly_f2n",st.k,subDigits(x.p),typed,ok,ok?"":"ion",PF.tries[st.k]);
+  } else if(st.k==="charges"){
+    typed=PF.f.txt;
+    var rc=parseChargeList(PF.f.txt);
+    if(rc.err){
+      PF.bad.txt=true; PF.hint=rc.err;
+    } else if(sameCharges(rc.qs, st.ans)){
+      ok=true;
+    } else {
+      PF.bad.txt=true;
+      PF.hint=chargeListFault(rc.qs, st.ans, x.mn);
+    }
+    logAttempt("poly_f2n","charges",x.mn,typed,ok,ok?"":(rc.err?"format":"charge"),PF.tries[st.k]);
+  } else if(st.k==="cname"){
+    typed=PF.f.txt;
+    ok = pfNameCheck(PF.f.txt, st.ans);
+    if(!ok) PF.bad.txt=true;
+    logAttempt("poly_f2n","cname",pxFormula(x),typed,ok,ok?"":(PF.nameCode||"other"),PF.tries[st.k]);
+  } else {
+    typed=PF.f.txt;
+    var rt=parseCharge(PF.f.txt);
+    if(rt.err){
+      PF.bad.txt=true;
+      PF.hint = rt.noSign ? "Is that charge positive or negative?" : rt.err;
+      if(+((PF.f.txt||"").trim())===Math.abs(st.ans) && rt.noSign){
+        logAttempt("poly_f2n","total",p.name,typed,false,"format",PF.tries[st.k]);
+        pxRender(); return;
+      }
+    } else if(rt.q===st.ans) ok=true;
+    else PF.bad.txt=true;
+    logAttempt("poly_f2n","total",p.name,typed,ok,ok?"":(rt.err?"format":"charge"),PF.tries[st.k]);
+  }
+
+  if(ok){
+    PF.f.txt="";
+    if(PF.step===steps.length){
+      PF.solved=true; PF.done++;
+      if(!PF.misses){ PF.clean++; if(pnTier(PF.x)<2) PF.simple++; }
+      track("poly_f2n", PF.misses===0);
+    } else { PF.step++; PF.tip=null; }
+  } else PF.misses++;
+  pxRender();
+}
+
+/* ── the section shell ───────────────────────────────────────── */
+/* Every item remembers the level it was built for. Changing the level or
+   the direction throws away anything built for the other level — without
+   this a level 1 compound can turn up under level 2, where it never asks
+   about the metal. `force` rebuilds even a matching item, which is what
+   pressing the level button should do. */
+/* the "does this metal form more than one ion?" gate. Only formula → name
+   asks it: going the other way the name already says so. */
+function pfGate(said){
+  PF.hint=null;
+  PF.tries=PF.tries||{};
+  PF.tries.gate=(PF.tries.gate||0)+1;
+  var ok=said===mMulti(PF.x.m);
+  if(ok){ PF.step++; PF.tip=null; }
+  else { PF.misses++; PF.hint = said ? mWhyOne(PF.x.m) : mWhyMany(PF.x.m); }
+  logAttempt("poly_f2n","gate",PF.x.m,said?"yes":"no",ok,ok?"":"gate",PF.tries.gate);
+  pxRender();
+}
+
+function pxSync(force){
+  if(PX.mode==="n2f"){
+    if(force || !PN.x) { pnNew(); return; }
+  } else {
+    if(force || !PF.x) { pfNew(); return; }
+  }
+  pxRender();
+}
+
+function pxRender(){
+  var h = PX.mode==="n2f" ? pnBody() : pfBody();
+
+  var st = PX.mode==="n2f" ? PN : PF;
+  h+='<p class="counter"><b>'+st.done+'</b> done · <b>'+st.clean+'</b> with no misses</p>';
+
+  document.getElementById("sec-poly").innerHTML=h;
+
+  if(PX.mode==="n2f") boardSlide(PN,pnParts(),"pn");
+
+  if(ACTIVE!=="poly") return;
+  var f=null;
+  if(PX.mode==="n2f"){
+    if(PN.phase==="entry") f=document.getElementById("pnS"+PN.slot);
+    else if(PN.phase==="formula") f=document.getElementById("pnin");
+  } else if(!PF.solved){
+    var sk=pfStep().k;
+    f = sk==="ionentry" ? document.getElementById("pfSym")
+      : (sk==="pcount"||sk==="mcount") ? document.getElementById("pfN")
+      : sk==="mchg" ? document.getElementById("pfQ")
+      : document.getElementById("pfIn");
+  }
+  if(f){ f.focus(); if(/^(pnin|pnS\d|pfSym)$/.test(f.id)) caretToEnd(f); }
+}
+
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-pmode],[data-pn],[data-pf],[data-pxadd],[data-pxremove]");
+  if(!t) return;
+  if(t.dataset.pmode){  PX.mode =t.dataset.pmode;    pxSync(false); return; }
+  if(t.dataset.pxadd)    { pxAddRemove(t.dataset.pxadd,1); return; }
+  if(t.dataset.pxremove) { pxAddRemove(t.dataset.pxremove,-1); return; }
+  if(t.dataset.pn){
+    if(t.dataset.pn==="next") pnNew();
+    else if(t.dataset.pn==="hint"){ PN.tip=pnHint(); pxRender(); }
+    else if(t.dataset.pn==="reveal") pnReveal();
+    else if(t.dataset.pn==="build") pnCheckBuild();
+    else pnCheck(t.dataset.pn);
+  }
+  if(t.dataset.pf){
+    var e=t.dataset.pf;
+    if(e==="next") pfNew();
+    else if(e==="hint"){ PF.tip=pfHint(); pxRender(); }
+    else if(e==="reveal") pfReveal();
+    else if(e==="gy") pfGate(true);
+    else if(e==="gn") pfGate(false);
+    else pfCheck();
+  }
+});
+
+document.addEventListener("input",function(ev){
+  var t=ev.target, id=t.id;
+  if(id!=="pnin" && id!=="pnS0" && id!=="pnS1" && id!=="pfSym") return;
+  var off=textOffset(t), txt=t.textContent;
+  if(id==="pnin") PN.ftext=txt;
+  else if(id==="pfSym") PF.f.sym=txt;
+  else PN.sym[id==="pnS0"?0:1]=txt;
+  t.innerHTML = id==="pnin" ? subDigitsMarked(txt,true) : subDigits(txt);
+  setOffset(t,off);
+});
+document.addEventListener("paste",function(ev){
+  if(ev.target.id!=="pnin") return;
+  ev.preventDefault();
+  var txt=(ev.clipboardData||window.clipboardData).getData("text").replace(/\s+/g,"");
+  document.execCommand("insertText",false,txt);
+});
+document.addEventListener("keydown",function(ev){
+  if(ACTIVE!=="poly" || ev.key!=="Enter") return;
+  ev.preventDefault();
+  if(PX.mode==="n2f"){
+    if(PN.phase==="done") pnNew();
+    else if(PN.phase==="entry") pnCheck("entry");
+    else if(PN.phase==="build") pnCheckBuild();
+    else if(PN.phase==="formula") pnCheck("formula");
+  } else {
+    if(PF.solved) pfNew();
+    else if(pfStep().k!=="gate") pfCheck();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════ */
+mgNew();
+piNew();
+newRound();
+fnNew();
+nfNew();
+/* build one of each before the first paint: pxRender draws whichever mode is
+   current, so both have to exist before that mode is the polyatomic default */
+PX.mode="n2f"; pnNew();
+PX.mode="f2n"; pfNew();
+drawSeg();
+/* a link from the progress page can open one section: index.html#go=ions,
+   #go=simple-f2n (24 Sept) */
+function goFromHash(first){
+  /* an activity id (from an assignment on the progress page, 25 Sept):
+     index.html#go=poly_f2n opens that panel in that direction */
+  var act=/[#&]go=([a-z0-9_]+)/.exec(location.hash);
+  if(act && asgWhere(act[1])){ drawSeg(); openAct(act[1]); return; }
+  var go=/[#&]go=([a-z]+)(?:-(f2n|n2f))?/.exec(location.hash), id=go&&go[1];
+  if(id && sectionOf(id) && !sectionOf(id).subs.some(function(u){ return u.id===id && u.soon; })){
+    if(go[2]) SM.mode=go[2];
+    drawSeg(); showSection(id);
+  } else if(first && !restoreIon()) drawPath();
+}
+goFromHash(true);
+window.addEventListener("hashchange", function(){ goFromHash(false); });
+gateSetup();
+</script>
+</body>
+</html>

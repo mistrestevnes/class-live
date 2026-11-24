@@ -179,7 +179,24 @@ textarea{min-height:96px;resize:vertical}
 'use strict';
 var TYPE={sim:'Sim',video:'Video',lesson:'Lesson',practice:'Practice',exit:'Exit ticket',doc:'Document',header:'Header'};
 var PILL={sim:'p-sim',video:'p-lesson',lesson:'p-lesson',practice:'p-practice',exit:'p-exit',doc:'p-practice'};
-var ADD_TYPES=['sim','video','doc','header'];
+var ADD_TYPES=['sim','video','doc','practice','header'];
+/* Practice activities: topic, then [key, name, page and section]. Keys are lowercase letters and digits so the server keeps them. */
+var PRACTICE=[
+ ['Periodic Table',[['ptsym','Element symbols','periodic.html#view=sym'],['ptgp','Group and period','periodic.html#view=gp'],['ptfam','Families','periodic.html#view=fam'],['ptcat','Metals, nonmetals, metalloids','periodic.html#view=cat'],['ptblk','Blocks','periodic.html#view=blk']]],
+ ['Ionic compounds',[['charges','Ionic charges','ionic.html#go=charges'],['nfid','Polyatomic ions','ionic.html#go=nf_id'],['build','Building binary compounds','ionic.html#go=build'],
+   ['scf2n','Naming single-charge compounds: formula to name','ionic.html#go=sc_f2n'],['scn2f','Naming single-charge compounds: name to formula','ionic.html#go=sc_n2f'],
+   ['mvf2n','Naming multi-charge compounds: formula to name','ionic.html#go=mv_f2n'],['mvn2f','Naming multi-charge compounds: name to formula','ionic.html#go=mv_n2f'],
+   ['polyf2n','Naming polyatomic compounds: formula to name','ionic.html#go=poly_f2n'],['polyn2f','Naming polyatomic compounds: name to formula','ionic.html#go=poly_n2f']]],
+ ['Balancing',[]],
+ ['Moles',[['mol1b','Counting atoms: beginner','moles.html#go=mol_1b'],['mol1a','Counting atoms: advanced','moles.html#go=mol_1a'],['mol2','Molar mass','moles.html#go=mol_2'],['mol3','Moles and grams','moles.html#go=mol_3']]]
+];
+(function(){
+  var L=['Beginner','Intermediate','Advanced'],B=PRACTICE[2][1];
+  [['syn','Synthesis'],['sr','Single replacement'],['dr','Double replacement']].forEach(function(r){L.forEach(function(l,i){B.push(['bal'+r[0]+(i+1),'Balancing '+r[1].toLowerCase()+': '+l.toLowerCase(),'balance.html#go=bal_'+r[0]+(i+1)]);});});
+  [['pp','Single replacement from formulas'],['pdr','Double replacement from formulas'],['pn','Single replacement from names'],['pdn','Double replacement from names']].forEach(function(r){['Beginner','Advanced'].forEach(function(l,i){B.push(['bal'+r[0]+(i+1),'Predicting products, '+r[1].toLowerCase()+': '+l.toLowerCase(),'balance.html#go=bal_'+r[0]+(i+1)]);});});
+})();
+var PRACTICE_BY={};PRACTICE.forEach(function(g){g[1].forEach(function(x){PRACTICE_BY[x[0]]={id:x[0],name:x[1],href:'/practice/'+x[2],topic:g[0]};});});
+
 var RAIL=[
   ['feed','Feed','<path d="M5 7h18M5 14h18M5 21h18"/>'],
   ['assigned','Assigned','<path d="M4 8l3 3 4-5M4 20l3 3 4-5M15 9h9M15 21h9"/>'],
@@ -266,12 +283,13 @@ function applyTheme(id){
   Object.keys(v).forEach(function(k){st.setProperty('--'+k,v[k]);});
   var g=grads(t);st.setProperty('--bgg',g.bg);st.setProperty('--bar1g',g.topic);st.setProperty('--railg',g.rail);
   st.colorScheme=dark?'dark':'light';
+  try{localStorage.setItem('cl_theme_vars',JSON.stringify({bg:t.bg,card:t.card,ink:t.text,mut:t.muted,line:t.line,lnk:lnk,dark:dark}));}catch(e){}
   return t.id;
 }
 var themeId=store('cl_beta_theme')||'classic';
 themeId=applyTheme(themeId);
 var tt=store('cl_token'), stoken=store('cl_stoken');
-var S={mode:'loading',teacher:false,view:'student',rail:'feed',tree:[],rev:0,open:{},notes:{},notesOpen:{},noteErr:{},editor:null,confirm:null,modal:null,focus:null,lib:{sim:[],video:[],doc:[]},libOk:false,saveMsg:'',signErr:'',stage:null};
+var S={mode:'loading',teacher:false,view:'student',rail:'feed',tree:[],rev:0,open:{},notes:{},notesOpen:{},noteErr:{},editor:null,confirm:null,modal:null,focus:null,lib:{sim:[],video:[],doc:[],practice:Object.keys(PRACTICE_BY).map(function(k){return PRACTICE_BY[k];})},libOk:false,saveMsg:'',signErr:'',stage:null};
 try{var o=JSON.parse(store('cl_beta_open')||'{}');if(o&&typeof o==='object')S.open=o;}catch(e){}
 
 function api(path,opt){
@@ -392,6 +410,15 @@ function placeholder(){
   var name=LABELS[S.rail]||'This page';
   return '<div class="wrap"><h1>'+esc(name)+'</h1><div class="ph"><div>This page is coming soon. Only the Feed works in the beta.</div><div class="btnrow"><button class="btn pri" data-a="rail" data-x="feed">Back to the feed</button></div></div></div>';
 }
+function practicePage(){
+  var h='<div class="wrap"><h1>Practice</h1>';
+  PRACTICE.forEach(function(g){
+    h+='<div class="node n1"><div class="bar"><span class="tog" style="cursor:default">'+esc(g[0])+'</span></div><div class="b1b"><div class="rows">';
+    g[1].forEach(function(x){h+='<div class="row">'+typeIcon({type:'practice'})+'<a class="link" href="/practice/'+esc(x[2])+'" target="_blank" rel="noopener">'+esc(x[1])+'</a></div>';});
+    h+='</div></div></div>';
+  });
+  return h+'</div>';
+}
 function hiddenBadge(n){return n.visible===false?'<span class="badge">Hidden from students</span>':'';}
 function editBtn(id){return '<button class="btn" id="ed-'+id+'" data-a="edit" data-id="'+id+'">Edit</button>';}
 function canNote(){return !S.teacher&&!!stoken;}
@@ -423,6 +450,7 @@ function itemFields(v,editing){
   }else{
     var list=S.lib[v.type]||[];
     var opts=list.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===v.ref?' selected':'')+'>'+esc(x.name)+'</option>';}).join('');
+    if(v.type==='practice')opts=PRACTICE.map(function(g){return '<optgroup label="'+esc(g[0])+'">'+g[1].map(function(x){return '<option value="'+x[0]+'"'+(x[0]===v.ref?' selected':'')+'>'+esc(x[1])+'</option>';}).join('')+'</optgroup>';}).join('');
     var none=!list.length;
     h+='<div class="field"><label for="f-choose">Choose which one</label><select id="f-choose"'+(none?' disabled':'')+'>'+(none?'<option>None uploaded yet</option>':opts)+'</select></div>';
   }
@@ -474,6 +502,11 @@ function linkHtml(it){
     var href=it.url?esc(it.url):(it.ref?'/doc/'+esc(it.ref):'');
     if(!href)return '<span class="link">'+esc(it.title)+'</span>';
     return '<a class="link" href="'+href+'"'+(it.url?' target="_blank" rel="noopener"':' download')+'>'+esc(it.title)+'</a>';
+  }
+  if(it.type==='practice'){
+    var pa=PRACTICE_BY[it.ref];
+    if(!pa)return '<span class="link">'+esc(it.title)+'</span>';
+    return '<a class="link" href="'+esc(pa.href)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a>';
   }
   return '<button class="link" data-a="open" data-id="'+it.id+'">'+esc(it.title)+'</button>';
 }
@@ -575,7 +608,7 @@ function render(){
   if(S.mode==='error'){root.innerHTML='<div class="signin"><h1>Class Live beta</h1><div class="err" role="alert">The page could not load. Check your connection and refresh.</div></div>';return;}
   if(S.mode==='signin'){root.innerHTML=signInHtml();var c=document.getElementById('code');if(c)c.focus();return;}
   var t=S.teacher&&S.view==='teacher';
-  var main=S.rail==='feed'?feedPage(t):S.rail==='settings'?settingsPage():placeholder();
+  var main=S.rail==='feed'?feedPage(t):S.rail==='settings'?settingsPage():S.rail==='practice'?practicePage():placeholder();
   root.innerHTML=bar()+'<div class="app">'+rail()+'<main class="main">'+main+'</main></div>'+modalHtml()+stageHtml();
   window.scrollTo(0,y);
   root.querySelectorAll('[data-dnd]').forEach(function(el){el.setAttribute('draggable','true');});
