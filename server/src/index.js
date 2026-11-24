@@ -400,6 +400,8 @@ export class Classroom extends DurableObject {
         const teacher = this.checkToken(request.headers.get("x-token"));
         return json({ tree: teacher ? flatFeed(saved.tree) : feedForStudents(saved.tree), rev: saved.rev, teacher });
       }
+      // the teacher's color edits to the themes (anyone can read them; students see the edited themes in Settings)
+      if (p === "/api/themes" && m === "GET") return json({ edits: (await this.ctx.storage.get("themeEdits")) || {} });
       // each student's own notes on feed items, kept under their own login
       // each student's chosen theme, kept under their own login so it follows them to any Chromebook
       if (p === "/api/mytheme" && (m === "GET" || m === "POST")) {
@@ -561,6 +563,21 @@ export class Classroom extends DurableObject {
         }
         await this.ctx.storage.put("plans:" + wk[1], { cells, updated: Date.now() });
         return json({ ok: true });
+      }
+      if (p === "/api/themes" && m === "PUT") {
+        const b = await request.json();
+        const roles = ["bg", "rail", "topic", "card", "acc", "text"];
+        const edits = {};
+        const src = b && typeof b.edits === "object" && b.edits ? b.edits : {};
+        for (const id of Object.keys(src).slice(0, 60)) {
+          if (!/^[a-z0-9-]{1,40}$/.test(id)) continue;
+          const e = src[id], o = {};
+          if (!e || typeof e !== "object") continue;
+          for (const k of roles) { if (/^#[0-9A-Fa-f]{6}$/.test(String(e[k] || ""))) o[k] = String(e[k]).toUpperCase(); }
+          if (Object.keys(o).length === roles.length) edits[id] = o;
+        }
+        await this.ctx.storage.put("themeEdits", edits);
+        return json({ edits });
       }
       if (p === "/api/feed" && m === "PUT") {
         const b = await request.json();
