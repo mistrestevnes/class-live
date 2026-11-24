@@ -25,36 +25,47 @@ const ROUNDRECT_JS = `/* Class Live roundRect */(function () {
 const snapKey = (k) => String(k || "_").replace(/[^a-z0-9_-]/gi, "_").slice(0, 42) || "_";
 
 
-// ---- The feed students open when no class is live (/beta): sections > topics > subtopics > items.
-// An item points at something that already exists: a sim (/sim/<id>) or a video (/video/<id>).
-const FEED_TYPES = ["sim", "video", "lesson", "practice", "exit"];
+// ---- The feed students open when no class is live (/beta): topics > entries.
+// An entry is an item (a sim, a video, a downloadable document or a link) or a text header. Items after a header are shown indented under it.
+const FEED_TYPES = ["sim", "video", "lesson", "practice", "exit", "doc", "header"];
 const FEED_ID = /^[a-z0-9]{1,16}$/;
-// Topics are the top level. A feed saved earlier with sections above the topics is flattened (the sections are dropped, their topics kept).
-const flatFeed = (tree) => (Array.isArray(tree) ? tree : []).flatMap((n) => (n && Array.isArray(n.topics) ? n.topics : [n]));
+// Older feeds are converted on the way in: sections are dropped (their topics kept) and each subtopic becomes a header followed by its items.
+const flatFeed = (tree) => (Array.isArray(tree) ? tree : []).flatMap((n) => (n && Array.isArray(n.topics) ? n.topics : [n])).map((t) => {
+  if (!t || typeof t !== "object") return t;
+  const items = Array.isArray(t.items) ? t.items.slice() : [];
+  if (!Array.isArray(t.subs)) return { ...t, items };
+  t.subs.forEach((u) => {
+    if (!u || typeof u !== "object") return;
+    const hide = u.visible === false;
+    items.push({ id: u.id, type: "header", title: u.name, visible: !hide });
+    (Array.isArray(u.items) ? u.items : []).forEach((i) => items.push(hide ? { ...i, visible: false } : i));
+  });
+  const { subs, ...rest } = t;
+  return { ...rest, items };
+});
+const DOC_TYPES = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", txt: "text/plain", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
+const MAX_DOC_BYTES = 25_000_000;
 function cleanFeed(raw) {
   let count = 0;
   const bad = () => { throw new Error("The feed is too big or malformed."); };
-  const base = (n, kidsKey) => {
-    if (!n || typeof n !== "object" || !FEED_ID.test(String(n.id || "")) || ++count > 1500) bad();
-    const o = { id: String(n.id), name: String(n.name || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: n.visible !== false };
-    if (!o.name) bad();
-    if (kidsKey) o[kidsKey] = [];
-    return o;
-  };
-  const arr = (a) => (Array.isArray(a) ? a : []);
+  const clean = (v, n) => String(v || "").replace(/\s+/g, " ").trim().slice(0, n);
   return flatFeed(raw && raw.tree).map((t0) => {
-    const top = base(t0, "subs");
-    top.subs = arr(t0.subs).map((u0) => {
-      const sub = base(u0, "items");
-      sub.items = arr(u0.items).map((i0) => {
-        if (!i0 || typeof i0 !== "object" || !FEED_ID.test(String(i0.id || "")) || !FEED_TYPES.includes(i0.type) || ++count > 1500) bad();
-        const title = String(i0.title || "").replace(/\s+/g, " ").trim().slice(0, 120);
-        if (!title) bad();
-        const it = { id: String(i0.id), type: i0.type, title, detail: String(i0.detail || "").replace(/\s+/g, " ").trim().slice(0, 80), visible: i0.visible !== false };
-        if (i0.ref && /^[a-z0-9]{4,24}$/.test(String(i0.ref))) it.ref = String(i0.ref);
-        return it;
-      });
-      return sub;
+    if (!t0 || typeof t0 !== "object" || !FEED_ID.test(String(t0.id || "")) || ++count > 1500) bad();
+    const top = { id: String(t0.id), name: clean(t0.name, 80), visible: t0.visible !== false, items: [] };
+    if (!top.name) bad();
+    top.items = (Array.isArray(t0.items) ? t0.items : []).map((i0) => {
+      if (!i0 || typeof i0 !== "object" || !FEED_ID.test(String(i0.id || "")) || !FEED_TYPES.includes(i0.type) || ++count > 1500) bad();
+      const title = clean(i0.title, 120);
+      if (!title) bad();
+      const it = { id: String(i0.id), type: i0.type, title, visible: i0.visible !== false };
+      if (i0.type === "header") return it;
+      it.detail = clean(i0.detail, 80);
+      if (i0.ref && /^[a-z0-9]{4,24}$/.test(String(i0.ref))) it.ref = String(i0.ref);
+      if (i0.type === "doc" && i0.url) {
+        const u = String(i0.url).trim().slice(0, 600);
+        if (/^https:\/\/[^\s"'<>]+$/i.test(u)) it.url = u;
+      }
+      return it;
     });
     return top;
   });
@@ -62,7 +73,22 @@ function cleanFeed(raw) {
 // What students are allowed to see: nothing marked hidden, at any level.
 function feedForStudents(tree) {
   const vis = (n) => n.visible !== false;
-  return flatFeed(tree).filter(vis).map((t0) => ({ ...t0, subs: t0.subs.filter(vis).map((u0) => ({ ...u0, items: u0.items.filter(vis) })) }));
+  return flatFeed(tree).filter(vis).map((t0) => ({ ...t0, items: t0.items.filter(vis) }));
+}
+// A document from the R2 bucket, always sent as a download.
+async function serveDoc(request, env, rawId) {
+  const id = rawId.replace(/\.[a-z0-9]+$/i, "");
+  if (!env.VIDEOS || !/^[a-z0-9]{6,24}$/.test(id)) return new Response("not found", { status: 404 });
+  const obj = request.method === "HEAD" ? await env.VIDEOS.head("d/" + id) : await env.VIDEOS.get("d/" + id);
+  if (!obj) return new Response("not found", { status: 404 });
+  const name = ((obj.customMetadata && obj.customMetadata.name) || "document").replace(/[\r\n"]/g, "");
+  return new Response(request.method === "HEAD" ? null : obj.body, { headers: {
+    "content-type": (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream",
+    "content-disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(name),
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, max-age=300",
+    "content-length": String(obj.size),
+  } });
 }
 
 export default {
@@ -74,6 +100,7 @@ export default {
       return stub.fetch(request);
     }
     if (p.startsWith("/video/") && ["GET", "HEAD"].includes(request.method)) return serveVideo(request, env, p.slice(7));
+    if (p.startsWith("/doc/") && ["GET", "HEAD"].includes(request.method)) return serveDoc(request, env, p.slice(5));
     return new Response("Class Live server. Students use classlive.scienceworks.xyz.", { status: 404 });
   },
 };
@@ -491,6 +518,9 @@ export class Classroom extends DurableObject {
       // short videos kept in the R2 bucket, played from /video/<id>
       if (p === "/api/videos" && m === "GET") return json({ ready: !!this.env.VIDEOS, videos: (await this.ctx.storage.get("videos")) || [] });
       if (p === "/api/videos" && m === "POST") return this.saveVideo(request);
+      // downloadable documents kept in the same bucket, sent from /doc/<id>
+      if (p === "/api/docs" && m === "GET") return json({ ready: !!this.env.VIDEOS, docs: (await this.ctx.storage.get("docs")) || [] });
+      if (p === "/api/docs" && m === "POST") return this.saveDoc(request);
       const vm = p.match(/^\/api\/videos\/([a-z0-9]+)$/);
       if (vm && m === "PATCH") return this.renameVideo(vm[1], await request.json());
       if (vm && m === "DELETE") return this.deleteVideo(vm[1]);
@@ -713,6 +743,23 @@ export class Classroom extends DurableObject {
     await this.env.VIDEOS.put("v/" + id, request.body, { httpMetadata: { contentType: type } });
     const entry = { id, name, size: len, type, updated: Date.now() };
     await this.ctx.storage.put("videos", [entry, ...((await this.ctx.storage.get("videos")) || [])]);
+    return json(entry);
+  }
+
+  async saveDoc(request) {
+    if (!this.env.VIDEOS) return json({ error: "File storage isn't connected yet (the class-live-videos bucket is missing)." }, 503);
+    let name = "";
+    try { name = decodeURIComponent(request.headers.get("x-name") || ""); } catch { name = request.headers.get("x-name") || ""; }
+    name = name.replace(/[\\/:*?"<>|\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+    const ext = ((name.match(/\.([a-z0-9]{1,5})$/i) || [])[1] || "").toLowerCase();
+    if (!DOC_TYPES[ext]) return json({ error: "That file type isn't allowed. Use PDF, Word, PowerPoint, Excel, CSV, TXT, PNG or JPG." }, 400);
+    const len = Number(request.headers.get("content-length") || 0);
+    if (!len || !request.body) return json({ error: "That upload didn't say how big it is. Try again." }, 411);
+    if (len > MAX_DOC_BYTES) return json({ error: "That file is " + Math.round(len / 1e6) + " MB. The limit is " + Math.round(MAX_DOC_BYTES / 1e6) + " MB." }, 413);
+    const id = rid(12);
+    await this.env.VIDEOS.put("d/" + id, request.body, { httpMetadata: { contentType: DOC_TYPES[ext] }, customMetadata: { name } });
+    const entry = { id, name, size: len, updated: Date.now() };
+    await this.ctx.storage.put("docs", [entry, ...((await this.ctx.storage.get("docs")) || [])]);
     return json(entry);
   }
 

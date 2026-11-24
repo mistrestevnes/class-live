@@ -60,15 +60,18 @@ h1{margin:0;font-size:34px;line-height:1.2}
 .tog{display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:44px;padding:0 20px;background:none;border:0;border-radius:10px;text-align:left;font-size:24px;font-weight:700}
 .nm{flex:1;min-width:0}
 .ct{font-size:18px;font-weight:400;color:var(--mut)}
-.b1b{padding:0 0 0 28px;display:flex;flex-direction:column;gap:14px}
-.b1b>.node{margin-bottom:0}
+.b1b{padding:0 0 0 25px}
+.hdr{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-height:50px;padding:0 20px;border-bottom:1px solid var(--line);font-size:20px;font-weight:600;background:#fff}
+.hdr.dim{background:#EDEDF0}
+.row.ind{padding-left:45px}
+.b1b a.link{color:var(--blue)}
 .n1>.bar{position:relative;z-index:60}
 .n2>.bar{position:relative;z-index:50}
 .n1>.bar.o{border-radius:10px;margin-bottom:12px}
 .n2 .bar{background:var(--bar2);border-color:var(--line);min-height:48px}
 .n2 .tog{min-height:48px;font-size:20px;font-weight:600;padding:0 16px}
 .n2 .bar.o{border-radius:10px}
-.rows{margin:6px 0 0 25px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.rows{margin:0 0 12px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .rows>:last-child{border-bottom:0}
 .dim>.bar{border-style:dashed}
 .row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-height:50px;padding:0 20px;border-bottom:1px solid var(--line)}
@@ -144,9 +147,9 @@ textarea{min-height:96px;resize:vertical}
 <script>
 (function(){
 'use strict';
-var TYPE={sim:'Sim',video:'Video',lesson:'Lesson',practice:'Practice',exit:'Exit ticket'};
-var PILL={sim:'p-sim',video:'p-lesson',lesson:'p-lesson',practice:'p-practice',exit:'p-exit'};
-var ADD_TYPES=['sim','video'];
+var TYPE={sim:'Sim',video:'Video',lesson:'Lesson',practice:'Practice',exit:'Exit ticket',doc:'Document',header:'Header'};
+var PILL={sim:'p-sim',video:'p-lesson',lesson:'p-lesson',practice:'p-practice',exit:'p-exit',doc:'p-practice'};
+var ADD_TYPES=['sim','video','doc','header'];
 var RAIL=[
   ['feed','Feed','<path d="M5 7h18M5 14h18M5 21h18"/>'],
   ['assigned','Assigned','<path d="M4 8l3 3 4-5M4 20l3 3 4-5M15 9h9M15 21h9"/>'],
@@ -165,7 +168,7 @@ function icon(p){return '<svg width="28" height="28" viewBox="0 0 28 28" fill="n
 function plural(n,w){return n+' '+w+(n===1?'':'s');}
 
 var tt=store('cl_token'), stoken=store('cl_stoken');
-var S={mode:'loading',teacher:false,view:'student',rail:'feed',tree:[],rev:0,open:{},notes:{},notesOpen:{},noteErr:{},editor:null,confirm:null,modal:null,focus:null,lib:{sim:[],video:[]},libOk:false,saveMsg:'',signErr:'',stage:null};
+var S={mode:'loading',teacher:false,view:'student',rail:'feed',tree:[],rev:0,open:{},notes:{},notesOpen:{},noteErr:{},editor:null,confirm:null,modal:null,focus:null,lib:{sim:[],video:[],doc:[]},libOk:false,saveMsg:'',signErr:'',stage:null};
 try{var o=JSON.parse(store('cl_beta_open')||'{}');if(o&&typeof o==='object')S.open=o;}catch(e){}
 
 function api(path,opt){
@@ -186,9 +189,10 @@ function loadNotes(){
 }
 function loadLib(){
   if(!S.teacher)return Promise.resolve();
-  return Promise.all([api('/api/sims').catch(function(){return [];}),api('/api/videos').catch(function(){return {videos:[]};})]).then(function(a){
+  return Promise.all([api('/api/sims').catch(function(){return [];}),api('/api/videos').catch(function(){return {videos:[]};}),api('/api/docs').catch(function(){return {docs:[]};})]).then(function(a){
     S.lib.sim=(Array.isArray(a[0])?a[0]:[]).map(function(x){return {id:x.id,name:x.name};});
     S.lib.video=((a[1]&&a[1].videos)||[]).map(function(x){return {id:x.id,name:x.name};});
+    S.lib.doc=((a[2]&&a[2].docs)||[]).map(function(x){return {id:x.id,name:x.name};});
     S.libOk=true;
   });
 }
@@ -218,13 +222,10 @@ function setSaveMsg(m){S.saveMsg=m;var e=document.getElementById('savemsg');if(e
 function locate(id){
   for(var j=0;j<S.tree.length;j++){var t=S.tree[j];
     if(t.id===id)return {node:t,kind:'topic',arr:S.tree,idx:j};
-    for(var k=0;k<t.subs.length;k++){var u=t.subs[k];
-      if(u.id===id)return {node:u,kind:'sub',arr:t.subs,idx:k};
-      for(var m=0;m<u.items.length;m++){var x=u.items[m];
-        if(x.id===id)return {node:x,kind:'item',arr:u.items,idx:m};}}}
+    for(var m=0;m<t.items.length;m++){var x=t.items[m];
+      if(x.id===id)return {node:x,kind:'item',arr:t.items,idx:m};}}
   return null;
 }
-function childArr(l){return l.kind==='topic'?l.node.subs:l.node.items;}
 
 /* ---------- pieces ---------- */
 function bar(){
@@ -258,21 +259,36 @@ function notesPanel(it){
   return h;
 }
 
-function itemFields(v){
-  var types=ADD_TYPES.map(function(k){return '<option value="'+k+'"'+(v.type===k?' selected':'')+'>'+TYPE[k]+'</option>';}).join('');
-  var list=S.lib[v.type]||[];
-  var opts=list.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===v.ref?' selected':'')+'>'+esc(x.name)+'</option>';}).join('');
-  var none=!list.length;
-  return '<div class="fields"><div class="field"><label for="f-type">Type</label><select id="f-type">'+types+'</select></div>'+
-    '<div class="field"><label for="f-choose">Choose which one</label><select id="f-choose"'+(none?' disabled':'')+'>'+(none?'<option>None uploaded yet</option>':opts)+'</select></div>'+
-    '<div class="field wide"><label for="f-title">Title students see</label><input id="f-title" type="text" maxlength="120" value="'+esc(v.title)+'"></div>'+
-    '<div class="field wide"><label for="f-detail">Small note beside the title (optional)</label><input id="f-detail" type="text" maxlength="80" value="'+esc(v.detail)+'"></div></div>'+
-    (none?'<div class="det">Upload '+(v.type==='sim'?'sims':'videos')+' on the teacher page, then they show up here.</div>':'');
+function docName(n){return String(n||'').replace(/\.[a-z0-9]{1,5}$/i,'');}
+function itemFields(v,editing){
+  var types=ADD_TYPES.filter(function(k){return !(editing&&k==='header');}).map(function(k){return '<option value="'+k+'"'+(v.type===k?' selected':'')+'>'+TYPE[k]+'</option>';}).join('');
+  var typeF=(editing&&v.type==='header')?'':'<div class="field"><label for="f-type">Type</label><select id="f-type">'+types+'</select></div>';
+  if(v.type==='header')
+    return '<div class="fields">'+typeF+'<div class="field wide"><label for="f-title">Header text</label><input id="f-title" type="text" maxlength="120" value="'+esc(v.title)+'"></div></div>'+
+      '<div class="det">A header is a line of text. Items under it are indented until the next header.</div>';
+  var h='<div class="fields">'+typeF;
+  if(v.type==='doc'){
+    var dl=S.lib.doc||[];
+    var dopts=dl.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===v.ref?' selected':'')+'>'+esc(x.name)+'</option>';}).join('');
+    h+='<div class="field"><label for="f-choose">Choose an uploaded file</label><select id="f-choose"'+(dl.length?'':' disabled')+'>'+(dl.length?dopts:'<option>None uploaded yet</option>')+'</select></div>'+
+      '<div class="field"><label for="f-file">Or upload a new file</label><input id="f-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"></div>'+
+      (v.up?'<div class="det" role="status">'+esc(v.up)+'</div>':'')+
+      '<div class="field wide"><label for="f-url">Or paste a link instead (starts with https://). If this is filled in, it is used instead of the file.</label><input id="f-url" type="text" maxlength="600" value="'+esc(v.url||'')+'"></div>';
+  }else{
+    var list=S.lib[v.type]||[];
+    var opts=list.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===v.ref?' selected':'')+'>'+esc(x.name)+'</option>';}).join('');
+    var none=!list.length;
+    h+='<div class="field"><label for="f-choose">Choose which one</label><select id="f-choose"'+(none?' disabled':'')+'>'+(none?'<option>None uploaded yet</option>':opts)+'</select></div>';
+  }
+  h+='<div class="field wide"><label for="f-title">Title students see</label><input id="f-title" type="text" maxlength="120" value="'+esc(v.title)+'"></div>'+
+    '<div class="field wide"><label for="f-detail">Small note beside the title (optional)</label><input id="f-detail" type="text" maxlength="80" value="'+esc(v.detail||'')+'"></div></div>';
+  if(v.type!=='doc'&&!(S.lib[v.type]||[]).length)h+='<div class="det">Upload '+(v.type==='sim'?'sims':'videos')+' on the teacher page, then they show up here.</div>';
+  return h;
 }
 function tools(node){
   var h='<div class="btnrow"><button class="btn" data-a="up" data-id="'+node.id+'">Move up</button><button class="btn" data-a="down" data-id="'+node.id+'">Move down</button>'+
     '<button class="btn" data-a="vis" data-id="'+node.id+'">'+(node.visible===false?'Show to students':'Hide from students')+'</button>';
-  if(S.confirm===node.id)h+='<span class="warn">Delete this and everything inside it?</span><button class="btn danger" data-a="delYes" data-id="'+node.id+'">Yes, delete</button><button class="btn" data-a="delNo">Keep it</button>';
+  if(S.confirm===node.id)h+='<span class="warn">Delete this'+(node.items?' topic and everything in it':'')+'?</span><button class="btn danger" data-a="delYes" data-id="'+node.id+'">Yes, delete</button><button class="btn" data-a="delNo">Keep it</button>';
   else h+='<button class="btn danger" data-a="del" data-id="'+node.id+'">Delete</button>';
   return h+'</div>';
 }
@@ -281,7 +297,7 @@ function editorFor(node,kind){
   var E=S.editor;
   if(!E||E.mode!=='edit'||E.id!==node.id)return '';
   var h='<div class="ed"><div class="b">Edit</div>';
-  if(kind==='item'){var v=E.v||{type:node.type,ref:node.ref,title:node.title,detail:node.detail};h+=itemFields(v);}
+  if(kind==='item'){var v=E.v||{type:node.type,ref:node.ref,url:node.url,title:node.title,detail:node.detail};h+=itemFields(v,true);}
   else{var nm=E.v?E.v.name:node.name;h+='<div class="field"><label for="f-name">Name</label><input id="f-name" type="text" maxlength="80" value="'+esc(nm)+'"></div>';}
   h+=errHtml()+'<div class="btnrow"><button class="btn pri" data-a="saveEdit">Save</button><button class="btn" data-a="cancel">Cancel</button></div>'+tools(node)+'</div>';
   return h;
@@ -289,26 +305,42 @@ function editorFor(node,kind){
 function firstOf(type){var l=S.lib[type]||[];return l.length?l[0]:null;}
 function addForm(parent,pk){
   var E=S.editor,v=E.v||{};
-  var kind={root:'topic',topic:'subtopic',sub:'item'}[pk];
-  var h='<div class="ed"><div class="b">Add '+(kind==='item'?'an item':'a '+kind)+'</div>';
-  if(kind==='item'){
+  var h;
+  if(pk==='topic'){
+    h='<div class="ed"><div class="b">Add an item or a header</div>';
     var ty=v.type||'sim',f=firstOf(ty);
-    h+=itemFields({type:ty,ref:v.ref||(f&&f.id),title:v.title!==undefined?v.title:(f?f.name:''),detail:v.detail||''});
-  }else h+='<div class="field"><label for="f-name">Name of the '+kind+'</label><input id="f-name" type="text" maxlength="80" value="'+esc(v.name||'')+'"></div>';
+    h+=itemFields({type:ty,ref:v.ref!==undefined?v.ref:(f&&f.id),url:v.url||'',up:v.up||'',title:v.title!==undefined?v.title:(f&&ty!=='header'?f.name:''),detail:v.detail||''},false);
+  }else{
+    h='<div class="ed"><div class="b">Add a topic</div><div class="field"><label for="f-name">Name of the topic</label><input id="f-name" type="text" maxlength="80" value="'+esc(v.name||'')+'"></div>';
+  }
   h+=errHtml()+'<div class="btnrow"><button class="btn pri" data-a="saveAdd">Add</button><button class="btn" data-a="cancel">Cancel</button></div></div>';
   return h;
 }
 function addArea(parent,pk){
   var E=S.editor;
   if(E&&E.mode==='add'&&E.parent===parent)return addForm(parent,pk);
-  var label={root:'Add topic',topic:'Add subtopic',sub:'Add item'}[pk];
+  var label={root:'Add topic',topic:'Add item or header'}[pk];
   return '<div class="btnrow addrow"><button class="btn" data-a="add" data-id="'+parent+'" data-x="'+pk+'">'+label+'</button></div>';
 }
 
-function itemHtml(it,t){
-  if(!t&&it.visible===false)return '';
-  var h='<div class="row'+(it.visible===false?' dim':'')+'"><span class="pill '+(PILL[it.type]||'p-sim')+'">'+esc(TYPE[it.type]||it.type)+'</span>'+
-    '<button class="link" data-a="open" data-id="'+it.id+'">'+esc(it.title)+'</button>'+(it.detail?'<span class="det">· '+esc(it.detail)+'</span>':'')+'<span class="grow"></span>';
+function linkHtml(it){
+  if(it.type==='doc'){
+    var href=it.url?esc(it.url):(it.ref?'/doc/'+esc(it.ref):'');
+    if(!href)return '<span class="link">'+esc(it.title)+'</span>';
+    return '<a class="link" href="'+href+'"'+(it.url?' target="_blank" rel="noopener"':' download')+'>'+esc(it.title)+'</a>';
+  }
+  return '<button class="link" data-a="open" data-id="'+it.id+'">'+esc(it.title)+'</button>';
+}
+function headerHtml(it,t){
+  var h='<div class="hdr'+(it.visible===false?' dim':'')+'"><span class="nm">'+esc(it.title)+'</span>';
+  if(t)h+=hiddenBadge(it)+editBtn(it.id);
+  h+='</div>';
+  if(t)h+=editorFor(it,'item');
+  return h;
+}
+function itemHtml(it,t,ind){
+  var h='<div class="row'+(ind?' ind':'')+(it.visible===false?' dim':'')+'"><span class="pill '+(PILL[it.type]||'p-sim')+'">'+esc(TYPE[it.type]||it.type)+'</span>'+
+    linkHtml(it)+(it.detail?'<span class="det">· '+esc(it.detail)+'</span>':'')+'<span class="grow"></span>';
   if(t){h+=hiddenBadge(it)+editBtn(it.id);}
   else if(canNote()){
     var nn=(S.notes[it.id]||[]).length,op=!!S.notesOpen[it.id];
@@ -319,27 +351,22 @@ function itemHtml(it,t){
   if(t)h+=editorFor(it,'item');
   return h;
 }
-function subHtml(u,t){
-  if(!t&&u.visible===false)return '';
-  var items=u.items.filter(function(x){return t||x.visible!==false;});
-  var h='<div class="node n2'+(u.visible===false?' dim':'')+'"><div class="bar o"><div class="tog subhead"><span class="nm">'+esc(u.name)+'</span>'+(t?hiddenBadge(u):'')+'<span class="ct">'+plural(items.length,'item')+'</span></div>'+(t?editBtn(u.id):'')+'</div>';
-  if(t)h+=editorFor(u,'sub');
-  h+='<div class="rows">';
-  items.forEach(function(x){h+=itemHtml(x,t);});
-  if(!items.length)h+='<div class="row"><span class="det">Nothing here yet.</span></div>';
-  h+='</div>';
-  if(t)h+=addArea(u.id,'sub');
-  return h+'</div>';
-}
 function topicHtml(p,t){
   if(!t&&p.visible===false)return '';
   var open=!!S.open[p.id];
-  var subs=p.subs.filter(function(x){return t||x.visible!==false;});
-  var h='<div class="node n1'+(p.visible===false?' dim':'')+'"><div class="bar'+(open?' o':'')+'"><button class="tog" id="tog-'+p.id+'" data-a="tog" data-id="'+p.id+'" aria-expanded="'+open+'">'+tri(open)+'<span class="nm">'+esc(p.name)+'</span>'+(t?hiddenBadge(p):'')+'<span class="ct">'+plural(subs.length,'subtopic')+'</span></button>'+(t?editBtn(p.id):'')+'</div>';
+  var entries=p.items.filter(function(x){return t||x.visible!==false;});
+  var n=entries.filter(function(x){return x.type!=='header';}).length;
+  var h='<div class="node n1'+(p.visible===false?' dim':'')+'"><div class="bar'+(open?' o':'')+'"><button class="tog" id="tog-'+p.id+'" data-a="tog" data-id="'+p.id+'" aria-expanded="'+open+'">'+tri(open)+'<span class="nm">'+esc(p.name)+'</span>'+(t?hiddenBadge(p):'')+'<span class="ct">'+plural(n,'item')+'</span></button>'+(t?editBtn(p.id):'')+'</div>';
   if(t)h+=editorFor(p,'topic');
   if(open){
-    h+='<div class="b1b" data-panel="'+p.id+'">';
-    subs.forEach(function(u){h+=subHtml(u,t);});
+    h+='<div class="b1b"><div class="rows" data-panel="'+p.id+'">';
+    var ind=false;
+    entries.forEach(function(x){
+      if(x.type==='header'){ind=true;h+=headerHtml(x,t);}
+      else h+=itemHtml(x,t,ind);
+    });
+    if(!entries.length)h+='<div class="row"><span class="det">Nothing here yet.</span></div>';
+    h+='</div>';
     if(t)h+=addArea(p.id,'topic');
     h+='</div>';
   }
@@ -347,7 +374,7 @@ function topicHtml(p,t){
 }
 function feedPage(t){
   var h='<div class="wrap">';
-  if(t)h+='<div class="callout"><div>You are editing the feed. Every change is saved right away and students see it the next time they open this page. Hidden topics, subtopics and items are grayed out here and not shown to students at all.</div></div>';
+  if(t)h+='<div class="callout"><div>You are editing the feed. Every change is saved right away and students see it the next time they open this page. Hidden topics, headers and items are grayed out here and not shown to students at all.</div></div>';
   var any=S.tree.some(function(p){return t||p.visible!==false;});
   S.tree.forEach(function(p){h+=topicHtml(p,t);});
   if(!any&&!t)h+='<div class="empty"><h1>Nothing here yet</h1><div>Your teacher is still setting up this page. Check back soon.</div></div>';
@@ -382,7 +409,7 @@ function slide(el,dir,done){
   if(!el||reduce||!kids.length){if(done)done();return;}
   var n=kids.length,H=el.offsetHeight,inn=dir==='in',opt={duration:250,easing:inn?'ease-out':'ease-in',fill:'both'};
   var b=el.previousElementSibling,reach=(b&&b.classList.contains('bar')?b.offsetHeight:56)+14;
-  el.style.position='relative';
+  el.style.position='relative';el.style.overflow='visible';
   el.style.clipPath='inset(-'+reach+'px -12px -4000px -12px)';
   kids.forEach(function(c,i){
     c.style.position='relative';c.style.zIndex=String(n-i);
@@ -391,7 +418,7 @@ function slide(el,dir,done){
   });
   var an=el.animate(inn?[{height:'0px'},{height:H+'px'}]:[{height:H+'px'},{height:'0px'}],opt);
   an.onfinish=function(){
-    el.style.position='';el.style.clipPath='';
+    el.style.position='';el.style.overflow='';el.style.clipPath='';
     if(inn)kids.forEach(function(c){c.style.position='';c.style.zIndex='';});
     if(done)done();
   };
@@ -411,9 +438,28 @@ function render(){
 }
 function val(id){var e=document.getElementById(id);return e?e.value:'';}
 function snapshotForm(){
-  if(document.getElementById('f-title'))return {type:val('f-type'),ref:val('f-choose'),title:val('f-title'),detail:val('f-detail')};
+  if(document.getElementById('f-title')){var ty=document.getElementById('f-type');return {type:ty?ty.value:'',ref:val('f-choose'),title:val('f-title'),detail:val('f-detail'),url:val('f-url').trim()};}
   if(document.getElementById('f-name'))return {name:val('f-name')};
   return null;
+}
+function fieldsErr(v,strict){
+  if(!v.title.trim())return 'Give it a title.';
+  if(v.type==='header')return '';
+  if(v.type==='doc'){
+    if(v.url){if(!/^https:\/\/[^\s"'<>]+$/i.test(v.url))return 'The link has to start with https:// and have no spaces.';return '';}
+    if(!(S.lib.doc||[]).some(function(z){return z.id===v.ref;}))return 'Upload a file, choose one, or paste a link.';
+    return '';
+  }
+  if(strict&&!(S.lib[v.type]||[]).some(function(z){return z.id===v.ref;}))return 'Choose which one to add. Upload it on the teacher page first if the list is empty.';
+  return '';
+}
+function applyFields(node,v){
+  node.type=v.type;node.title=v.title.trim();
+  if(v.type==='header'){delete node.detail;delete node.ref;delete node.url;return;}
+  node.detail=v.detail.trim();
+  if(v.type==='doc'){if(v.url){node.url=v.url;delete node.ref;}else{node.ref=v.ref;delete node.url;}return;}
+  delete node.url;
+  if((S.lib[v.type]||[]).some(function(z){return z.id===v.ref;}))node.ref=v.ref;
 }
 
 /* ---------- actions ---------- */
@@ -459,29 +505,29 @@ function act(a,id,x){
     case 'saveEdit':{
       l=locate(E.id);var v=snapshotForm();
       if(l.kind==='item'){
-        if(!v.title.trim()){E.v=v;E.err='Give it a title.';S.focus='f-title';break;}
-        l.node.type=v.type;l.node.title=v.title.trim();l.node.detail=v.detail.trim();
-        if((S.lib[v.type]||[]).some(function(z){return z.id===v.ref;}))l.node.ref=v.ref;
+        if(!v.type)v.type=l.node.type;
+        var er=fieldsErr(v,false);
+        if(er){E.v=v;E.err=er;S.focus='f-title';break;}
+        applyFields(l.node,v);
       }else{
         if(!v.name.trim()){E.v=v;E.err='Give it a name.';S.focus='f-name';break;}
         l.node.name=v.name.trim();
       }
       changed=true;S.focus='ed-'+E.id;S.editor=null;S.confirm=null;break;}
-    case 'add':S.editor={mode:'add',parent:id,pk:x,v:null,err:''};S.confirm=null;S.focus=x==='sub'?'f-title':'f-name';break;
+    case 'add':S.editor={mode:'add',parent:id,pk:x,v:null,err:''};S.confirm=null;S.focus=x==='topic'?'f-title':'f-name';break;
     case 'saveAdd':{
       var v2=snapshotForm(),arr,node,nid=rnd(8);
-      if(E.pk==='sub'){
-        if(!v2.title.trim()){E.v=v2;E.err='Give it a title.';S.focus='f-title';break;}
-        if(!(S.lib[v2.type]||[]).some(function(z){return z.id===v2.ref;})){E.v=v2;E.err='Choose which one to add. Upload it on the teacher page first if the list is empty.';break;}
-        node={id:nid,type:v2.type,ref:v2.ref,title:v2.title.trim(),detail:v2.detail.trim(),visible:true};
+      if(E.pk==='topic'){
+        var er2=fieldsErr(v2,true);
+        if(er2){E.v=v2;E.err=er2;S.focus='f-title';break;}
+        node={id:nid,visible:true};applyFields(node,v2);
+        l=locate(E.parent);arr=l.node.items;S.open[E.parent]=true;
       }else{
         if(!v2.name.trim()){E.v=v2;E.err='Give it a name.';S.focus='f-name';break;}
-        node={id:nid,name:v2.name.trim(),visible:true};
-        if(E.pk==='root')node.subs=[];else node.items=[];
+        node={id:nid,name:v2.name.trim(),visible:true,items:[]};
+        arr=S.tree;S.open[nid]=true;
       }
-      if(E.pk==='root')arr=S.tree;else{l=locate(E.parent);arr=childArr(l);S.open[E.parent]=true;}
       arr.push(node);
-      if(E.pk==='root')S.open[nid]=true;
       changed=true;S.editor=null;break;}
     case 'up':case 'down':{
       l=locate(id);var j=l.idx+(a==='up'?-1:1);
@@ -517,12 +563,22 @@ document.addEventListener('submit',function(e){
 document.addEventListener('change',function(e){
   var t=e.target;
   if(t.id==='f-type'){
-    var f=firstOf(t.value),ty=document.getElementById('f-title'),de=document.getElementById('f-detail');
-    S.editor.v={type:t.value,ref:f?f.id:'',title:f?f.name:'',detail:de?de.value:''};
+    var f=firstOf(t.value),de=document.getElementById('f-detail');
+    S.editor.v={type:t.value,ref:f?f.id:'',url:'',title:f&&t.value!=='header'?f.name:'',detail:de?de.value:''};
     S.focus='f-type';render();
   }else if(t.id==='f-choose'){
     var item=(S.lib[val('f-type')]||[]).filter(function(z){return z.id===t.value;})[0],ti=document.getElementById('f-title');
     if(item&&ti)ti.value=item.name;
+  }else if(t.id==='f-file'){
+    var file=t.files&&t.files[0];if(!file)return;
+    var E=S.editor,snap=snapshotForm()||{};if(!E)return;
+    if(!snap.type)snap.type='doc';
+    snap.up='Uploading '+file.name+'…';E.v=snap;E.err='';render();
+    api('/api/docs',{method:'POST',headers:{'x-name':encodeURIComponent(file.name),'content-type':'application/octet-stream'},body:file}).then(function(d){
+      S.lib.doc.unshift({id:d.id,name:d.name});
+      var v=E.v||snap;v.ref=d.id;v.url='';v.up='Uploaded '+d.name+'.';if(!String(v.title||'').trim())v.title=docName(d.name);
+      E.v=v;E.err='';render();
+    }).catch(function(err){E.v.up='';E.err=err.message;render();});
   }
 });
 document.addEventListener('keydown',function(e){
