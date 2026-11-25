@@ -482,7 +482,7 @@ function startApp(){
   document.getElementById("gate").hidden=true;
   document.getElementById("app").hidden=false;
   var w=document.getElementById("whoami");
-  if(!TRACKING){ w.hidden=true; bqNew(); return; }
+  if(!TRACKING){ w.hidden=true; bqNew(); goFromHash(); if(L.level===null) restoreBal(); return; }
   if(ST.n){ markSynced(true); loadAssigned(flushAll); }
   else if(ST.test){ w.textContent="practice · nothing recorded"; }
   else { w.textContent="not signed in"; }
